@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: .
+    container_name: biota-geom-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://biota:biota@postgres:5432/biota_geom?schema=public
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: biota-geom-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: biota
+      POSTGRES_PASSWORD: biota
+      POSTGRES_DB: biota_geom
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U biota -d biota_geom']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

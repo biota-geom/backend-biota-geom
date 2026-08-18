@@ -1,5 +1,7 @@
 # Backend Biota Geom
 
+[![Lint](https://github.com/biota-geom/backend-biota-geom/actions/workflows/lint.yml/badge.svg)](https://github.com/biota-geom/backend-biota-geom/actions/workflows/lint.yml)
+
 Backend em Node.js com TypeScript usando NestJS, PostgreSQL/PostGIS, Prisma e Docker.
 
 Este README foi escrito para pessoas com níveis diferentes de experiência. Se você nunca trabalhou com NestJS ou backend web, siga o passo a passo na ordem.
@@ -164,6 +166,21 @@ Se o lint falhar, o PR deve ser corrigido antes de ser aprovado.
 Roda em todo pull request e todo push na branch `main`.
 
 Builda a imagem a partir do `Dockerfile` (sem publicar em nenhum registry) para garantir que o build multi-stage continua funcionando antes do merge.
+
+### PR Title Lint
+
+Roda em todo pull request (ao abrir, editar ou atualizar).
+
+Valida se o título do PR segue o padrão [Conventional Commits](https://www.conventionalcommits.org/), por exemplo:
+
+```text
+feat: adiciona endpoint de busca por espécie
+fix: corrige cálculo de área do polígono
+chore: atualiza dependências
+docs: atualiza README
+```
+
+Esse título é usado como mensagem de commit no squash merge, então mantê-lo no padrão facilita gerar changelog e histórico legível.
 
 ## Variáveis De Ambiente
 

@@ -168,6 +168,20 @@ npm run check
 
 Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
 
+### Coverage (Changed Files)
+
+Roda apenas em pull requests.
+
+Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) tem no mínimo 85% de cobertura (statements, branches, functions, lines). Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
+
+Para rodar a mesma checagem localmente:
+
+```bash
+npm run prisma:generate
+npm run test:cov -- --coverageReporters=json-summary --coverageReporters=text-summary
+BASE_REF=main node .github/scripts/check-changed-coverage.js
+```
+
 ### Docker Build
 
 Roda em todo pull request e todo push na branch `main`.

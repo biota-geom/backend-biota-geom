@@ -140,9 +140,11 @@ npm test
 
 ## CI
 
-O repositório possui um workflow de lint no GitHub Actions.
+O repositório possui workflows no GitHub Actions.
 
-Ele roda automaticamente em:
+### Lint
+
+Roda automaticamente em:
 
 - todo pull request;
 - todo push na branch `main`.
@@ -156,6 +158,12 @@ npm run lint
 ```
 
 Se o lint falhar, o PR deve ser corrigido antes de ser aprovado.
+
+### Docker Build
+
+Roda em todo pull request e todo push na branch `main`.
+
+Builda a imagem a partir do `Dockerfile` (sem publicar em nenhum registry) para garantir que o build multi-stage continua funcionando antes do merge.
 
 ## Variáveis De Ambiente
 

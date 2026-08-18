@@ -138,6 +138,25 @@ npm run build
 npm test
 ```
 
+## CI
+
+O repositório possui um workflow de lint no GitHub Actions.
+
+Ele roda automaticamente em:
+
+- todo pull request;
+- todo push na branch `main`.
+
+O workflow executa:
+
+```bash
+npm ci
+npm run prisma:generate
+npm run lint
+```
+
+Se o lint falhar, o PR deve ser corrigido antes de ser aprovado.
+
 ## Variáveis De Ambiente
 
 O arquivo `.env.example` mostra as variáveis necessárias:

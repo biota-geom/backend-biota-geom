@@ -1,5 +1,7 @@
 # Backend Biota Geom
 
+[![Lint](https://github.com/biota-geom/backend-biota-geom/actions/workflows/lint.yml/badge.svg)](https://github.com/biota-geom/backend-biota-geom/actions/workflows/lint.yml)
+
 Backend em Node.js com TypeScript usando NestJS, PostgreSQL/PostGIS, Prisma e Docker.
 
 Este README foi escrito para pessoas com níveis diferentes de experiência. Se você nunca trabalhou com NestJS ou backend web, siga o passo a passo na ordem.

@@ -140,6 +140,14 @@ npm run build
 npm test
 ```
 
+## Pre-commit Hook
+
+O projeto usa [Husky](https://typicode.github.io/husky/) + [lint-staged](https://github.com/lint-staged/lint-staged).
+
+A cada `git commit`, os arquivos staged são automaticamente corrigidos com ESLint (`--fix`) e formatados com Prettier antes do commit ser criado. Isso é instalado automaticamente ao rodar `npm install` (via `npm run prepare`).
+
+Se o ESLint encontrar um erro que não pode corrigir sozinho, o commit é bloqueado até o problema ser corrigido manualmente.
+
 ## CI
 
 O repositório possui workflows no GitHub Actions.

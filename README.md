@@ -156,7 +156,7 @@ O workflow valida:
 - lint com ESLint;
 - formatação com Prettier;
 - typecheck com TypeScript;
-- testes unitários com Jest, exigindo cobertura mínima de 85% (branches, functions, lines, statements);
+- testes unitários com Jest;
 - schema do Prisma com `prisma validate`.
 
 Para rodar localmente as mesmas validações principais:
@@ -167,6 +167,20 @@ npm run check
 ```
 
 Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
+
+### Coverage (Changed Files)
+
+Roda apenas em pull requests.
+
+Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) tem no mínimo 85% de cobertura (statements, branches, functions, lines). Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
+
+Para rodar a mesma checagem localmente:
+
+```bash
+npm run prisma:generate
+npm run test:cov -- --coverageReporters=json-summary --coverageReporters=text-summary
+BASE_REF=main node .github/scripts/check-changed-coverage.js
+```
 
 ### Docker Build
 

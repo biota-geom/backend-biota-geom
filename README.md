@@ -209,6 +209,16 @@ postgresql://biota:biota@postgres:5432/biota_geom?schema=public
 
 Isso é normal: fora do Docker usamos `localhost`; dentro do Docker usamos o nome do serviço.
 
+### Validação Das Variáveis De Ambiente
+
+As variáveis são validadas na inicialização da aplicação (`src/config/env.validation.ts`, usando [Zod](https://zod.dev/)):
+
+- `NODE_ENV`: `development`, `production` ou `test` (padrão: `development`);
+- `PORT`: número inteiro positivo (padrão: `3000`);
+- `DATABASE_URL`: URL válida com protocolo `postgres` ou `postgresql`.
+
+Se alguma variável estiver ausente ou em formato inválido, a aplicação falha imediatamente ao iniciar, com uma mensagem listando exatamente o que está errado, em vez de falhar depois com um erro genérico de conexão com o banco.
+
 ## Swagger
 
 O Swagger fica em:

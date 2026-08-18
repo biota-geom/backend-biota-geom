@@ -142,9 +142,11 @@ npm test
 
 ## CI
 
-O repositório possui um workflow de lint no GitHub Actions.
+O repositório possui workflows no GitHub Actions.
 
-Ele roda automaticamente em:
+### Lint
+
+Roda automaticamente em:
 
 - todo pull request;
 - todo push na branch `main`.
@@ -158,6 +160,21 @@ npm run lint
 ```
 
 Se o lint falhar, o PR deve ser corrigido antes de ser aprovado.
+
+### PR Title Lint
+
+Roda em todo pull request (ao abrir, editar ou atualizar).
+
+Valida se o título do PR segue o padrão [Conventional Commits](https://www.conventionalcommits.org/), por exemplo:
+
+```text
+feat: adiciona endpoint de busca por espécie
+fix: corrige cálculo de área do polígono
+chore: atualiza dependências
+docs: atualiza README
+```
+
+Esse título é usado como mensagem de commit no squash merge, então mantê-lo no padrão facilita gerar changelog e histórico legível.
 
 ## Variáveis De Ambiente
 

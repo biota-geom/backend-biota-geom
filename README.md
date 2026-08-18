@@ -168,6 +168,12 @@ npm run check
 
 Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
 
+### Docker Build
+
+Roda em todo pull request e todo push na branch `main`.
+
+Builda a imagem a partir do `Dockerfile` (sem publicar em nenhum registry) para garantir que o build multi-stage continua funcionando antes do merge.
+
 ### PR Title Lint
 
 Roda em todo pull request (ao abrir, editar ou atualizar).

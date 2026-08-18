@@ -1,6 +1,6 @@
 # Backend Biota Geom
 
-[![Lint](https://github.com/biota-geom/backend-biota-geom/actions/workflows/lint.yml/badge.svg)](https://github.com/biota-geom/backend-biota-geom/actions/workflows/lint.yml)
+[![Quality](https://github.com/biota-geom/backend-biota-geom/actions/workflows/quality.yml/badge.svg)](https://github.com/biota-geom/backend-biota-geom/actions/workflows/quality.yml)
 
 Backend em Node.js com TypeScript usando NestJS, PostgreSQL/PostGIS, Prisma e Docker.
 
@@ -144,22 +144,29 @@ npm test
 
 O repositório possui workflows no GitHub Actions.
 
-### Lint
+### Quality
 
 Roda automaticamente em:
 
 - todo pull request;
 - todo push na branch `main`.
 
-O workflow executa:
+O workflow valida:
+
+- lint com ESLint;
+- formatação com Prettier;
+- typecheck com TypeScript;
+- testes unitários com Jest;
+- schema do Prisma com `prisma validate`.
+
+Para rodar localmente as mesmas validações principais:
 
 ```bash
-npm ci
 npm run prisma:generate
-npm run lint
+npm run check
 ```
 
-Se o lint falhar, o PR deve ser corrigido antes de ser aprovado.
+Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
 
 ### PR Title Lint
 

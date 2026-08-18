@@ -138,6 +138,32 @@ npm run build
 npm test
 ```
 
+## CI
+
+O repositório possui um workflow de qualidade no GitHub Actions.
+
+Ele roda automaticamente em:
+
+- todo pull request;
+- todo push na branch `main`.
+
+O workflow valida:
+
+- lint com ESLint;
+- formatação com Prettier;
+- typecheck com TypeScript;
+- testes unitários com Jest;
+- schema do Prisma com `prisma validate`.
+
+Para rodar localmente as mesmas validações principais:
+
+```bash
+npm run prisma:generate
+npm run check
+```
+
+Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
+
 ## Variáveis De Ambiente
 
 O arquivo `.env.example` mostra as variáveis necessárias:

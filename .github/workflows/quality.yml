@@ -93,8 +93,8 @@ jobs:
       - name: Generate Prisma Client
         run: npm run prisma:generate
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests (85% coverage required)
+        run: npm run test:cov
 
   prisma-validate:
     name: Prisma Schema Validation

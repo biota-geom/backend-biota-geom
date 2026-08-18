@@ -156,7 +156,7 @@ O workflow valida:
 - lint com ESLint;
 - formatação com Prettier;
 - typecheck com TypeScript;
-- testes unitários com Jest;
+- testes unitários com Jest, exigindo cobertura mínima de 85% (branches, functions, lines, statements);
 - schema do Prisma com `prisma validate`.
 
 Para rodar localmente as mesmas validações principais:

@@ -1,4 +1,4 @@
-# Backend Biota Geom
+# Backend Biota GEOM
 
 [![Quality](https://github.com/biota-geom/backend-biota-geom/actions/workflows/quality.yml/badge.svg)](https://github.com/biota-geom/backend-biota-geom/actions/workflows/quality.yml)
 

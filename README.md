@@ -140,6 +140,14 @@ npm run build
 npm test
 ```
 
+## Pre-commit Hook
+
+O projeto usa [Husky](https://typicode.github.io/husky/) + [lint-staged](https://github.com/lint-staged/lint-staged).
+
+A cada `git commit`, os arquivos staged são automaticamente corrigidos com ESLint (`--fix`) e formatados com Prettier antes do commit ser criado. Isso é instalado automaticamente ao rodar `npm install` (via `npm run prepare`).
+
+Se o ESLint encontrar um erro que não pode corrigir sozinho, o commit é bloqueado até o problema ser corrigido manualmente.
+
 ## CI
 
 O repositório possui workflows no GitHub Actions.
@@ -167,6 +175,20 @@ npm run check
 ```
 
 Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
+
+### Coverage (Changed Files)
+
+Roda apenas em pull requests.
+
+Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) tem no mínimo 85% de cobertura (statements, branches, functions, lines). Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
+
+Para rodar a mesma checagem localmente:
+
+```bash
+npm run prisma:generate
+npm run test:cov -- --coverageReporters=json-summary --coverageReporters=text-summary
+BASE_REF=main node .github/scripts/check-changed-coverage.js
+```
 
 ### Docker Build
 

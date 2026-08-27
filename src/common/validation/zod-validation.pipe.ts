@@ -3,10 +3,6 @@ import { z } from 'zod';
 
 export interface ZodValidationPipeOptions {
   fallbackMessage: string;
-  // When provided, a Zod issue message is only surfaced to the client if it
-  // is one of these known, pre-approved (PT-BR) strings — any other message
-  // (e.g. Zod's default English text) falls back to `fallbackMessage`. This
-  // is what stops an unreviewed validation message from ever reaching a user.
   knownMessages?: readonly string[];
 }
 

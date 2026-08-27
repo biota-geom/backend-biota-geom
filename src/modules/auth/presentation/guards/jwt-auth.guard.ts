@@ -10,9 +10,11 @@ import { AuthenticatedRequest } from '../types/authenticated-request';
 
 const BEARER_PREFIX = 'Bearer ';
 
-// Deliberately does not query the database — the whole point of a stateless
-// JWT is that authenticating a request costs zero I/O. Consumers that need
-// the full user record call GetCurrentUserUseCase explicitly.
+/*
+ * Deliberately does not query the database — the whole point of a stateless
+ * JWT is that authenticating a request costs zero I/O. Consumers that need
+ * the full user record call GetCurrentUserUseCase explicitly.
+ */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(private readonly tokenService: TokenService) {}

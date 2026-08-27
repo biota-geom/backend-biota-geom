@@ -24,8 +24,10 @@ export class UserResponseDto {
   last_login_at!: string | null;
 }
 
-// Never spread the domain User directly into a response — passwordHash must
-// be dropped explicitly here, not by omission convention.
+/*
+ * Never spread the domain User directly into a response — passwordHash must
+ * be dropped explicitly here, not by omission convention.
+ */
 export function toUserResponse(user: User): UserResponseDto {
   return {
     id: user.id,

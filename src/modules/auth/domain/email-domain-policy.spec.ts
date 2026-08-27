@@ -4,26 +4,26 @@ const ALLOWED = 'biotageom.com.br';
 
 describe('isEmailDomainAllowed', () => {
   it('allows an exact domain match', () => {
-    expect(isEmailDomainAllowed('lucas@biotageom.com.br', ALLOWED)).toBe(true);
+    expect(isEmailDomainAllowed('john@biotageom.com.br', ALLOWED)).toBe(true);
   });
 
   it('is case-insensitive', () => {
-    expect(isEmailDomainAllowed('lucas@BiotaGeom.COM.BR', ALLOWED)).toBe(true);
+    expect(isEmailDomainAllowed('john@BiotaGeom.COM.BR', ALLOWED)).toBe(true);
   });
 
   it('rejects a different domain', () => {
-    expect(isEmailDomainAllowed('lucas@gmail.com', ALLOWED)).toBe(false);
+    expect(isEmailDomainAllowed('john@gmail.com', ALLOWED)).toBe(false);
   });
 
   it('rejects a lookalike prefix subdomain', () => {
-    expect(isEmailDomainAllowed('lucas@evil-biotageom.com.br', ALLOWED)).toBe(
+    expect(isEmailDomainAllowed('john@evil-biotageom.com.br', ALLOWED)).toBe(
       false,
     );
   });
 
   it('rejects a lookalike suffix domain', () => {
     expect(
-      isEmailDomainAllowed('lucas@biotageom.com.br.evil.com', ALLOWED),
+      isEmailDomainAllowed('john@biotageom.com.br.evil.com', ALLOWED),
     ).toBe(false);
   });
 
@@ -32,6 +32,6 @@ describe('isEmailDomainAllowed', () => {
   });
 
   it('rejects an email ending in "@"', () => {
-    expect(isEmailDomainAllowed('lucas@', ALLOWED)).toBe(false);
+    expect(isEmailDomainAllowed('john@', ALLOWED)).toBe(false);
   });
 });

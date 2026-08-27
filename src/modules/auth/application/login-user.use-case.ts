@@ -26,10 +26,12 @@ export class LoginUserUseCase {
     const user = await this.userRepository.findByEmail(input.email);
 
     if (!user) {
-      // Run a real Argon2 verification against a dummy hash so a request for
-      // an unknown email takes the same time as one for a known email with a
-      // wrong password — otherwise response latency alone reveals which
-      // emails are registered.
+      /*
+       * Run a real Argon2 verification against a dummy hash so a request for
+       * an unknown email takes the same time as one for a known email with a
+       * wrong password — otherwise response latency alone reveals which
+       * emails are registered.
+       */
       await this.passwordHasher.verify(DUMMY_PASSWORD_HASH, input.password);
       this.eventLogger.failure('auth.login.failure', {
         reason: 'unknown_email',

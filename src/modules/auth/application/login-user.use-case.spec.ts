@@ -31,14 +31,16 @@ async function createUser(
   overrides: { isActive?: boolean } = {},
 ) {
   const user = await userRepository.create({
-    name: 'Lucas Arieta',
-    email: 'lucas.arieta@biotageom.com.br',
+    name: 'John Doe',
+    email: 'john.doe@biotageom.com.br',
     passwordHash: `hashed:${PASSWORD}`,
   });
 
   if (overrides.isActive === false) {
-    // InMemoryUserRepository stores the object by reference, so mutating the
-    // returned user also mutates what findByEmail/findById will return.
+    /*
+     * InMemoryUserRepository stores the object by reference, so mutating the
+     * returned user also mutates what findByEmail/findById will return.
+     */
     user.isActive = false;
   }
 

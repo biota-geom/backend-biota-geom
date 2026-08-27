@@ -1,6 +1,8 @@
-// The ONLY file in the backend allowed to contain PT-BR (user-facing) text.
-// Controllers, filters, pipes and guards must reference these constants —
-// never inline a literal string in a response.
+/*
+ * The ONLY file in the backend allowed to contain PT-BR (user-facing) text.
+ * Controllers, filters, pipes and guards must reference these constants —
+ * never inline a literal string in a response.
+ */
 export const AUTH_MESSAGES = {
   INVALID_REQUEST:
     'Não foi possível processar os dados enviados. Verifique as informações e tente novamente.',

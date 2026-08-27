@@ -32,9 +32,11 @@ export class RefreshAccessTokenUseCase {
     }
 
     if (!user.isActive) {
-      // The only revocation lever in a stateless-JWT design: deactivating a
-      // user takes effect the next time they refresh, bounded by the access
-      // token's own TTL.
+      /*
+       * The only revocation lever in a stateless-JWT design: deactivating a
+       * user takes effect the next time they refresh, bounded by the access
+       * token's own TTL.
+       */
       this.eventLogger.failure('auth.refresh.failure', {
         reason: 'inactive_account',
         userId: user.id,

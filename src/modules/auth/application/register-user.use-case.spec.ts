@@ -29,8 +29,8 @@ function buildUseCase() {
 }
 
 const VALID_INPUT = {
-  name: 'Lucas Arieta',
-  email: 'lucas.arieta@biotageom.com.br',
+  name: 'John Doe',
+  email: 'john.doe@biotageom.com.br',
   password: 'Sup3r$ecret!',
 };
 
@@ -56,11 +56,11 @@ describe('RegisterUserUseCase', () => {
     const hashSpy = jest.spyOn(passwordHasher, 'hash');
 
     await expect(
-      useCase.execute({ ...VALID_INPUT, email: 'lucas@gmail.com' }),
+      useCase.execute({ ...VALID_INPUT, email: 'john@gmail.com' }),
     ).rejects.toThrow(RegistrationNotAllowedError);
 
     expect(hashSpy).not.toHaveBeenCalled();
-    expect(await userRepository.findByEmail('lucas@gmail.com')).toBeNull();
+    expect(await userRepository.findByEmail('john@gmail.com')).toBeNull();
   });
 
   it('rejects a duplicate email with the same error as a disallowed domain', async () => {
@@ -72,7 +72,7 @@ describe('RegisterUserUseCase', () => {
     let duplicateEmailError: unknown;
 
     try {
-      await useCase.execute({ ...VALID_INPUT, email: 'lucas@gmail.com' });
+      await useCase.execute({ ...VALID_INPUT, email: 'john@gmail.com' });
     } catch (error) {
       disallowedDomainError = error;
     }
@@ -83,8 +83,10 @@ describe('RegisterUserUseCase', () => {
       duplicateEmailError = error;
     }
 
-    // Both map to the exact same HTTP response via AuthExceptionFilter
-    // (see auth-exception.filter.spec.ts) — `reason` differs only for logs.
+    /*
+     * Both map to the exact same HTTP response via AuthExceptionFilter
+     * (see auth-exception.filter.spec.ts) — `reason` differs only for logs.
+     */
     expect(disallowedDomainError).toBeInstanceOf(RegistrationNotAllowedError);
     expect(duplicateEmailError).toBeInstanceOf(RegistrationNotAllowedError);
     expect((disallowedDomainError as RegistrationNotAllowedError).reason).toBe(

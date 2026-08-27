@@ -15,9 +15,11 @@ import { InvalidRefreshTokenError } from '../../domain/errors/invalid-refresh-to
 import { RegistrationNotAllowedError } from '../../domain/errors/registration-not-allowed.error';
 import { AUTH_MESSAGES } from '../messages/auth.messages.pt-br';
 
-// Maps internal (English) domain errors to the external (PT-BR) HTTP
-// response. This is the only place that decision is made — nothing else in
-// the auth module builds a Nest HttpException by hand.
+/*
+ * Maps internal (English) domain errors to the external (PT-BR) HTTP
+ * response. This is the only place that decision is made — nothing else in
+ * the auth module builds a Nest HttpException by hand.
+ */
 @Catch(AuthDomainError)
 export class AuthExceptionFilter implements ExceptionFilter {
   catch(error: AuthDomainError, host: ArgumentsHost): void {

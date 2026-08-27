@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
-// Deliberately does NOT apply the password-strength policy — that would let
-// an attacker learn the policy from a login attempt and would reject users
-// whose password predates the policy.
+/*
+ * Deliberately does NOT apply the password-strength policy — that would let
+ * an attacker learn the policy from a login attempt and would reject users
+ * whose password predates the policy.
+ */
 export const loginSchema = z
   .object({
     email: z.email().trim().toLowerCase(),

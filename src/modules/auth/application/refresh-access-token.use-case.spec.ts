@@ -25,8 +25,8 @@ describe('RefreshAccessTokenUseCase', () => {
   it('issues a new access token and does NOT return a new refresh token', async () => {
     const { useCase, userRepository, tokenService } = buildUseCase();
     const user = await userRepository.create({
-      name: 'Lucas Arieta',
-      email: 'lucas.arieta@biotageom.com.br',
+      name: 'John Doe',
+      email: 'john.doe@biotageom.com.br',
       passwordHash: 'hashed:whatever',
     });
     const refreshToken = await tokenService.issueRefreshToken(user.id);
@@ -67,8 +67,8 @@ describe('RefreshAccessTokenUseCase', () => {
   it('rejects a refresh token for a deactivated user', async () => {
     const { useCase, userRepository, tokenService } = buildUseCase();
     const user = await userRepository.create({
-      name: 'Lucas Arieta',
-      email: 'lucas.arieta@biotageom.com.br',
+      name: 'John Doe',
+      email: 'john.doe@biotageom.com.br',
       passwordHash: 'hashed:whatever',
     });
     user.isActive = false;

@@ -73,9 +73,11 @@ export class RegisterUserUseCase {
         passwordHash,
       });
     } catch (error) {
-      // Closes the check-then-act race between findByEmail and create: the
-      // unique constraint is the real guarantee, this read was only an
-      // optimization to avoid hashing a password we were always going to reject.
+      /*
+       * Closes the check-then-act race between findByEmail and create: the
+       * unique constraint is the real guarantee, this read was only an
+       * optimization to avoid hashing a password we were always going to reject.
+       */
       if (error instanceof UserAlreadyExistsError) {
         this.eventLogger.failure('auth.register.denied', {
           reason: 'email_already_registered',

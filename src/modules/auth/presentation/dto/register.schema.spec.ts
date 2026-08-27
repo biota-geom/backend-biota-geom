@@ -2,8 +2,8 @@ import { AUTH_MESSAGES } from '../messages/auth.messages.pt-br';
 import { registerSchema } from './register.schema';
 
 const VALID = {
-  name: 'Lucas Arieta',
-  email: 'Lucas.Arieta@Biotageom.com.br',
+  name: 'John Doe',
+  email: 'John.Doe@Biotageom.com.br',
   password: 'Sup3r$ecret!',
   password_confirmation: 'Sup3r$ecret!',
 };
@@ -13,8 +13,8 @@ describe('registerSchema', () => {
     const result = registerSchema.parse(VALID);
 
     expect(result).toEqual({
-      name: 'Lucas Arieta',
-      email: 'lucas.arieta@biotageom.com.br',
+      name: 'John Doe',
+      email: 'john.doe@biotageom.com.br',
       password: 'Sup3r$ecret!',
     });
   });

@@ -5,8 +5,10 @@ const UNIT_SECONDS: Record<string, number> = {
   d: 86400,
 };
 
-// Parses durations shaped like "15m" / "7d" (as validated by env.validation.ts)
-// into seconds, for API responses (`expires_in`) that can't carry a JWT string.
+/*
+ * Parses durations shaped like "15m" / "7d" (as validated by env.validation.ts)
+ * into seconds, for API responses (`expires_in`) that can't carry a JWT string.
+ */
 export function parseDurationToSeconds(duration: string): number {
   const match = /^(\d+)([smhd])$/.exec(duration);
 

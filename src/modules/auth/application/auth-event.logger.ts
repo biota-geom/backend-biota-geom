@@ -15,9 +15,11 @@ export interface AuthEventDetails {
   email?: string;
 }
 
-// Never log passwords, password hashes, or raw JWTs. Emails are hashed —
-// never logged in the clear — so logs stay useful for correlating repeated
-// attempts against one account without becoming a plaintext PII dump (LGPD).
+/*
+ * Never log passwords, password hashes, or raw JWTs. Emails are hashed —
+ * never logged in the clear — so logs stay useful for correlating repeated
+ * attempts against one account without becoming a plaintext PII dump (LGPD).
+ */
 @Injectable()
 export class AuthEventLogger {
   private readonly logger = new Logger('AuthEvent');

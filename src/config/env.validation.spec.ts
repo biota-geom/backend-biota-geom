@@ -51,6 +51,18 @@ describe('validateEnv', () => {
     ).toThrow();
   });
 
+  it('rejects the placeholder refresh secret in production', () => {
+    expect(() =>
+      validateEnv({
+        ...VALID_BASE,
+        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'a'.repeat(32),
+        JWT_REFRESH_SECRET:
+          'replace-with-a-random-secret-at-least-32-characters-refresh',
+      }),
+    ).toThrow();
+  });
+
   it('allows the placeholder-looking secret outside production', () => {
     expect(() =>
       validateEnv({

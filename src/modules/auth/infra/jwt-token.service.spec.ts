@@ -52,6 +52,23 @@ describe('JwtTokenService', () => {
     await expect(service.verifyAccessToken(token)).rejects.toThrow();
   });
 
+  it('rejects a validly-signed access token whose typ claim was tampered with', async () => {
+    const service = buildService();
+    const jwt = new JwtService();
+    const tamperedToken = await jwt.signAsync(
+      { sub: 'user-1', typ: 'refresh' },
+      {
+        secret: 'a'.repeat(32),
+        issuer: 'biota-geom-api',
+        audience: 'biota-geom-web',
+      },
+    );
+
+    await expect(service.verifyAccessToken(tamperedToken)).rejects.toThrow(
+      'Expected a "access" token but got "refresh"',
+    );
+  });
+
   it('rejects a token signed with a different issuer/audience', async () => {
     const service = buildService();
     const otherJwt = new JwtService();

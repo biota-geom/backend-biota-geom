@@ -60,6 +60,15 @@ describe('JwtAuthGuard', () => {
     );
   });
 
+  it('rejects a Bearer header with no token after the prefix', async () => {
+    const guard = new JwtAuthGuard(new FakeTokenService());
+    const { context } = buildContext({ authorization: 'Bearer ' });
+
+    await expect(guard.canActivate(context)).rejects.toMatchObject(
+      new UnauthorizedException(AUTH_MESSAGES.SESSION_EXPIRED),
+    );
+  });
+
   it('rejects a refresh token presented as an access token', async () => {
     const tokenService = new FakeTokenService();
     const guard = new JwtAuthGuard(tokenService);

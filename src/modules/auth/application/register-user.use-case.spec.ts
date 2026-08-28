@@ -1,3 +1,6 @@
+import { User } from '../../users/domain/user.entity';
+import { UserAlreadyExistsError } from '../../users/domain/user-already-exists.error';
+import { UserRepository } from '../../users/domain/user.repository';
 import { InMemoryUserRepository } from '../../users/infra/in-memory-user.repository';
 import { RegistrationNotAllowedError } from '../domain/errors/registration-not-allowed.error';
 import { AuthConfigService } from '../infra/auth-config.service';
@@ -33,6 +36,29 @@ const VALID_INPUT = {
   email: 'john.doe@biotageom.com.br',
   password: 'Sup3r$ecret!',
 };
+
+// Never finds an existing user (so the use case's pre-check passes) but lets
+// `create` throw an arbitrary error, to simulate the check-then-act race
+// between findByEmail and the unique constraint at insert time.
+class RaceyUserRepository implements UserRepository {
+  constructor(private readonly createError: Error) {}
+
+  findByEmail(): Promise<User | null> {
+    return Promise.resolve(null);
+  }
+
+  findById(): Promise<User | null> {
+    return Promise.resolve(null);
+  }
+
+  create(): Promise<User> {
+    return Promise.reject(this.createError);
+  }
+
+  touchLastLogin(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
 describe('RegisterUserUseCase', () => {
   it('creates a user with isActive=true, isAdmin=false and issues both tokens', async () => {
@@ -95,5 +121,57 @@ describe('RegisterUserUseCase', () => {
     expect((duplicateEmailError as RegistrationNotAllowedError).reason).toBe(
       'email_already_registered',
     );
+  });
+
+  it('translates a race-condition UserAlreadyExistsError from create() into RegistrationNotAllowedError', async () => {
+    const passwordHasher = new FakePasswordHasher();
+    const tokenService = new FakeTokenService();
+    const authConfig = {
+      allowedEmailDomain: 'biotageom.com.br',
+    } as unknown as AuthConfigService;
+    const eventLogger = {
+      success: jest.fn(),
+      failure: jest.fn(),
+    } as unknown as AuthEventLogger;
+    const userRepository = new RaceyUserRepository(
+      new UserAlreadyExistsError(VALID_INPUT.email),
+    );
+    const useCase = new RegisterUserUseCase(
+      userRepository,
+      passwordHasher,
+      tokenService,
+      authConfig,
+      eventLogger,
+    );
+
+    const error = await useCase.execute(VALID_INPUT).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(RegistrationNotAllowedError);
+    expect((error as RegistrationNotAllowedError).reason).toBe(
+      'email_already_registered',
+    );
+  });
+
+  it('propagates an unexpected repository error unchanged', async () => {
+    const passwordHasher = new FakePasswordHasher();
+    const tokenService = new FakeTokenService();
+    const authConfig = {
+      allowedEmailDomain: 'biotageom.com.br',
+    } as unknown as AuthConfigService;
+    const eventLogger = {
+      success: jest.fn(),
+      failure: jest.fn(),
+    } as unknown as AuthEventLogger;
+    const unexpectedError = new Error('database is on fire');
+    const userRepository = new RaceyUserRepository(unexpectedError);
+    const useCase = new RegisterUserUseCase(
+      userRepository,
+      passwordHasher,
+      tokenService,
+      authConfig,
+      eventLogger,
+    );
+
+    await expect(useCase.execute(VALID_INPUT)).rejects.toBe(unexpectedError);
   });
 });

@@ -99,7 +99,8 @@
       "ts"
     ],
     "setupFiles": [
-      "reflect-metadata"
+      "reflect-metadata",
+      "<rootDir>/jest.setup-env.ts"
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",

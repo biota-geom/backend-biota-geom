@@ -27,6 +27,11 @@ const THRESHOLDS = {
 };
 const METRICS = Object.keys(THRESHOLDS);
 
+// Test infrastructure, not application code — there is nothing to write a
+// test *for* here, so it's exempt from the coverage bar entirely rather than
+// scored on emittability like a normal source file.
+const IGNORED_FILES = new Set(['src/jest.setup-env.ts']);
+
 const baseRef = process.env.BASE_REF;
 if (!baseRef) {
   console.error('BASE_REF env var is required');
@@ -45,6 +50,7 @@ const changedFiles = diffOutput
   ? diffOutput
       .split('\n')
       .filter((f) => f && f.endsWith('.ts') && !f.endsWith('.spec.ts'))
+      .filter((f) => !IGNORED_FILES.has(f))
   : [];
 
 if (changedFiles.length === 0) {

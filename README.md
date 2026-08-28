@@ -180,7 +180,9 @@ Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
 
 Roda apenas em pull requests.
 
-Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) tem no mínimo 85% de cobertura (statements, branches, functions, lines). Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
+Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) atinge um mínimo de cobertura: 85% para statements, functions e lines, e 70% para branches. Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
+
+O limite de `branches` é menor de propósito: a emissão de metadados de decorators do TypeScript (`__decorate`/`__metadata`) cria uma entrada `design:paramtypes` para cada parâmetro de constructor, parâmetro de método e propriedade de classe decorados, e o remapeamento via source map do Istanbul atribui branches fantasmas (`cond-expr`/`binary-expr`) a essas linhas de declaração — branches que não correspondem a nenhuma condicional real no código e não podem ser exercitadas por nenhum teste. Isso é um artefato de instrumentação do ts-jest/Istanbul (confirmado via reprodução isolada, independente de cenários de teste, configuração do `tsconfig` e do coverage provider), não código sem teste, e se repete em qualquer arquivo que use `@Injectable()`/`@Controller()`/`@ApiProperty()` com 2 ou mais membros decorados.
 
 Para rodar a mesma checagem localmente:
 

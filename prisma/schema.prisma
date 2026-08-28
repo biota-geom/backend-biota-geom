@@ -10,3 +10,23 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum EsgPillar {
+  ambiental
+  social
+  governanca
+}
+
+model EsgMetric {
+  id            String    @id @default(uuid())
+  name          String
+  unit          String
+  pillar        EsgPillar
+  clientId      String?   @map("client_id")
+  griStandardId String?   @map("gri_standard_id")
+
+  @@index([clientId])
+  @@index([griStandardId])
+  @@map("esg_metric")
+}
+

@@ -7,6 +7,7 @@ import { UserRepository } from '../domain/user.repository';
 import { toDomainUser } from './user.mapper';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+const RECORD_NOT_FOUND = 'P2025';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
@@ -52,9 +53,27 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async touchLastLogin(id: string, when: Date): Promise<void> {
-    await this.prisma.user.update({
-      where: { id },
-      data: { lastLoginAt: when },
-    });
+    try {
+      await this.prisma.user.update({
+        where: { id },
+        data: { lastLoginAt: when },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === RECORD_NOT_FOUND
+      ) {
+        /*
+         * The row was deleted between authentication and this best-effort
+         * timestamp update (e.g. an admin removed the account mid-login).
+         * Login already succeeded semantically — swallow rather than fail
+         * the response with an unrelated 500, matching
+         * InMemoryUserRepository's no-op behavior for the same case.
+         */
+        return;
+      }
+
+      throw error;
+    }
   }
 }

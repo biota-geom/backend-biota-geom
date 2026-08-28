@@ -6,26 +6,42 @@ const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
 
-// `branches` is lower than the rest on purpose: TypeScript's decorator
-// metadata emission (__decorate/__metadata) creates a design:paramtypes
-// entry for every decorated constructor param, method param, and class
-// property, and Istanbul's source-map remapping attributes phantom
-// cond-expr/binary-expr branches back to those declaration lines — branches
-// that don't correspond to any real conditional in the code and can't be
-// exercised by any test. This is a ts-jest/Istanbul instrumentation
-// artifact (confirmed via isolated reproduction, independent of test
-// scenarios, tsconfig settings, and coverage provider), not undertested
-// logic, and it recurs on any file using @Injectable()/@Controller()/
-// @ApiProperty() with 2+ decorated members. 70% was chosen with headroom
-// below the ~75% floor observed on fully-tested files hitting only this
-// artifact, so a real drop in branch coverage still fails the gate.
 const THRESHOLDS = {
   statements: 85,
-  branches: 70,
+  branches: 85,
   functions: 85,
   lines: 85,
 };
 const METRICS = Object.keys(THRESHOLDS);
+
+// `branches` drops to this for files that use at least one decorator, and
+// only those files. TypeScript's decorator metadata emission
+// (__decorate/__metadata) creates a design:paramtypes entry for every
+// decorated constructor param, method param, and class property, and
+// Istanbul's source-map remapping attributes phantom cond-expr/binary-expr
+// branches back to those declaration lines — branches that don't correspond
+// to any real conditional in the code and can't be exercised by any test.
+// This is a ts-jest/Istanbul instrumentation artifact (confirmed via
+// isolated reproduction, independent of test scenarios, tsconfig settings,
+// and coverage provider), not undertested logic. 70% was chosen with
+// headroom below the ~75% floor observed on fully-tested decorated files
+// hitting only this artifact, so a real drop in branch coverage on those
+// files still fails the gate — plain, non-decorated files (domain policies,
+// utils, ...) get no such exemption and are held to the full 85%.
+const DECORATED_BRANCH_THRESHOLD = 70;
+
+// Matches a decorator application like `@Injectable()`, `  @ApiProperty(...)`,
+// `@Get('me')` — anything of the form `@Identifier(` at the start of a line
+// (ignoring leading whitespace), which covers every decorator used in this
+// codebase (Nest, Swagger, Zod-adjacent helpers) without false-positiving on
+// unrelated `@`-prefixed text (e.g. inside string literals or comments,
+// which never start a line with `@Identifier(`).
+const DECORATOR_PATTERN = /^\s*@[A-Za-z_$][\w$]*\(/m;
+
+function fileHasDecorators(relFile) {
+  const source = fs.readFileSync(path.join(process.cwd(), relFile), 'utf8');
+  return DECORATOR_PATTERN.test(source);
+}
 
 // Test infrastructure, not application code — there is nothing to write a
 // test *for* here, so it's exempt from the coverage bar entirely rather than
@@ -121,9 +137,13 @@ for (const relFile of changedFiles) {
     continue;
   }
 
+  const branchThreshold = fileHasDecorators(relFile)
+    ? DECORATED_BRANCH_THRESHOLD
+    : THRESHOLDS.branches;
+
   for (const metric of METRICS) {
     const pct = coverage[metric].pct;
-    const threshold = THRESHOLDS[metric];
+    const threshold = metric === 'branches' ? branchThreshold : THRESHOLDS[metric];
     if (pct < threshold) {
       failures.push(`${relFile}: ${metric} ${pct}% (< ${threshold}%)`);
     }
@@ -139,5 +159,7 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `All ${changedFiles.length} changed file(s) meet the coverage bar (${METRICS.map((m) => `${m} ≥${THRESHOLDS[m]}%`).join(', ')}).`,
+  `All ${changedFiles.length} changed file(s) meet the coverage bar ` +
+    `(statements/functions/lines ≥${THRESHOLDS.statements}%, branches ` +
+    `≥${THRESHOLDS.branches}% or ≥${DECORATED_BRANCH_THRESHOLD}% for decorated files).`,
 );

@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { PtBrThrottlerGuard } from '../../common/throttler/pt-br-throttler.guard';
 import { UsersModule } from '../users/users.module';
 import { GetCurrentUserUseCase } from './application/get-current-user.use-case';
 import { AuthEventLogger } from './application/auth-event.logger';
@@ -15,7 +17,16 @@ import { AuthController } from './presentation/auth.controller';
 import { JwtAuthGuard } from './presentation/guards/jwt-auth.guard';
 
 @Module({
-  imports: [UsersModule, JwtModule.register({})],
+  imports: [
+    UsersModule,
+    JwtModule.register({}),
+    /*
+     * Scoped to this module (not global) so rate limiting only ever applies
+     * to the auth endpoints that opt in via @Throttle() — a health check or
+     * any future unrelated route is never at risk of tripping it.
+     */
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 20 }]),
+  ],
   controllers: [AuthController],
   providers: [
     AuthConfigService,
@@ -27,6 +38,7 @@ import { JwtAuthGuard } from './presentation/guards/jwt-auth.guard';
     RefreshAccessTokenUseCase,
     GetCurrentUserUseCase,
     JwtAuthGuard,
+    PtBrThrottlerGuard,
   ],
   exports: [TokenService, JwtAuthGuard],
 })

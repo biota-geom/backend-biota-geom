@@ -5,10 +5,10 @@ export class UserResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ example: 'Lucas Arieta' })
+  @ApiProperty({ example: 'Maria Silva' })
   name!: string;
 
-  @ApiProperty({ example: 'lucas.arieta@biotageom.com.br' })
+  @ApiProperty({ example: 'maria.silva@empresa.com' })
   email!: string;
 
   @ApiProperty()

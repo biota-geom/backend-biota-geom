@@ -1,5 +1,5 @@
 import { InMemoryUserRepository } from '../../users/infra/in-memory-user.repository';
-import { InvalidRefreshTokenError } from '../domain/errors/invalid-refresh-token.error';
+import { InvalidTokenError } from '../domain/errors/invalid-token.error';
 import { GetCurrentUserUseCase } from './get-current-user.use-case';
 
 describe('GetCurrentUserUseCase', () => {
@@ -20,7 +20,7 @@ describe('GetCurrentUserUseCase', () => {
     const useCase = new GetCurrentUserUseCase(userRepository);
 
     await expect(useCase.execute('missing-id')).rejects.toThrow(
-      InvalidRefreshTokenError,
+      InvalidTokenError,
     );
   });
 
@@ -34,8 +34,6 @@ describe('GetCurrentUserUseCase', () => {
     user.isActive = false;
     const useCase = new GetCurrentUserUseCase(userRepository);
 
-    await expect(useCase.execute(user.id)).rejects.toThrow(
-      InvalidRefreshTokenError,
-    );
+    await expect(useCase.execute(user.id)).rejects.toThrow(InvalidTokenError);
   });
 });

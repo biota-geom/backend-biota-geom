@@ -3,6 +3,7 @@ import { AuthDomainError } from '../../domain/errors/auth-domain.error';
 import { InactiveAccountError } from '../../domain/errors/inactive-account.error';
 import { InvalidCredentialsError } from '../../domain/errors/invalid-credentials.error';
 import { InvalidRefreshTokenError } from '../../domain/errors/invalid-refresh-token.error';
+import { InvalidTokenError } from '../../domain/errors/invalid-token.error';
 import { RegistrationNotAllowedError } from '../../domain/errors/registration-not-allowed.error';
 import { AUTH_MESSAGES } from '../messages/auth.messages.pt-br';
 import { AuthExceptionFilter } from './auth-exception.filter';
@@ -38,6 +39,7 @@ describe('AuthExceptionFilter', () => {
       AUTH_MESSAGES.REGISTRATION_NOT_ALLOWED,
     ],
     [new InvalidRefreshTokenError(), 401, AUTH_MESSAGES.SESSION_EXPIRED],
+    [new InvalidTokenError(), 401, AUTH_MESSAGES.SESSION_EXPIRED],
   ] as [AuthDomainError, number, string][])(
     'maps %p to status %i with the exact PT-BR message',
     (error, expectedStatus, expectedMessage) => {

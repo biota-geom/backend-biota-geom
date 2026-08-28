@@ -1,6 +1,5 @@
 import { z } from 'zod';
-
-const DURATION_PATTERN = /^\d+[smhd]$/;
+import { DURATION_PATTERN } from '../modules/auth/domain/duration';
 
 // Values shipped in `.env.example` — never allowed once NODE_ENV=production.
 const INSECURE_PLACEHOLDER_SECRETS = new Set([

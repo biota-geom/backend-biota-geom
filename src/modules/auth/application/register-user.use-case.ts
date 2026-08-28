@@ -26,6 +26,15 @@ export class RegisterUserUseCase {
   ) {}
 
   async execute(input: RegisterUserInput): Promise<AuthSessionResult> {
+    /*
+     * findByEmail runs unconditionally, before the (instant, no-I/O) domain
+     * check below — otherwise a disallowed-domain request would return its
+     * identical 403 measurably faster than a duplicate-email request, and
+     * response timing alone would leak which of the two occurred, defeating
+     * the point of collapsing them into one indistinguishable error.
+     */
+    const existing = await this.userRepository.findByEmail(input.email);
+
     if (
       !isEmailDomainAllowed(input.email, this.authConfig.allowedEmailDomain)
     ) {
@@ -35,8 +44,6 @@ export class RegisterUserUseCase {
       });
       throw new RegistrationNotAllowedError('domain_not_allowed');
     }
-
-    const existing = await this.userRepository.findByEmail(input.email);
 
     if (existing) {
       this.eventLogger.failure('auth.register.denied', {

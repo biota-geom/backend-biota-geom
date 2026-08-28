@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { InvalidTokenError } from '../domain/errors/invalid-token.error';
 import { TokenPayload, TokenService, TokenType } from '../domain/token-service';
 import { AuthConfigService } from './auth-config.service';
 
@@ -62,7 +63,7 @@ export class JwtTokenService implements TokenService {
     });
 
     if (payload.typ !== expected) {
-      throw new Error(
+      throw new InvalidTokenError(
         `Expected a "${expected}" token but got "${payload.typ}"`,
       );
     }

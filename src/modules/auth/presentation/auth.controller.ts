@@ -18,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { PtBrThrottlerGuard } from '../../../common/throttler/pt-br-throttler.guard';
 import { zodBody } from '../../../common/validation/zod-to-openapi';
 import { ZodValidationPipe } from '../../../common/validation/zod-validation.pipe';
 import { GetCurrentUserUseCase } from '../application/get-current-user.use-case';
@@ -57,9 +58,23 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(PtBrThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 3_600_000 } })
   @ApiOperation({ summary: 'Register a new user and issue a session.' })
-  @ApiBody({ schema: zodBody(registerSchema) })
+  @ApiBody({
+    schema: zodBody(registerSchema),
+    /*
+     * zodBody() renders the shape Zod validates (types, lengths) but not
+     * cross-field/refine() constraints — z.toJSONSchema cannot represent an
+     * arbitrary predicate function. Both constraints below are enforced at
+     * runtime by registerSchema even though they're invisible in the JSON
+     * Schema above.
+     */
+    description:
+      'password must be at least 8 characters and include lowercase, ' +
+      'uppercase, digit, and special characters; password_confirmation ' +
+      'must match password exactly.',
+  })
   @ApiCreatedResponse({ type: AuthResponseDto })
   @ApiResponse({
     status: 400,
@@ -86,6 +101,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(PtBrThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Authenticate with email and password.' })
   @ApiBody({ schema: zodBody(loginSchema) })
@@ -106,6 +122,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(PtBrThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Exchange a refresh token for a new access token.' })
   @ApiBody({ schema: zodBody(refreshSchema) })

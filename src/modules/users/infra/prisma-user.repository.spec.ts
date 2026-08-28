@@ -154,4 +154,31 @@ describe('PrismaUserRepository', () => {
       data: { lastLoginAt: when },
     });
   });
+
+  it('silently no-ops when the user row was deleted before the update lands', async () => {
+    const { repository, update } = buildRepository();
+    update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        'An operation failed because it depends on one or more records that were required but not found.',
+        {
+          code: 'P2025',
+          clientVersion: '7.9.1',
+        },
+      ),
+    );
+
+    await expect(
+      repository.touchLastLogin('user-1', new Date()),
+    ).resolves.toBeUndefined();
+  });
+
+  it('propagates an unrelated error from touchLastLogin unchanged', async () => {
+    const { repository, update } = buildRepository();
+    const otherError = new Error('connection lost');
+    update.mockRejectedValue(otherError);
+
+    await expect(repository.touchLastLogin('user-1', new Date())).rejects.toBe(
+      otherError,
+    );
+  });
 });

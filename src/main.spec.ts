@@ -24,6 +24,7 @@ describe('bootstrap', () => {
         }
         throw new Error(`Unexpected token: ${String(token)}`);
       }),
+      set: jest.fn(),
       enableCors: jest.fn(),
       listen: jest.fn().mockResolvedValue(undefined),
     };
@@ -52,6 +53,7 @@ describe('bootstrap', () => {
     require('./main');
     await new Promise((resolve) => setImmediate(resolve));
 
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
     expect(mockApp.enableCors).toHaveBeenCalledWith(
       expect.objectContaining({
         origin: ['http://localhost:5173'],

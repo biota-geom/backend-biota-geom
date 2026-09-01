@@ -144,11 +144,11 @@ npm test
 
 O projeto tem três tipos de teste, cada um com sua própria pasta/config:
 
-| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?          |
-| ---------- | ------------------------------------- | ----------------------- | ---------------------------------- |
-| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                |
-| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`) |
-| E2E        | `test/`                               | `*.e2e-spec.ts`         | Sim (Postgres via `npm run db:up`) |
+| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?                                                             |
+| ---------- | ------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
+| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                                                                   |
+| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`)                                                    |
+| E2E        | `test/`                               | `*.e2e-spec.ts`         | Não hoje, mas exige uma `DATABASE_URL` válida no `.env` (ver [E2E Tests](#e2e-tests)) |
 
 Use estes arquivos como referência ao escrever um teste novo:
 
@@ -170,8 +170,8 @@ npm run test:cov
 npm run db:up
 npm run test:integration
 
-# Sobe o banco e roda os testes e2e
-npm run db:up
+# Roda os testes e2e (hoje não precisam do banco no ar, mas a app só sobe
+# com uma DATABASE_URL válida no .env)
 npm run test:e2e
 ```
 
@@ -243,7 +243,9 @@ Sobe um container Postgres (mesma imagem do `docker-compose.yml`) como `services
 
 Roda em todo pull request e todo push na branch `main`.
 
-O `AppModule` importa o `PrismaModule` globalmente, e `PrismaService.onModuleInit()` conecta de verdade no banco (sem mock) quando a aplicação sobe em `test/app.e2e-spec.ts`. Por isso este job também sobe um container Postgres como `services:`, aplica as migrations e só então roda `npm run test:e2e`.
+O `AppModule` valida as env vars na inicialização, então a app de `test/app.e2e-spec.ts` só sobe com uma `DATABASE_URL` válida. O banco em si, hoje, não chega a ser tocado: `$connect()` com o driver adapter `@prisma/adapter-pg` é preguiçoso — o pool do `pg` só abre conexão de fato na primeira query, e o endpoint de health não consulta nada. Dá para confirmar apontando a `DATABASE_URL` para uma porta morta: os e2e passam, enquanto os de integração falham com `PrismaClientKnownRequestError`.
+
+Ainda assim o job sobe um container Postgres como `services:` e aplica as migrations, para que o primeiro teste e2e que realmente consultar o banco funcione sem precisar mexer no workflow.
 
 ### Mutation Tests
 

@@ -251,6 +251,8 @@ Roda em todo pull request e todo push na branch `main`.
 
 Sobe um container Postgres (mesma imagem do `docker-compose.yml`) como `services:` do job, aplica as migrations (`prisma migrate deploy`) e roda `npm run test:integration` contra ele. Não depende do `docker-compose.yml` local — a `DATABASE_URL` é apontada direto para o serviço do GitHub Actions.
 
+O passo `prisma migrate deploy` ainda não faz nada: `prisma/schema.prisma` não declara nenhum model e a pasta `prisma/migrations/` nem existe, então o comando imprime `No migration found` e sai com código 0. Ele já está nos três jobs que usam banco (`Integration Tests`, `E2E Tests` e `Mutation Tests`) de propósito, para que o primeiro `npm run prisma:migrate` que criar um model não exija mexer no workflow.
+
 ### E2E Tests
 
 Roda em todo pull request e todo push na branch `main`.

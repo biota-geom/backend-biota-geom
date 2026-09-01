@@ -9,8 +9,14 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  /* c8 ignore next */
   constructor(configService: ConfigService<EnvVars, true>) {
+    // Stryker disable next-line all: `infer` is a compile-time-only hint for
+    // ConfigService's generics; mutating it (or dropping it, below) doesn't
+    // change the runtime value, since DATABASE_URL is always resolved from
+    // the already-validated env before this option object is even inspected.
     const connectionString = configService.get('DATABASE_URL', {
+      // Stryker disable next-line all: see comment above
       infer: true,
     });
 

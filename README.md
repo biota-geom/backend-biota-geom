@@ -140,6 +140,59 @@ npm run build
 npm test
 ```
 
+## Testes
+
+O projeto tem três tipos de teste, cada um com sua própria pasta/config:
+
+| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?           |
+| ---------- | ------------------------------------- | ----------------------- | ----------------------------------- |
+| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                 |
+| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`)  |
+| E2E        | `test/`                               | `*.e2e-spec.ts`         | Não (sobe a app inteira em memória) |
+
+Use estes arquivos como referência ao escrever um teste novo:
+
+- `src/config/env.validation.spec.ts`: como testar lógica de validação/fronteira pura (sem mocks, um cenário válido e um `it` por cenário de erro, incluindo asserção sobre a mensagem de erro).
+- `src/prisma/prisma.service.spec.ts`: como testar o _contrato_ de ciclo de vida do Nest (`onModuleInit`/`onModuleDestroy`) sem precisar de banco — usa `jest.spyOn` no `PrismaClient.prototype` para verificar que `$connect`/`$disconnect` são chamados, sem se importar se a conexão em si funciona.
+- `test/integration/prisma.service.integration-spec.ts`: como testar uma dependência real (banco) em vez de mockar — sobe o `PrismaModule` de verdade contra o Postgres do `docker-compose.yml` e valida uma query real. Precisa do banco no ar (`npm run db:up`) e de uma `DATABASE_URL` válida no `.env` (veja `.env.example`).
+
+```bash
+# Roda todos os testes unitários
+npm run test:unit
+
+# Roda um arquivo específico
+npx jest src/config/env.validation.spec.ts
+
+# Roda com relatório de cobertura
+npm run test:cov
+
+# Sobe o banco e roda os testes de integração
+npm run db:up
+npm run test:integration
+
+# Roda os testes e2e
+npm run test:e2e
+```
+
+### Testes de mutação
+
+Além dos testes acima, o projeto usa [StrykerJS](https://stryker-mutator.io/) para medir a qualidade da suíte de testes como um todo: ele altera pequenos trechos do código (ex: troca `>` por `>=`, remove uma âncora de regex) e roda os testes pra ver se algum falha. Se nenhum falhar, o "mutante sobreviveu" — sinal de que aquele trecho não está realmente sendo testado, só coberto.
+
+Requer Node.js 22+ (`stryker` falha em versões anteriores) e o banco no ar (`npm run db:up`), já que o escopo inclui o teste de integração.
+
+```bash
+npm run db:up
+npm run test:mutation
+```
+
+O relatório em HTML fica em `reports/mutation/mutation.html` (não versionado; no CI é publicado como artifact). Configuração em `stryker.conf.json`:
+
+- Só muta `src/**/*.ts`, excluindo specs, `*.module.ts` (wiring de DI, sem lógica) e `main.ts` (bootstrap).
+- Roda contra `test/jest-stryker.json`, uma config só para o Stryker que junta os testes **unitários e de integração** num único run (`*.spec.ts` + `*.integration-spec.ts`, sem os e2e). O objetivo é que o mutation score reflita a suíte inteira, não só a unitária — se rodasse só contra unit, tudo em `src/prisma/**` apareceria como `NoCoverage` mesmo estando coberto (pelo teste de integração), o que seria enganoso. Com `coverageAnalysis: "perTest"`, cada mutante só dispara os testes que realmente o cobrem, então isso não deixa o run inteiro lento — só os poucos mutantes do `PrismaService` acionam o teste de integração (com banco de verdade).
+- `thresholds.break` está em `90`: o job `Mutation Tests` do CI falha se o score cair abaixo disso.
+
+Hoje o mutation score geral é ~94% (`env.validation.ts` ~90%, `prisma.service.ts`/`app.controller.ts`/`app.service.ts` 100%). Dois mutantes equivalentes foram explicitamente ignorados com comentário `// Stryker disable next-line ...` em `prisma.service.ts` (a opção `infer` do `ConfigService.get` é só uma dica de tipo do TypeScript, não muda o valor em runtime). O único mutante sobrevivente que resta, em `env.validation.ts` (troca de separador num `.join()`), é comentado no código como equivalente mas não pôde ser suprimido via comentário (o Stryker não reconheceu o comentário dentro do encadeamento `.map().join()`) — não é um teste faltando, só ruído aceito no relatório.
+
 ## Pre-commit Hook
 
 O projeto usa [Husky](https://typicode.github.io/husky/) + [lint-staged](https://github.com/lint-staged/lint-staged).
@@ -165,6 +218,8 @@ O workflow valida:
 - formatação com Prettier;
 - typecheck com TypeScript;
 - testes unitários com Jest;
+- testes de integração com Jest (job `Integration Tests`, sobe um Postgres via `services:`);
+- testes de mutação com StrykerJS (job `Mutation Tests`, mínimo de 90% de mutation score — ver [Testes de mutação](#testes-de-mutação));
 - schema do Prisma com `prisma validate`.
 
 Para rodar localmente as mesmas validações principais:
@@ -175,6 +230,18 @@ npm run check
 ```
 
 Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
+
+### Integration Tests
+
+Roda em todo pull request e todo push na branch `main`.
+
+Sobe um container Postgres (mesma imagem do `docker-compose.yml`) como `services:` do job e roda `npm run test:integration` contra ele. Não depende do `docker-compose.yml` local — a `DATABASE_URL` é apontada direto para o serviço do GitHub Actions.
+
+### Mutation Tests
+
+Roda em todo pull request e todo push na branch `main`.
+
+Sobe o mesmo container Postgres do job `Integration Tests` (o escopo da mutação inclui os testes de integração — ver [Testes de mutação](#testes-de-mutação)), executa `npm run test:mutation` e falha o job se o mutation score ficar abaixo de 90% (`thresholds.break` em `stryker.conf.json`). O relatório HTML é publicado como artifact do workflow (`mutation-report`), disponível na aba **Summary** da execução.
 
 ### Coverage (Changed Files)
 

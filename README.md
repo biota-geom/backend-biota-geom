@@ -20,7 +20,7 @@ Este README foi escrito para pessoas com níveis diferentes de experiência. Se 
 
 Instale antes de começar:
 
-- Node.js 22 ou superior.
+- Node.js 22 ou superior. A versão está fixada em `.nvmrc` e em `engines` no `package.json` — com nvm ou fnm, basta rodar `nvm use` na raiz do projeto. Em versões anteriores o `npm run test:mutation` não roda (o StrykerJS exige 22+).
 - npm.
 - Docker Desktop.
 - WSL 2, se estiver no Windows.

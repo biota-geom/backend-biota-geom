@@ -5,6 +5,11 @@ import { AppService } from './app.service';
 @ApiTags('health')
 @Controller()
 export class AppController {
+  // O emit do `emitDecoratorMetadata` gera um ternário aqui
+  // (`typeof AppService !== 'undefined' ? AppService : Object`) cujo ramo
+  // `Object` é inalcançável em runtime. Sem este ignore o arquivo fica em
+  // 75% de branches e reprova no gate de cobertura — ver README.
+  /* c8 ignore next */
   constructor(private readonly appService: AppService) {}
 
   @Get()

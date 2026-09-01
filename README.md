@@ -259,6 +259,10 @@ Roda apenas em pull requests.
 
 Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) tem no mínimo 85% de cobertura (statements, branches, functions, lines). Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
 
+Ficam de fora os arquivos excluídos do `collectCoverageFrom` (em `package.json`): `main.ts` (bootstrap) e `*.module.ts` (wiring de DI) — as mesmas exclusões do `mutate` do Stryker. Não têm lógica própria e nunca são carregados pelos testes unitários, então apareceriam com 0% e reprovariam qualquer PR que os tocasse. O script lista na saída os arquivos que pulou.
+
+Ao escrever uma classe com injeção de dependência, atenção a uma pegadinha: com `emitDecoratorMetadata` ligado, o TypeScript gera no construtor um ternário (`typeof Dep !== 'undefined' ? Dep : Object`) cujo ramo `Object` é inalcançável em runtime, e o provider de cobertura `v8` conta isso como branch descoberto. Numa classe pequena isso sozinho derruba branches para 75% e reprova o gate, sem nenhum teste capaz de resolver. A convenção do projeto é marcar o construtor com `/* c8 ignore next */` — ver `src/app.controller.ts` e `src/prisma/prisma.service.ts`.
+
 Para rodar a mesma checagem localmente:
 
 ```bash

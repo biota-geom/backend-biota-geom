@@ -144,17 +144,17 @@ npm test
 
 O projeto tem três tipos de teste, cada um com sua própria pasta/config:
 
-| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?                                                             |
-| ---------- | ------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
-| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                                                                   |
-| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`)                                                    |
-| E2E        | `test/`                               | `*.e2e-spec.ts`         | Não hoje, mas exige uma `DATABASE_URL` válida no `.env` (ver [E2E Tests](#e2e-tests)) |
+| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?                                                                     |
+| ---------- | ------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------- |
+| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                                                                           |
+| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`, em banco dedicado — ver [Banco de teste](#banco-de-teste)) |
+| E2E        | `test/`                               | `*.e2e-spec.ts`         | Não hoje, mas exige uma `DATABASE_URL` válida no `.env` (ver [E2E Tests](#e2e-tests))         |
 
 Use estes arquivos como referência ao escrever um teste novo:
 
 - `src/config/env.validation.spec.ts`: como testar lógica de validação/fronteira pura (sem mocks, um cenário válido e um `it` por cenário de erro, incluindo asserção sobre a mensagem de erro).
 - `src/prisma/prisma.service.spec.ts`: como testar o _contrato_ de ciclo de vida do Nest (`onModuleInit`/`onModuleDestroy`) sem precisar de banco — usa `jest.spyOn` no `PrismaClient.prototype` para verificar que `$connect`/`$disconnect` são chamados, sem se importar se a conexão em si funciona.
-- `test/integration/prisma.service.integration-spec.ts`: como testar uma dependência real (banco) em vez de mockar — sobe o `PrismaModule` de verdade contra o Postgres do `docker-compose.yml` e valida uma query real. Precisa do banco no ar (`npm run db:up`) e de uma `DATABASE_URL` válida no `.env` (veja `.env.example`).
+- `test/integration/prisma.service.integration-spec.ts`: como testar uma dependência real (banco) em vez de mockar — sobe o `PrismaModule` de verdade contra o Postgres do `docker-compose.yml` e valida uma query real. Precisa do banco no ar (`npm run db:up`) e de uma `DATABASE_URL` válida no `.env` (veja `.env.example`) — a conexão é redirecionada para o banco de teste, ver [Banco de teste](#banco-de-teste).
 
 ```bash
 # Roda todos os testes unitários
@@ -174,6 +174,16 @@ npm run test:integration
 # com uma DATABASE_URL válida no .env)
 npm run test:e2e
 ```
+
+### Banco de teste
+
+Os testes de integração e e2e rodam num banco separado do de desenvolvimento. Quem cuida disso é o `globalSetup` do Jest em `test/global-setup.ts`, compartilhado pelas três configs que rodam esses testes (`test/jest-integration.json`, `test/jest-e2e.json` e `test/jest-stryker.json`): ele lê `TEST_DATABASE_URL`, cria esse banco no mesmo servidor Postgres caso ainda não exista (consultando `pg_database`, já que o Postgres não tem `CREATE DATABASE IF NOT EXISTS`) e injeta a URL em `process.env.DATABASE_URL` antes de qualquer teste subir.
+
+Como o `@nestjs/config` não sobrescreve variáveis já presentes em `process.env` com o conteúdo do `.env`, é essa URL que chega ao `PrismaService`: a aplicação sob teste conecta em `biota_geom_test` e o `biota_geom` de desenvolvimento fica intocado. Hoje o único teste de integração só faz um `SELECT 1`, mas isso deixa de ser detalhe no primeiro teste que escrever ou limpar dados.
+
+Se `TEST_DATABASE_URL` não estiver definida (ou estiver vazia), nada é alterado e os testes usam a `DATABASE_URL` normal. É assim que o CI roda, já que lá cada job sobe um Postgres efêmero e exclusivo — por isso o workflow não precisou de nenhuma alteração.
+
+Localmente não há passo extra: a variável já vem preenchida no `.env.example` e a criação do banco é automática. Quando existirem migrations, rode uma vez `DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy` para preparar o schema do banco de teste.
 
 ### Testes de mutação
 

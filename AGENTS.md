@@ -57,6 +57,20 @@ Rules:
 
 Schema lives in `prisma/schema.prisma`. After changing it, run `npm run prisma:migrate` to generate and apply a migration — don't hand-edit generated migration SQL.
 
+## Authentication
+
+Stateless JWT, no RBAC — any authenticated user has access to everything. The only per-user gate is `is_active`. `is_admin` is persisted on `User` for future use and must not gate any behavior today.
+
+- Access tokens: 15 min (`JWT_ACCESS_TTL`). Refresh tokens: 7 days (`JWT_REFRESH_TTL`), not rotated (refresh only returns a new access token). Both are returned in the response body — the API sets no auth cookies.
+- Guard reuse for a new protected endpoint:
+  1. `imports: [AuthModule]` in your feature module.
+  2. `@UseGuards(JwtAuthGuard)` + `@ApiBearerAuth()` on the controller/handler.
+  3. Handler signature: `foo(@CurrentUser() user: { id: string })`.
+- All user-facing strings live in `src/modules/auth/presentation/messages/auth.messages.pt-br.ts` — this is the only file in the backend allowed to contain PT-BR text. Never inline a literal error string in a controller, filter, guard, or pipe.
+- `domain/`, `application/`, and `infra/` (in every module, not just `auth`) must stay English-only, including comments and log messages — no user-facing strings there.
+- Never log passwords, password hashes, or raw tokens. Emails are hashed (see `AuthEventLogger`) before appearing in logs — never logged in the clear.
+- Some error cases are deliberately indistinguishable by design (see `AuthExceptionFilter`): a disallowed-domain registration and a duplicate-email registration return the same 403; a bad password and an inactive account both return the same 401 as an unknown email. This is intentional (prevents user/domain enumeration) — don't "fix" it into more specific messages.
+
 ## Conventions
 
 - Commits and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `docs:`, `ci:`, ...) — enforced by the PR Title Lint workflow and used as the squash-merge commit message.

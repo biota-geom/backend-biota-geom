@@ -144,11 +144,11 @@ npm test
 
 O projeto tem três tipos de teste, cada um com sua própria pasta/config:
 
-| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?           |
-| ---------- | ------------------------------------- | ----------------------- | ----------------------------------- |
-| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                 |
-| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`)  |
-| E2E        | `test/`                               | `*.e2e-spec.ts`         | Não (sobe a app inteira em memória) |
+| Tipo       | Onde fica                             | Sufixo                  | Depende de infra externa?          |
+| ---------- | ------------------------------------- | ----------------------- | ---------------------------------- |
+| Unitário   | ao lado do arquivo testado, em `src/` | `*.spec.ts`             | Não                                |
+| Integração | `test/integration/`                   | `*.integration-spec.ts` | Sim (Postgres via `npm run db:up`) |
+| E2E        | `test/`                               | `*.e2e-spec.ts`         | Sim (Postgres via `npm run db:up`) |
 
 Use estes arquivos como referência ao escrever um teste novo:
 
@@ -170,7 +170,8 @@ npm run test:cov
 npm run db:up
 npm run test:integration
 
-# Roda os testes e2e
+# Sobe o banco e roda os testes e2e
+npm run db:up
 npm run test:e2e
 ```
 
@@ -219,6 +220,7 @@ O workflow valida:
 - typecheck com TypeScript;
 - testes unitários com Jest;
 - testes de integração com Jest (job `Integration Tests`, sobe um Postgres via `services:`);
+- testes e2e com Jest (job `E2E Tests`, também sobe um Postgres via `services:` — ver [Testes](#testes));
 - testes de mutação com StrykerJS (job `Mutation Tests`, mínimo de 90% de mutation score — ver [Testes de mutação](#testes-de-mutação));
 - schema do Prisma com `prisma validate`.
 
@@ -235,13 +237,19 @@ Se alguma validação falhar, o PR deve ser corrigido antes de ser aprovado.
 
 Roda em todo pull request e todo push na branch `main`.
 
-Sobe um container Postgres (mesma imagem do `docker-compose.yml`) como `services:` do job e roda `npm run test:integration` contra ele. Não depende do `docker-compose.yml` local — a `DATABASE_URL` é apontada direto para o serviço do GitHub Actions.
+Sobe um container Postgres (mesma imagem do `docker-compose.yml`) como `services:` do job, aplica as migrations (`prisma migrate deploy`) e roda `npm run test:integration` contra ele. Não depende do `docker-compose.yml` local — a `DATABASE_URL` é apontada direto para o serviço do GitHub Actions.
 
-### Mutation Tests
+### E2E Tests
 
 Roda em todo pull request e todo push na branch `main`.
 
-Sobe o mesmo container Postgres do job `Integration Tests` (o escopo da mutação inclui os testes de integração — ver [Testes de mutação](#testes-de-mutação)), executa `npm run test:mutation` e falha o job se o mutation score ficar abaixo de 90% (`thresholds.break` em `stryker.conf.json`). O relatório HTML é publicado como artifact do workflow (`mutation-report`), disponível na aba **Summary** da execução.
+O `AppModule` importa o `PrismaModule` globalmente, e `PrismaService.onModuleInit()` conecta de verdade no banco (sem mock) quando a aplicação sobe em `test/app.e2e-spec.ts`. Por isso este job também sobe um container Postgres como `services:`, aplica as migrations e só então roda `npm run test:e2e`.
+
+### Mutation Tests
+
+Roda em todo pull request e todo push na branch `main`, depois que os jobs `Unit Tests` e `Integration Tests` passarem (`needs: [unit-tests, integration-tests]` — sem isso, o Stryker reexecutaria a suíte inteira contra vários mutantes mesmo quando os testes base já falharam, desperdiçando o job mais lento do pipeline).
+
+Sobe o mesmo container Postgres do job `Integration Tests` (o escopo da mutação inclui os testes de integração — ver [Testes de mutação](#testes-de-mutação)), aplica as migrations, executa `npm run test:mutation` e falha o job se o mutation score ficar abaixo de 90% (`thresholds.break` em `stryker.conf.json`). O relatório HTML é publicado como artifact do workflow (`mutation-report`), disponível na aba **Summary** da execução.
 
 ### Coverage (Changed Files)
 
@@ -333,6 +341,8 @@ src/
   app.module.ts
   app.service.ts
   main.ts
+  config/
+    env.validation.ts
   prisma/
     prisma.module.ts
     prisma.service.ts
@@ -342,6 +352,8 @@ prisma/
 
 test/
   app.e2e-spec.ts
+  integration/
+    prisma.service.integration-spec.ts
 ```
 
 Explicação rápida:
@@ -350,10 +362,11 @@ Explicação rápida:
 - `src/app.module.ts`: módulo raiz. Importa os módulos usados pela aplicação.
 - `src/app.controller.ts`: controller inicial, hoje com o endpoint de health.
 - `src/app.service.ts`: service inicial usado pelo controller.
+- `src/config/env.validation.ts`: validação das variáveis de ambiente na inicialização.
 - `src/prisma/prisma.module.ts`: módulo global que disponibiliza o Prisma.
 - `src/prisma/prisma.service.ts`: serviço responsável por conectar/desconectar do banco.
 - `prisma/schema.prisma`: modelos do banco e configuração do Prisma.
-- `test/`: testes end-to-end.
+- `test/`: testes end-to-end e de integração (ver [Testes](#testes)).
 
 ## Como Criar Novas Features
 

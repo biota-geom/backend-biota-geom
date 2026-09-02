@@ -22,9 +22,7 @@ describe('ListCustomersUseCase', () => {
       ]),
     };
 
-    const useCase = new ListCustomersUseCase(
-      repository as unknown as CustomerRepository,
-    );
+    const useCase = new ListCustomersUseCase(repository);
 
     await expect(useCase.listCustomers()).resolves.toEqual([
       {

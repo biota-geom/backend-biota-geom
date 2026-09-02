@@ -1,7 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { CustomerResponseDTO } from '../presentation/dto/customer-responde.dto';
+
+export interface CustomerWithRelations {
+  id: string;
+  name: string;
+  isActive: boolean;
+  address: {
+    city: string;
+    state: string;
+  } | null;
+  sector: {
+    name: string;
+  } | null;
+}
 
 @Injectable()
 export abstract class CustomerRepository {
-  abstract findAll(): CustomerResponseDTO[];
+  abstract findAll(): Promise<CustomerWithRelations[]>;
 }

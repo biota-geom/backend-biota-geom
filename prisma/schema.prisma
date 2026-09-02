@@ -24,3 +24,54 @@ model User {
 
   @@map("users")
 }
+
+model Customer {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  name           String           @db.VarChar(255)
+  document       String           @db.VarChar(50)
+  documentType   String           @map("document_type") @db.VarChar(50)
+  email          String           @db.VarChar(255)
+  ownerName      String           @map("owner_name") @db.VarChar(255)
+  ownerEmail     String           @map("owner_email") @db.VarChar(255)
+  ownerPhone     String           @map("owner_phone") @db.VarChar(50)
+  isActive       Boolean          @default(true) @map("is_active")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updatad_at") @db.Timestamptz(3)
+
+  addressId      String?          @unique @map("address_id") @db.Uuid
+  address        CustomerAddress? @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  sectorId       String?          @map("sector_id") @db.Uuid
+  sector         Sector?          @relation(fields: [sectorId], references: [id])
+
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  type        String    @db.VarChar(50)
+  street      String    @db.VarChar(255)
+  number      String    @db.VarChar(50)
+  city        String    @db.VarChar(100)
+  state       String    @db.VarChar(100)
+  postalCode  String    @map("postal_code") @db.VarChar(20)
+  countryCode String    @map("country_code") @db.VarChar(10)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  
+  customer    Customer?
+
+  @@map("customer_address")
+}
+
+model Sector {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  name        String     @db.VarChar(100)
+  description String?    @db.VarChar(255)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customers   Customer[]
+
+  @@map("sectors")
+}

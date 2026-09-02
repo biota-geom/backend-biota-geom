@@ -4,10 +4,15 @@ import { ListCustomersUseCase } from './application/list-customers.use-case';
 import { CustomerRepository } from './domain/customers.repository';
 import { CustomersService } from './infra/customers.service';
 import { CustomerController } from './presentation/customers.controller';
+import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
 
 @Module({
   imports: [AuthModule],
   controllers: [CustomerController],
-  providers: [CustomerRepository, ListCustomersUseCase, CustomersService],
+  providers: [
+    { provide: CustomerRepository, useClass: PrismaCustomerRepository },
+    ListCustomersUseCase,
+    CustomersService,
+  ],
 })
 export class CustomerModule {}

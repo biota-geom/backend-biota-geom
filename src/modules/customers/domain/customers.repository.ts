@@ -1,16 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { CustomerResponseDTO } from '../presentation/dto/customer-responde.dto';
 
 @Injectable()
-export class CustomerRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async findAll() {
-    return this.prisma.customer.findMany({
-      include: {
-        address: true,
-        sector: true,
-      },
-    });
-  }
+export abstract class CustomerRepository {
+  abstract findAll(): CustomerResponseDTO[];
 }

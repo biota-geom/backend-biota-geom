@@ -1,19 +1,7 @@
 import { Injectable } from '@nestjs/common';
-
-export interface CustomerWithRelations {
-  id: string;
-  name: string;
-  isActive: boolean;
-  address: {
-    city: string;
-    state: string;
-  } | null;
-  sector: {
-    name: string;
-  } | null;
-}
+import { Customer } from './customer.entity';
 
 @Injectable()
 export abstract class CustomerRepository {
-  abstract findAll(): Promise<CustomerWithRelations[]>;
+  abstract findAll(): Promise<Customer[]>;
 }

@@ -39,9 +39,9 @@ export class CreateCustomEsgMetricDto {
   pillar!: CreateCustomEsgMetricPillar;
 
   @ApiPropertyOptional({
-    example: 'gri-standard-id',
+    example: '550e8400-e29b-41d4-a716-446655440000',
   })
   @IsOptional()
   @IsUUID()
-  griStandardId?: string;
+  gri_standard_id?: string;
 }

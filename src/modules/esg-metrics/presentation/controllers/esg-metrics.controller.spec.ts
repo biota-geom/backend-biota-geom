@@ -10,8 +10,24 @@ import { EsgMetricsController } from './esg-metrics.controller';
 describe('EsgMetricsController', () => {
   it('passes the DTO and authenticated client to the use case', async () => {
     const execute = jest
-      .fn<(data: Record<string, unknown>) => Promise<{ id: string }>>()
-      .mockResolvedValue({ id: 'metric-1' });
+      .fn<
+        (data: Record<string, unknown>) => Promise<{
+          id: string;
+          name: string;
+          unit: string;
+          pillar: 'ambiental';
+          clientId: string;
+          griStandardId: string;
+        }>
+      >()
+      .mockResolvedValue({
+        id: 'metric-1',
+        name: 'Water consumption',
+        unit: 'm3',
+        pillar: 'ambiental',
+        clientId: 'client-1',
+        griStandardId: '550e8400-e29b-41d4-a716-446655440000',
+      });
     const controller = new EsgMetricsController({
       execute,
     } as unknown as CreateCustomEsgMetricUseCase);
@@ -19,17 +35,22 @@ describe('EsgMetricsController', () => {
       name: 'Water consumption',
       unit: 'm3',
       pillar: CreateCustomEsgMetricPillar.AMBIENTAL,
-      griStandardId: 'gri-1',
+      gri_standard_id: '550e8400-e29b-41d4-a716-446655440000',
     });
 
     await expect(controller.create(dto, { id: 'client-1' })).resolves.toEqual({
       id: 'metric-1',
+      name: 'Water consumption',
+      unit: 'm3',
+      pillar: CreateCustomEsgMetricPillar.AMBIENTAL,
+      client_id: 'client-1',
+      gri_standard_id: '550e8400-e29b-41d4-a716-446655440000',
     });
     expect(execute).toHaveBeenCalledWith({
       name: 'Water consumption',
       unit: 'm3',
       pillar: CreateCustomEsgMetricPillar.AMBIENTAL,
-      griStandardId: 'gri-1',
+      griStandardId: '550e8400-e29b-41d4-a716-446655440000',
       clientId: 'client-1',
     });
   });

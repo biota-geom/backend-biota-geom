@@ -31,7 +31,7 @@ export class JwtTokenService implements TokenService {
     return this.authConfig.accessTtlSeconds;
   }
 
-  private sign(userId: string, typ: TokenType): Promise<string> {
+  private async sign(userId: string, typ: TokenType): Promise<string> {
     const secret =
       typ === 'access'
         ? this.authConfig.accessSecret

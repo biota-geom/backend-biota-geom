@@ -11,11 +11,11 @@ export const DUMMY_PASSWORD_HASH =
 
 @Injectable()
 export class Argon2PasswordHasher implements PasswordHasher {
-  hash(plainPassword: string): Promise<string> {
+  async hash(plainPassword: string): Promise<string> {
     return hash(plainPassword);
   }
 
-  verify(passwordHash: string, plainPassword: string): Promise<boolean> {
+  async verify(passwordHash: string, plainPassword: string): Promise<boolean> {
     return verify(passwordHash, plainPassword);
   }
 }

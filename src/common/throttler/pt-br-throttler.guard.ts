@@ -5,6 +5,8 @@ import { AUTH_MESSAGES } from '../../modules/auth/presentation/messages/auth.mes
 @Injectable()
 export class PtBrThrottlerGuard extends ThrottlerGuard {
   protected throwThrottlingException(): Promise<void> {
-    throw new ThrottlerException(AUTH_MESSAGES.TOO_MANY_ATTEMPTS);
+    return Promise.reject(
+      new ThrottlerException(AUTH_MESSAGES.TOO_MANY_ATTEMPTS),
+    );
   }
 }

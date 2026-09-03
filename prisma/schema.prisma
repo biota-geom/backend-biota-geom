@@ -24,3 +24,37 @@ model User {
 
   @@map("users")
 }
+
+enum EsgPillar {
+  AMBIENTAL
+  SOCIAL
+  GOVERNANCA
+
+  @@map("esg_pillar")
+}
+
+model Sector {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String   @unique @db.VarChar(120)
+  description String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("sectors")
+}
+
+model EsgMetric {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  griStandardId String?   @map("gri_standard_id") @db.Uuid
+  // Nulo = métrica global (visível a todos). Preenchido = métrica do cliente.
+  // TODO: ao habilitar métricas por cliente, migrar `name @unique` para
+  // único-por-cliente (índice parcial nas globais + @@unique([customerId, name])).
+  customerId    String?   @map("customer_id") @db.Uuid
+  name          String    @unique @db.VarChar(120)
+  unit          String    @db.VarChar(30)
+  pillar        EsgPillar
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("esg_metric")
+}

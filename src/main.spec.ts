@@ -25,6 +25,7 @@ describe('bootstrap', () => {
         throw new Error(`Unexpected token: ${String(token)}`);
       }),
       set: jest.fn(),
+      useGlobalPipes: jest.fn(),
       enableCors: jest.fn(),
       listen: jest.fn().mockResolvedValue(undefined),
     };

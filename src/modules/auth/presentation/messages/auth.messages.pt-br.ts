@@ -15,4 +15,6 @@ export const AUTH_MESSAGES = {
     'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
   UNEXPECTED_ERROR:
     'Não foi possível concluir a operação. Tente novamente mais tarde.',
+  ESG_METRIC_NAME_ALREADY_EXISTS:
+    'Já existe uma métrica com este nome para este cliente.',
 } as const;

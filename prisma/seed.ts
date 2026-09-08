@@ -24,11 +24,15 @@ async function main() {
   }
 
   for (const metric of esgMetrics) {
-    await prisma.esgMetric.upsert({
-      where: { name: metric.name },
-      update: {},
-      create: { ...metric, customerId: null },
+    const existing = await prisma.esgMetric.findFirst({
+      where: { name: metric.name, customerId: null },
     });
+
+    if (!existing) {
+      await prisma.esgMetric.create({
+        data: { ...metric, customerId: null },
+      });
+    }
   }
 }
 

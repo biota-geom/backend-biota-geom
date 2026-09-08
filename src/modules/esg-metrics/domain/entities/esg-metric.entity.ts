@@ -1,4 +1,4 @@
-import { EsgPillar } from '@prisma/client';
+import type { EsgPillar } from '../esg-pillar';
 
 export class EsgMetricEntity {
   constructor(

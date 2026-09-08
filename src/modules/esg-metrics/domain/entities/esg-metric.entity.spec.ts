@@ -1,6 +1,6 @@
-import { EsgMetricEntity } from './esg-metric.entity';
-import { EsgPillar } from '@prisma/client';
 import { describe, expect, it } from '@jest/globals';
+import { EsgPillar } from '../esg-pillar';
+import { EsgMetricEntity } from './esg-metric.entity';
 
 describe('EsgMetricEntity', () => {
   it('stores the metric attributes', () => {

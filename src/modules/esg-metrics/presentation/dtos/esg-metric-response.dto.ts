@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
-import { CreateCustomEsgMetricPillar } from './create-custom-esg-metric.dto';
-import { EsgPillar } from '@prisma/client';
+import { EsgPillar } from '../../domain/esg-pillar';
 
 export class EsgMetricResponseDto {
   @ApiProperty()
@@ -14,8 +13,8 @@ export class EsgMetricResponseDto {
   unit!: string;
 
   @ApiProperty({
-    enum: CreateCustomEsgMetricPillar,
-    example: CreateCustomEsgMetricPillar.AMBIENTAL,
+    enum: EsgPillar,
+    example: EsgPillar.AMBIENTAL,
   })
   pillar!: EsgPillar;
 

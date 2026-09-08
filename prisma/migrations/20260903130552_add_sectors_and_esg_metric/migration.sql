@@ -1,6 +1,3 @@
--- CreateEnum
-CREATE TYPE "esg_pillar" AS ENUM ('AMBIENTAL', 'SOCIAL', 'GOVERNANCA');
-
 -- CreateTable
 CREATE TABLE "sectors" (
     "id" UUID NOT NULL,
@@ -11,6 +8,17 @@ CREATE TABLE "sectors" (
 
     CONSTRAINT "sectors_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "sectors_name_key" ON "sectors"("name");
+
+-- Replace the esg_metric table introduced by 20260828183704_add_client_to_esg_metric
+-- (TEXT ids, lowercase "EsgPillar", client_id) with the UUID-based schema used by seed.
+DROP TABLE IF EXISTS "esg_metric";
+DROP TYPE IF EXISTS "EsgPillar";
+
+-- CreateEnum
+CREATE TYPE "esg_pillar" AS ENUM ('AMBIENTAL', 'SOCIAL', 'GOVERNANCA');
 
 -- CreateTable
 CREATE TABLE "esg_metric" (
@@ -24,9 +32,6 @@ CREATE TABLE "esg_metric" (
 
     CONSTRAINT "esg_metric_pkey" PRIMARY KEY ("id")
 );
-
--- CreateIndex
-CREATE UNIQUE INDEX "sectors_name_key" ON "sectors"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "esg_metric_name_key" ON "esg_metric"("name");

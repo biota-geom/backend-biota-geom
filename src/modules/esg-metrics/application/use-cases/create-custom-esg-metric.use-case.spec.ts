@@ -1,9 +1,11 @@
+import { EsgPillar } from '@prisma/client';
 import type { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
 import {
   EsgMetricRepository,
   type EsgMetricData,
 } from '../../domain/repositories/esg-metric.repository';
 import { CreateCustomEsgMetricUseCase } from './create-custom-esg-metric.use-case';
+import { describe, expect, it } from '@jest/globals';
 
 class InMemoryEsgMetricRepository extends EsgMetricRepository {
   data?: EsgMetricData;
@@ -25,8 +27,8 @@ describe('CreateCustomEsgMetricUseCase', () => {
     const data: EsgMetricData = {
       name: 'Water consumption',
       unit: 'm3',
-      pillar: 'ambiental',
-      clientId: 'client-1',
+      pillar: EsgPillar.AMBIENTAL,
+      customerId: 'client-1',
       griStandardId: 'gri-1',
     };
 

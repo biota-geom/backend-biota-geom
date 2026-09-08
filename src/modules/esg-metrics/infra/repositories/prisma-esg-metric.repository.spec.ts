@@ -1,3 +1,4 @@
+import { EsgPillar } from '@prisma/client';
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { PrismaService } from '../../../../prisma/prisma.service';
@@ -11,9 +12,11 @@ describe('PrismaEsgMetricRepository', () => {
         id: 'metric-1',
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
         griStandardId: 'gri-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       });
     const repository = new PrismaEsgMetricRepository({
       esgMetric: { create },
@@ -23,24 +26,24 @@ describe('PrismaEsgMetricRepository', () => {
       repository.create({
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
         griStandardId: 'gri-1',
       }),
     ).resolves.toEqual({
       id: 'metric-1',
       name: 'Water consumption',
       unit: 'm3',
-      pillar: 'ambiental',
-      clientId: 'client-1',
+      pillar: EsgPillar.AMBIENTAL,
+      customerId: 'client-1',
       griStandardId: 'gri-1',
     });
     expect(create).toHaveBeenCalledWith({
       data: {
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
         griStandardId: 'gri-1',
       },
     });
@@ -53,9 +56,11 @@ describe('PrismaEsgMetricRepository', () => {
         id: 'metric-1',
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
         griStandardId: null,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       });
     const repository = new PrismaEsgMetricRepository({
       esgMetric: { create },
@@ -65,12 +70,15 @@ describe('PrismaEsgMetricRepository', () => {
       repository.create({
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
       }),
     ).resolves.toMatchObject({ griStandardId: null });
     expect(create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ griStandardId: null }),
+      data: expect.objectContaining({
+        customerId: 'client-1',
+        griStandardId: null,
+      }),
     });
   });
 });

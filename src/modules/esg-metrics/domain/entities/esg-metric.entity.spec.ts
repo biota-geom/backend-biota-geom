@@ -1,4 +1,6 @@
 import { EsgMetricEntity } from './esg-metric.entity';
+import { EsgPillar } from '@prisma/client';
+import { describe, expect, it } from '@jest/globals';
 
 describe('EsgMetricEntity', () => {
   it('stores the metric attributes', () => {
@@ -6,7 +8,7 @@ describe('EsgMetricEntity', () => {
       'metric-1',
       'Water consumption',
       'm3',
-      'ambiental',
+      EsgPillar.AMBIENTAL,
       'client-1',
       null,
     );
@@ -15,8 +17,8 @@ describe('EsgMetricEntity', () => {
       id: 'metric-1',
       name: 'Water consumption',
       unit: 'm3',
-      pillar: 'ambiental',
-      clientId: 'client-1',
+      pillar: EsgPillar.AMBIENTAL,
+      customerId: 'client-1',
       griStandardId: null,
     });
   });

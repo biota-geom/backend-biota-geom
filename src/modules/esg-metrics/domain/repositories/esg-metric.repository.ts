@@ -1,10 +1,11 @@
-import type { EsgMetricEntity, EsgPillar } from '../entities/esg-metric.entity';
+import type { EsgMetricEntity } from '../entities/esg-metric.entity';
+import type { EsgPillar } from '@prisma/client';
 
 export type EsgMetricData = {
   name: string;
   unit: string;
   pillar: EsgPillar;
-  clientId: string;
+  customerId: string;
   griStandardId?: string | null;
 };
 

@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import type { EsgPillar as PrismaEsgPillar } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
+import type {
+  EsgMetricEntity,
+  EsgPillar,
+} from '../../domain/entities/esg-metric.entity';
 import {
   EsgMetricRepository,
   type EsgMetricData,
@@ -17,8 +21,8 @@ export class PrismaEsgMetricRepository extends EsgMetricRepository {
       data: {
         name: data.name,
         unit: data.unit,
-        pillar: data.pillar,
-        clientId: data.clientId,
+        pillar: this.toPrismaPillar(data.pillar),
+        customerId: data.clientId,
         griStandardId: data.griStandardId ?? null,
       },
     });
@@ -27,9 +31,17 @@ export class PrismaEsgMetricRepository extends EsgMetricRepository {
       id: metric.id,
       name: metric.name,
       unit: metric.unit,
-      pillar: metric.pillar,
-      clientId: metric.clientId,
+      pillar: this.toDomainPillar(metric.pillar),
+      clientId: metric.customerId,
       griStandardId: metric.griStandardId,
     };
+  }
+
+  private toPrismaPillar(pillar: EsgPillar): PrismaEsgPillar {
+    return pillar.toUpperCase() as PrismaEsgPillar;
+  }
+
+  private toDomainPillar(pillar: PrismaEsgPillar): EsgPillar {
+    return pillar.toLowerCase() as EsgPillar;
   }
 }

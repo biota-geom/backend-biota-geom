@@ -11,8 +11,8 @@ describe('PrismaEsgMetricRepository', () => {
         id: 'metric-1',
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: 'AMBIENTAL',
+        customerId: 'client-1',
         griStandardId: 'gri-1',
       });
     const repository = new PrismaEsgMetricRepository({
@@ -39,8 +39,8 @@ describe('PrismaEsgMetricRepository', () => {
       data: {
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: 'AMBIENTAL',
+        customerId: 'client-1',
         griStandardId: 'gri-1',
       },
     });

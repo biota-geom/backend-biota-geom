@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
+import { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
 import {
   EsgMetricRepository,
   type EsgMetricData,
@@ -18,18 +18,18 @@ export class PrismaEsgMetricRepository extends EsgMetricRepository {
         name: data.name,
         unit: data.unit,
         pillar: data.pillar,
-        clientId: data.clientId,
+        customerId: data.customerId,
         griStandardId: data.griStandardId ?? null,
       },
     });
 
-    return {
-      id: metric.id,
-      name: metric.name,
-      unit: metric.unit,
-      pillar: metric.pillar,
-      clientId: metric.clientId,
-      griStandardId: metric.griStandardId,
-    };
+    return new EsgMetricEntity(
+      metric.id,
+      metric.name,
+      metric.unit,
+      metric.pillar,
+      metric.customerId,
+      metric.griStandardId,
+    );
   }
 }

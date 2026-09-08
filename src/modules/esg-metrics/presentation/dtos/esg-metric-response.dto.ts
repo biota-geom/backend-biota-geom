@@ -1,9 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  EsgMetricEntity,
-  type EsgPillar,
-} from '../../domain/entities/esg-metric.entity';
+import { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
 import { CreateCustomEsgMetricPillar } from './create-custom-esg-metric.dto';
+import { EsgPillar } from '@prisma/client';
 
 export class EsgMetricResponseDto {
   @ApiProperty()
@@ -22,7 +20,7 @@ export class EsgMetricResponseDto {
   pillar!: EsgPillar;
 
   @ApiPropertyOptional({ nullable: true })
-  client_id!: string | null;
+  customer_id!: string | null;
 
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440000',
@@ -39,7 +37,7 @@ export function toEsgMetricResponse(
     name: metric.name,
     unit: metric.unit,
     pillar: metric.pillar,
-    client_id: metric.clientId,
+    customer_id: metric.customerId,
     gri_standard_id: metric.griStandardId,
   };
 }

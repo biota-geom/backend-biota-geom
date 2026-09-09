@@ -15,4 +15,22 @@ export class PrismaCustomerRepository implements CustomerRepository {
       },
     });
   }
+
+  async remove(id: string): Promise<boolean> {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!customer) {
+      return false;
+    }
+
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: { isActive: false },
+    });
+
+    return true;
+  }
 }

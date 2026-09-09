@@ -19,4 +19,37 @@ describe('PrismaCustomerRepository', () => {
       },
     });
   });
+
+  it('deactivates an existing customer instead of deleting it', async () => {
+    const customer = {
+      findUnique: jest.fn().mockResolvedValue({ id: 'customer-1' }),
+      update: jest
+        .fn()
+        .mockResolvedValue({ id: 'customer-1', isActive: false }),
+    };
+    const prisma = { customer } as unknown as PrismaService;
+    const repository = new PrismaCustomerRepository(prisma);
+
+    await expect(repository.remove('customer-1')).resolves.toBe(true);
+    expect(customer.findUnique).toHaveBeenCalledWith({
+      where: { id: 'customer-1' },
+      select: { id: true },
+    });
+    expect(customer.update).toHaveBeenCalledWith({
+      where: { id: 'customer-1' },
+      data: { isActive: false },
+    });
+  });
+
+  it('returns false when the customer does not exist', async () => {
+    const customer = {
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn(),
+    };
+    const prisma = { customer } as unknown as PrismaService;
+    const repository = new PrismaCustomerRepository(prisma);
+
+    await expect(repository.remove('missing-id')).resolves.toBe(false);
+    expect(customer.update).not.toHaveBeenCalled();
+  });
 });

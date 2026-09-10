@@ -19,4 +19,30 @@ describe('PrismaCustomerRepository', () => {
       },
     });
   });
+
+  it('finds one customer by id with its address and sector', async () => {
+    const findOne = jest.fn().mockResolvedValue({ id: 'customer-1' });
+    const customer = { findMany: jest.fn(), findUnique: findOne };
+    const repository = new PrismaCustomerRepository({
+      customer,
+    } as unknown as PrismaService);
+
+    await expect(repository.findOne('customer-1')).resolves.toEqual({
+      id: 'customer-1',
+    });
+    expect(findOne).toHaveBeenCalledWith({
+      where: { id: 'customer-1' },
+      include: { address: true, sector: true },
+    });
+  });
+
+  it('returns null when the requested customer does not exist', async () => {
+    const findOne = jest.fn().mockResolvedValue(null);
+    const customer = { findMany: jest.fn(), findUnique: findOne };
+    const repository = new PrismaCustomerRepository({
+      customer,
+    } as unknown as PrismaService);
+
+    await expect(repository.findOne('missing-id')).resolves.toBeNull();
+  });
 });

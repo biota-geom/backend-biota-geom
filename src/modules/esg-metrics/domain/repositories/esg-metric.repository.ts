@@ -1,13 +1,18 @@
-import type { EsgMetricEntity, EsgPillar } from '../entities/esg-metric.entity';
+import type { EsgMetricEntity } from '../entities/esg-metric.entity';
+import type { EsgPillar } from '../esg-pillar';
 
 export type EsgMetricData = {
   name: string;
   unit: string;
   pillar: EsgPillar;
-  clientId: string;
+  customerId: string;
   griStandardId?: string | null;
 };
 
 export abstract class EsgMetricRepository {
   abstract create(data: EsgMetricData): Promise<EsgMetricEntity>;
+  abstract findByCustomerIdAndName(
+    customerId: string,
+    name: string,
+  ): Promise<EsgMetricEntity | null>;
 }

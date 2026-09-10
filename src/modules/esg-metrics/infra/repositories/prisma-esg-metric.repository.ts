@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { EsgMetric as PrismaEsgMetric, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../prisma/prisma.service';
-import type { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
+import { EsgMetricEntity } from '../../domain/entities/esg-metric.entity';
+import { EsgMetricAlreadyExistsError } from '../../domain/errors/esg-metric-already-exists.error';
 import {
   EsgMetricRepository,
   type EsgMetricData,
 } from '../../domain/repositories/esg-metric.repository';
+
+const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 
 @Injectable()
 export class PrismaEsgMetricRepository extends EsgMetricRepository {
@@ -13,23 +17,49 @@ export class PrismaEsgMetricRepository extends EsgMetricRepository {
   }
 
   async create(data: EsgMetricData): Promise<EsgMetricEntity> {
-    const metric = await this.prisma.esgMetric.create({
-      data: {
-        name: data.name,
-        unit: data.unit,
-        pillar: data.pillar,
-        clientId: data.clientId,
-        griStandardId: data.griStandardId ?? null,
-      },
+    try {
+      const metric = await this.prisma.esgMetric.create({
+        data: {
+          name: data.name,
+          unit: data.unit,
+          pillar: data.pillar,
+          customerId: data.customerId,
+          griStandardId: data.griStandardId ?? null,
+        },
+      });
+
+      return this.toDomain(metric);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === UNIQUE_CONSTRAINT_VIOLATION
+      ) {
+        throw new EsgMetricAlreadyExistsError(data.name);
+      }
+
+      throw error;
+    }
+  }
+
+  async findByCustomerIdAndName(
+    customerId: string,
+    name: string,
+  ): Promise<EsgMetricEntity | null> {
+    const metric = await this.prisma.esgMetric.findUnique({
+      where: { customerId_name: { customerId, name } },
     });
 
-    return {
-      id: metric.id,
-      name: metric.name,
-      unit: metric.unit,
-      pillar: metric.pillar,
-      clientId: metric.clientId,
-      griStandardId: metric.griStandardId,
-    };
+    return metric ? this.toDomain(metric) : null;
+  }
+
+  private toDomain(metric: PrismaEsgMetric): EsgMetricEntity {
+    return new EsgMetricEntity(
+      metric.id,
+      metric.name,
+      metric.unit,
+      metric.pillar,
+      metric.customerId,
+      metric.griStandardId,
+    );
   }
 }

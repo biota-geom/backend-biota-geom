@@ -22,6 +22,8 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
 
+  esgMetrics EsgMetric[]
+
   @@map("users")
 }
 
@@ -91,11 +93,14 @@ model EsgMetric {
   // TODO: ao habilitar métricas por cliente, migrar `name @unique` para
   // único-por-cliente (índice parcial nas globais + @@unique([customerId, name])).
   customerId    String?   @map("customer_id") @db.Uuid
-  name          String    @unique @db.VarChar(120)
+  customer      User?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  name          String    @db.VarChar(120)
   unit          String    @db.VarChar(30)
   pillar        EsgPillar
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  @@unique([customerId, name])
+  @@index([griStandardId])
   @@map("esg_metric")
 }

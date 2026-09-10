@@ -1,4 +1,5 @@
 import { validateEnv } from './env.validation';
+import { describe, expect, it } from '@jest/globals';
 
 const VALID_BASE = {
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',

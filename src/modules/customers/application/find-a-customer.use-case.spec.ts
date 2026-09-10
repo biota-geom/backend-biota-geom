@@ -36,4 +36,30 @@ describe('FindCustomerUseCase', () => {
 
     await expect(useCase.findCustomer('missing-id')).resolves.toBeNull();
   });
+
+  it('maps inactive customers without address or sector', async () => {
+    const findOne = jest.fn().mockResolvedValue({
+      id: 'customer-2',
+      name: 'Unidade sem relacionamentos',
+      document: '98765432000100',
+      documentType: 'cnpj',
+      isActive: false,
+      address: null,
+      sector: null,
+    });
+    const useCase = new FindCustomerUseCase({
+      findOne,
+    } as unknown as CustomerRepository);
+
+    await expect(useCase.findCustomer('customer-2')).resolves.toEqual({
+      id: 'customer-2',
+      name: 'Unidade sem relacionamentos',
+      document: '98765432000100',
+      document_type: 'cnpj',
+      status: 'inactive',
+      sector: { id: '', name: '' },
+      address: { city: '', state: '' },
+    });
+    expect(findOne).toHaveBeenCalledWith('customer-2');
+  });
 });

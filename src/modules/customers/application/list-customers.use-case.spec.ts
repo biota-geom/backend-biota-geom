@@ -18,6 +18,13 @@ describe('ListCustomersUseCase', () => {
         address: { city: 'São Paulo', state: 'SP' },
         sector: null,
       },
+      {
+        id: 'customer-3',
+        name: 'Filial sem localização',
+        isActive: true,
+        address: null,
+        sector: undefined,
+      },
     ]);
     const repository = { findAll } as unknown as CustomerRepository;
 
@@ -37,6 +44,13 @@ describe('ListCustomersUseCase', () => {
         status: 'Inativo',
         segment: '',
         location: 'São Paulo - SP',
+      },
+      {
+        id: 'customer-3',
+        name: 'Filial sem localização',
+        status: 'Ativo',
+        segment: '',
+        location: '',
       },
     ]);
 

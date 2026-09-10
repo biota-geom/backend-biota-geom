@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { CustomerRepository } from '../domain/customers.repository';
-import { CustomerResponseDTO } from '../presentation/dto/customer-responde.dto';
+import { CustomerListResponseDTO } from '../presentation/dto/customer-list-response.dto';
 
 @Injectable()
 export class ListCustomersUseCase {
   constructor(private readonly repository: CustomerRepository) {}
 
-  async listCustomers(): Promise<CustomerResponseDTO[]> {
+  async listCustomers(): Promise<CustomerListResponseDTO[]> {
     const customers = await this.repository.findAll();
 
     return customers.map((customer) => {

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CustomerResponseDTO {
+export class CustomerListResponseDTO {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 

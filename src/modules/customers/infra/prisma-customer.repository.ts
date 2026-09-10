@@ -15,4 +15,14 @@ export class PrismaCustomerRepository implements CustomerRepository {
       },
     });
   }
+
+  async findOne(id: string): Promise<Customer | null> {
+    return this.prisma.customer.findUnique({
+      where: { id },
+      include: {
+        address: true,
+        sector: true,
+      },
+    });
+  }
 }

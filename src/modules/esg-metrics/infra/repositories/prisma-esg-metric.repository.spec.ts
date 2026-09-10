@@ -51,11 +51,7 @@ describe('PrismaEsgMetricRepository', () => {
       data: {
         name: 'Water consumption',
         unit: 'm3',
-<<<<<<< feat/list-customers
-        pillar: 'AMBIENTAL',
-=======
         pillar: EsgPillar.AMBIENTAL,
->>>>>>> main
         customerId: 'client-1',
         griStandardId: 'gri-1',
       },

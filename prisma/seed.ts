@@ -90,11 +90,15 @@ async function main() {
   ];
 
   for (const metric of esgMetrics) {
-    await prisma.esgMetric.upsert({
-      where: { name: metric.name },
-      update: {},
-      create: { ...metric, customerId: null },
+    const existingMetric = await prisma.esgMetric.findFirst({
+      where: { customerId: null, name: metric.name },
     });
+
+    if (!existingMetric) {
+      await prisma.esgMetric.create({
+        data: { ...metric, customerId: null },
+      });
+    }
   }
 
   // 4. CustomerAddresses & Customers (3 registros interligados)

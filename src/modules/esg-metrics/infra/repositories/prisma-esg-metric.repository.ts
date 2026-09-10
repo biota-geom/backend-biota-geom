@@ -62,12 +62,4 @@ export class PrismaEsgMetricRepository extends EsgMetricRepository {
       metric.griStandardId,
     );
   }
-
-  private toPrismaPillar(pillar: EsgPillar): PrismaEsgPillar {
-    return pillar.toUpperCase() as PrismaEsgPillar;
-  }
-
-  private toDomainPillar(pillar: PrismaEsgPillar): EsgPillar {
-    return pillar.toLowerCase() as EsgPillar;
-  }
 }

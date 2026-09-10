@@ -11,6 +11,9 @@ export type EsgMetricData = {
 
 export abstract class EsgMetricRepository {
   abstract create(data: EsgMetricData): Promise<EsgMetricEntity>;
+  abstract findVisibleToCustomer(
+    customerId: string,
+  ): Promise<EsgMetricEntity[]>;
   abstract findByCustomerIdAndName(
     customerId: string,
     name: string,

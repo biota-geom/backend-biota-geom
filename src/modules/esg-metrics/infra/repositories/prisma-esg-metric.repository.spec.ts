@@ -19,11 +19,13 @@ function buildRepository() {
   const create = jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
   const findUnique =
     jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
+  const findMany =
+    jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
   const repository = new PrismaEsgMetricRepository({
-    esgMetric: { create, findUnique },
+    esgMetric: { create, findMany, findUnique },
   } as unknown as PrismaService);
 
-  return { repository, create, findUnique };
+  return { repository, create, findMany, findUnique };
 }
 
 describe('PrismaEsgMetricRepository', () => {
@@ -139,5 +141,40 @@ describe('PrismaEsgMetricRepository', () => {
     await expect(
       repository.findByCustomerIdAndName('client-1', 'Unknown'),
     ).resolves.toBeNull();
+  });
+
+  it('lists global and customer metrics ordered by pillar and name', async () => {
+    const { repository, findMany } = buildRepository();
+    findMany.mockResolvedValue([
+      { ...ROW, id: 'global-metric', customerId: null },
+      { ...ROW, id: 'customer-metric', customerId: 'client-1' },
+    ]);
+
+    await expect(repository.findVisibleToCustomer('client-1')).resolves.toEqual(
+      [
+        {
+          id: 'global-metric',
+          name: 'Water consumption',
+          unit: 'm3',
+          pillar: EsgPillar.AMBIENTAL,
+          customerId: null,
+          griStandardId: 'gri-1',
+        },
+        {
+          id: 'customer-metric',
+          name: 'Water consumption',
+          unit: 'm3',
+          pillar: EsgPillar.AMBIENTAL,
+          customerId: 'client-1',
+          griStandardId: 'gri-1',
+        },
+      ],
+    );
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [{ customerId: null }, { customerId: 'client-1' }],
+      },
+      orderBy: [{ pillar: 'asc' }, { name: 'asc' }],
+    });
   });
 });

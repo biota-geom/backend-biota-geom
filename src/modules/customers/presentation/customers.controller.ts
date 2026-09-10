@@ -45,7 +45,7 @@ export class CustomerController {
   })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  @ApiNotFoundResponse({ description: 'Customer not founded' })
+  @ApiNotFoundResponse({ description: 'Customer not found' })
   async deleteCustomer(@Param('id') id: string): Promise<void> {
     await this.service.remove(id);
   }

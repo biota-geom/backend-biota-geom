@@ -1,14 +1,3 @@
--- CreateTable
-CREATE TABLE "sectors" (
-    "id" UUID NOT NULL,
-    "name" VARCHAR(120) NOT NULL,
-    "description" VARCHAR(255),
-    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(3) NOT NULL,
-
-    CONSTRAINT "sectors_pkey" PRIMARY KEY ("id")
-);
-
 -- CreateIndex
 CREATE UNIQUE INDEX "sectors_name_key" ON "sectors"("name");
 

@@ -1,22 +1,20 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { CreateCustomEsgMetricUseCase } from '../../application/use-cases/create-custom-esg-metric.use-case';
-import {
-  CreateCustomEsgMetricDto,
-  CreateCustomEsgMetricPillar,
-} from '../dtos/create-custom-esg-metric.dto';
+import { EsgPillar } from '../../domain/esg-pillar';
+import { CreateCustomEsgMetricDto } from '../dtos/create-custom-esg-metric.dto';
 import { EsgMetricsController } from './esg-metrics.controller';
 
 describe('EsgMetricsController', () => {
-  it('passes the DTO and authenticated client to the use case', async () => {
+  it('passes the DTO and authenticated user to the use case', async () => {
     const execute = jest
       .fn<
         (data: Record<string, unknown>) => Promise<{
           id: string;
           name: string;
           unit: string;
-          pillar: 'ambiental';
-          clientId: string;
+          pillar: EsgPillar;
+          customerId: string;
           griStandardId: string;
         }>
       >()
@@ -24,8 +22,8 @@ describe('EsgMetricsController', () => {
         id: 'metric-1',
         name: 'Water consumption',
         unit: 'm3',
-        pillar: 'ambiental',
-        clientId: 'client-1',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
         griStandardId: '550e8400-e29b-41d4-a716-446655440000',
       });
     const controller = new EsgMetricsController({
@@ -34,7 +32,7 @@ describe('EsgMetricsController', () => {
     const dto = Object.assign(new CreateCustomEsgMetricDto(), {
       name: 'Water consumption',
       unit: 'm3',
-      pillar: CreateCustomEsgMetricPillar.AMBIENTAL,
+      pillar: EsgPillar.AMBIENTAL,
       gri_standard_id: '550e8400-e29b-41d4-a716-446655440000',
     });
 
@@ -42,16 +40,16 @@ describe('EsgMetricsController', () => {
       id: 'metric-1',
       name: 'Water consumption',
       unit: 'm3',
-      pillar: CreateCustomEsgMetricPillar.AMBIENTAL,
-      client_id: 'client-1',
+      pillar: EsgPillar.AMBIENTAL,
+      customer_id: 'client-1',
       gri_standard_id: '550e8400-e29b-41d4-a716-446655440000',
     });
     expect(execute).toHaveBeenCalledWith({
       name: 'Water consumption',
       unit: 'm3',
-      pillar: CreateCustomEsgMetricPillar.AMBIENTAL,
+      pillar: EsgPillar.AMBIENTAL,
       griStandardId: '550e8400-e29b-41d4-a716-446655440000',
-      clientId: 'client-1',
+      customerId: 'client-1',
     });
   });
 });

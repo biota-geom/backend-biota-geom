@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { EsgPillar, PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { EsgPillar, PrismaClient } from '@prisma/client';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });

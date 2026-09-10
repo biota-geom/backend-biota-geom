@@ -13,7 +13,14 @@ class InMemoryEsgMetricRepository extends EsgMetricRepository {
     throw new Error('Not implemented');
   }
 
-  findVisibleToCustomer = jest.fn(() => Promise.resolve(this.metrics));
+  findVisibleToCustomer = jest.fn((customerId: string) =>
+    Promise.resolve(
+      this.metrics.filter(
+        (metric) =>
+          metric.customerId === null || metric.customerId === customerId,
+      ),
+    ),
+  );
 
   findByCustomerIdAndName(): Promise<EsgMetricEntity | null> {
     throw new Error('Not implemented');
@@ -35,7 +42,7 @@ describe('ListEsgMetricsUseCase', () => {
     const repository = new InMemoryEsgMetricRepository(metrics);
     const useCase = new ListEsgMetricsUseCase(repository);
 
-    await expect(useCase.execute('customer-1')).resolves.toBe(metrics);
+    await expect(useCase.execute('customer-1')).resolves.toEqual(metrics);
     expect(repository.findVisibleToCustomer).toHaveBeenCalledWith('customer-1');
   });
 });

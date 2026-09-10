@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, UseFilters, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -14,9 +14,11 @@ import {
   EsgMetricResponseDto,
   toEsgMetricResponse,
 } from '../dtos/esg-metric-response.dto';
+import { EsgMetricsExceptionFilter } from '../filters/esg-metrics-exception.filter';
 
 @ApiTags('esg-metrics')
 @ApiBearerAuth()
+@UseFilters(EsgMetricsExceptionFilter)
 @Controller('api/esg-metrics')
 export class EsgMetricsController {
   constructor(
@@ -39,7 +41,7 @@ export class EsgMetricsController {
       unit: dto.unit,
       pillar: dto.pillar,
       griStandardId: dto.gri_standard_id,
-      clientId: user.id,
+      customerId: user.id,
     });
 
     return toEsgMetricResponse(metric);

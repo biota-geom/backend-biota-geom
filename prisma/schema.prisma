@@ -46,6 +46,8 @@ model Customer {
   sectorId       String?          @map("sector_id") @db.Uuid
   sector         Sector?          @relation(fields: [sectorId], references: [id])
 
+  monitoredEsgMetrics CustomerEsgMetric[]
+
   @@map("customers")
 }
 
@@ -100,7 +102,22 @@ model EsgMetric {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
+  customerLinks CustomerEsgMetric[]
+
   @@unique([customerId, name])
   @@index([griStandardId])
   @@map("esg_metric")
+}
+
+model CustomerEsgMetric {
+  customerId  String   @map("customer_id") @db.Uuid
+  esgMetricId String   @map("esg_metric_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  esgMetric EsgMetric @relation(fields: [esgMetricId], references: [id], onDelete: Restrict)
+
+  @@id([customerId, esgMetricId])
+  @@index([esgMetricId])
+  @@map("customer_esg_metrics")
 }

@@ -8,6 +8,7 @@ import { EsgMetricsModule } from './modules/esg-metrics/esg-metrics.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CustomerModule } from './modules/customers/customers.module';
+import { SectorsModule } from './modules/sectors/sectors.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CustomerModule } from './modules/customers/customers.module';
     UsersModule,
     AuthModule,
     CustomerModule,
+    SectorsModule,
     EsgMetricsModule,
   ],
   controllers: [AppController],

@@ -1,6 +1,11 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { EsgPillar, PrismaClient } from '@prisma/client';
+import {
+  AddressType,
+  DocumentType,
+  EsgPillar,
+  PrismaClient,
+} from '@prisma/client';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -106,8 +111,8 @@ async function main() {
     {
       customer: {
         name: 'EcoVerde Agroindústria S.A.',
-        document: '12.345.678/0001-99',
-        documentType: 'CNPJ',
+        document: '12345678000199',
+        documentType: DocumentType.CNPJ,
         email: 'contato@ecoverde.com',
         ownerName: 'Roberto Eco',
         ownerEmail: 'roberto@ecoverde.com',
@@ -116,7 +121,7 @@ async function main() {
         sectorId: sectors[0].id,
       },
       address: {
-        type: 'Matriz',
+        type: AddressType.BILLING,
         street: 'Avenida das Palmeiras',
         number: '1000',
         city: 'Porto Alegre',
@@ -128,8 +133,8 @@ async function main() {
     {
       customer: {
         name: 'SolBrilho Energia Limpa',
-        document: '98.765.432/0001-11',
-        documentType: 'CNPJ',
+        document: '98765432000111',
+        documentType: DocumentType.CNPJ,
         email: 'contato@solbrilho.com',
         ownerName: 'Mariana Luz',
         ownerEmail: 'mariana@solbrilho.com',
@@ -138,7 +143,7 @@ async function main() {
         sectorId: sectors[1].id,
       },
       address: {
-        type: 'Escritório Central',
+        type: AddressType.BILLING,
         street: 'Rua do Sol',
         number: '450',
         city: 'São Paulo',
@@ -150,8 +155,8 @@ async function main() {
     {
       customer: {
         name: 'MetalAço Brasil Ltda',
-        document: '45.123.789/0001-55',
-        documentType: 'CNPJ',
+        document: '45123789000155',
+        documentType: DocumentType.CNPJ,
         email: 'contato@metalaco.com',
         ownerName: 'Carlos Aço',
         ownerEmail: 'carlos@metalaco.com',
@@ -160,7 +165,7 @@ async function main() {
         sectorId: sectors[2].id,
       },
       address: {
-        type: 'Planta Industrial',
+        type: AddressType.SHIPPING,
         street: 'Rodovia dos Minérios',
         number: 'KM 12',
         city: 'Belo Horizonte',

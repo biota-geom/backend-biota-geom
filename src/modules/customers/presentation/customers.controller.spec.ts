@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
+import { EsgMetricEntity } from '../../esg-metrics/domain/entities/esg-metric.entity';
 import { EsgPillar } from '../../esg-metrics/domain/esg-pillar';
 import { LinkCustomerEsgMetricsUseCase } from '../application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from '../application/list-customer-esg-metrics.use-case';
@@ -9,29 +10,39 @@ import {
   CustomerController,
   invalidCustomerIdException,
 } from './customers.controller';
+import { CustomerResponseDTO } from './dto/customer-responde.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
 
 const CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440000';
 
 describe('CustomerController', () => {
   function buildController() {
+    const listedCustomer: CustomerResponseDTO = {
+      id: 'customer-1',
+      name: 'Unidade Industrial RS',
+      status: 'Ativo',
+      segment: 'Siderurgia',
+      location: 'Porto Alegre - RS',
+    };
     const service: Pick<CustomersService, 'findAll'> = {
       findAll: jest
-        .fn<() => Promise<{ id: string }[]>>()
-        .mockResolvedValue([{ id: 'customer-1' }]),
+        .fn<() => Promise<CustomerResponseDTO[]>>()
+        .mockResolvedValue([listedCustomer]),
     };
     const linkExecute = jest.fn<(id: string, ids: string[]) => Promise<void>>();
     linkExecute.mockResolvedValue(undefined);
-    const listExecute = jest.fn(() =>
+    const listExecute = jest.fn<
+      (customerId: string) => Promise<EsgMetricEntity[]>
+    >(() =>
       Promise.resolve([
-        {
-          id: 'metric-1',
-          name: 'Water consumption',
-          unit: 'm3',
-          pillar: EsgPillar.AMBIENTAL,
-          customerId: null,
-          griStandardId: null,
-        },
+        new EsgMetricEntity(
+          'metric-1',
+          'Water consumption',
+          'm3',
+          EsgPillar.AMBIENTAL,
+          null,
+          null,
+        ),
       ]),
     );
 
@@ -48,7 +59,13 @@ describe('CustomerController', () => {
     const { controller, service } = buildController();
 
     await expect(controller.listCustomers()).resolves.toEqual([
-      { id: 'customer-1' },
+      {
+        id: 'customer-1',
+        name: 'Unidade Industrial RS',
+        status: 'Ativo',
+        segment: 'Siderurgia',
+        location: 'Porto Alegre - RS',
+      },
     ]);
     expect(service.findAll).toHaveBeenCalledTimes(1);
   });

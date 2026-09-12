@@ -19,8 +19,12 @@ const ROW = {
 };
 
 function buildRepository() {
-  const deleteMany = jest.fn(() => Promise.resolve({ count: 1 }));
-  const createMany = jest.fn(() => Promise.resolve({ count: 1 }));
+  const deleteMany = jest.fn<
+    (args: Record<string, unknown>) => Promise<{ count: number }>
+  >(() => Promise.resolve({ count: 1 }));
+  const createMany = jest.fn<
+    (args: Record<string, unknown>) => Promise<{ count: number }>
+  >(() => Promise.resolve({ count: 1 }));
   const findMany =
     jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
   const $transaction = jest.fn(

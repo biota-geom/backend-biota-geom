@@ -21,7 +21,9 @@ describe('ListCustomerEsgMetricsUseCase', () => {
     const customerRepository = {
       findById: jest.fn(() => Promise.resolve({ id: CUSTOMER_ID })),
     } as unknown as CustomerRepository;
-    const findMetricsByCustomerId = jest.fn(() => Promise.resolve([METRIC]));
+    const findMetricsByCustomerId = jest.fn<
+      (customerId: string) => Promise<(typeof METRIC)[]>
+    >(() => Promise.resolve([METRIC]));
     const customerEsgMetricRepository = {
       findMetricsByCustomerId,
     } as unknown as CustomerEsgMetricRepository;

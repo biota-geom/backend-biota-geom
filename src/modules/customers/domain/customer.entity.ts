@@ -17,4 +17,5 @@ export interface Customer {
   address?: CustomerAddress | null;
   sectorId: string | null;
   sector?: Sector | null;
+  esgIndicatorIds?: string[];
 }

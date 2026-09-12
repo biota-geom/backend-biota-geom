@@ -46,7 +46,20 @@ model Customer {
   sectorId       String?          @map("sector_id") @db.Uuid
   sector         Sector?          @relation(fields: [sectorId], references: [id])
 
+  environmentalTopics CustomerEnvironmentalTopic[]
+
   @@map("customers")
+}
+
+model CustomerEnvironmentalTopic {
+  customerId  String    @map("customer_id") @db.Uuid
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  esgMetricId String    @map("esg_metric_id") @db.Uuid
+  esgMetric   EsgMetric @relation(fields: [esgMetricId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@id([customerId, esgMetricId])
+  @@map("customer_environmental_topics")
 }
 
 model CustomerAddress {
@@ -99,6 +112,8 @@ model EsgMetric {
   pillar        EsgPillar
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customerTopics CustomerEnvironmentalTopic[]
 
   @@unique([customerId, name])
   @@index([griStandardId])

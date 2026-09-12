@@ -14,4 +14,19 @@ describe('CustomerController', () => {
     await expect(controller.listCustomers()).resolves.toEqual(expected);
     expect(service.findAll).toHaveBeenCalledTimes(1);
   });
+
+  it('delegates customer deletion to the service', async () => {
+    const service: Pick<CustomersService, 'findAll' | 'remove'> = {
+      findAll: jest.fn(),
+      remove: jest.fn().mockResolvedValue(true),
+    };
+    const controller = new CustomerController(
+      service as unknown as CustomersService,
+    );
+
+    await expect(
+      controller.deleteCustomer('customer-1'),
+    ).resolves.toBeUndefined();
+    expect(service.remove).toHaveBeenCalledWith('customer-1');
+  });
 });

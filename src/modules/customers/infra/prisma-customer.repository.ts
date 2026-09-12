@@ -9,10 +9,29 @@ export class PrismaCustomerRepository implements CustomerRepository {
 
   async findAll(): Promise<Customer[]> {
     return this.prisma.customer.findMany({
+      where: { isDeleted: false },
       include: {
         address: true,
         sector: true,
       },
     });
+  }
+
+  async remove(id: string): Promise<boolean> {
+    const customer = await this.prisma.customer.findUnique({
+      where: { id, isDeleted: false },
+      select: { id: true },
+    });
+
+    if (!customer) {
+      return false;
+    }
+
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: { isDeleted: true },
+    });
+
+    return true;
   }
 }

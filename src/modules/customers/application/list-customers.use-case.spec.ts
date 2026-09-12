@@ -19,10 +19,33 @@ describe('ListCustomersUseCase', () => {
           address: { city: 'São Paulo', state: 'SP' },
           sector: null,
         },
+        {
+          id: 'customer-3',
+          name: 'Filial sem endereço',
+          isActive: true,
+          address: undefined,
+          sector: undefined,
+        },
+        {
+          id: 'customer-4',
+          name: 'Filial sem cidade',
+          isActive: true,
+          address: { city: '', state: 'SC' },
+          sector: { name: 'Metalurgia' },
+        },
+        {
+          id: 'customer-5',
+          name: 'Filial sem estado',
+          isActive: true,
+          address: { city: 'Curitiba', state: '' },
+          sector: { name: 'Serviços' },
+        },
       ]),
     };
 
-    const useCase = new ListCustomersUseCase(repository);
+    const useCase = new ListCustomersUseCase(
+      repository as unknown as CustomerRepository,
+    );
 
     await expect(useCase.listCustomers()).resolves.toEqual([
       {
@@ -38,6 +61,27 @@ describe('ListCustomersUseCase', () => {
         status: 'Inativo',
         segment: '',
         location: 'São Paulo - SP',
+      },
+      {
+        id: 'customer-3',
+        name: 'Filial sem endereço',
+        status: 'Ativo',
+        segment: '',
+        location: '',
+      },
+      {
+        id: 'customer-4',
+        name: 'Filial sem cidade',
+        status: 'Ativo',
+        segment: 'Metalurgia',
+        location: 'SC',
+      },
+      {
+        id: 'customer-5',
+        name: 'Filial sem estado',
+        status: 'Ativo',
+        segment: 'Serviços',
+        location: 'Curitiba',
       },
     ]);
 

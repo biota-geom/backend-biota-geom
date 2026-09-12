@@ -20,6 +20,7 @@ describe('PrismaCustomerRepository', () => {
 
     await expect(repository.findAll()).resolves.toBe(customers);
     expect(findMany).toHaveBeenCalledWith({
+      where: { isDeleted: false },
       include: { address: true, sector: true },
     });
   });
@@ -38,12 +39,12 @@ describe('PrismaCustomerRepository', () => {
 
     await expect(repository.remove('customer-1')).resolves.toBe(true);
     expect(findUnique).toHaveBeenCalledWith({
-      where: { id: 'customer-1' },
+      where: { id: 'customer-1', isDeleted: false },
       select: { id: true },
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: 'customer-1' },
-      data: { isActive: false },
+      data: { isDeleted: true },
     });
   });
 });

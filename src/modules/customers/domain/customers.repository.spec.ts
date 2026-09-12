@@ -2,7 +2,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaCustomerRepository } from '../infra/prisma-customer.repository';
 
 describe('PrismaCustomerRepository', () => {
-  it('loads all customers with their nested address and sector', async () => {
+  it('loads active customers with their nested address and sector', async () => {
     const customer = {
       findMany: jest.fn().mockResolvedValue([{ id: 'customer-1' }]),
     };
@@ -13,6 +13,7 @@ describe('PrismaCustomerRepository', () => {
 
     await expect(repository.findAll()).resolves.toEqual([{ id: 'customer-1' }]);
     expect(customer.findMany).toHaveBeenCalledWith({
+      where: { isDeleted: false },
       include: {
         address: true,
         sector: true,
@@ -20,24 +21,24 @@ describe('PrismaCustomerRepository', () => {
     });
   });
 
-  it('deactivates an existing customer instead of deleting it', async () => {
+  it('marks an existing customer as deleted instead of deleting it', async () => {
     const customer = {
       findUnique: jest.fn().mockResolvedValue({ id: 'customer-1' }),
       update: jest
         .fn()
-        .mockResolvedValue({ id: 'customer-1', isActive: false }),
+        .mockResolvedValue({ id: 'customer-1', isDeleted: true }),
     };
     const prisma = { customer } as unknown as PrismaService;
     const repository = new PrismaCustomerRepository(prisma);
 
     await expect(repository.remove('customer-1')).resolves.toBe(true);
     expect(customer.findUnique).toHaveBeenCalledWith({
-      where: { id: 'customer-1' },
+      where: { id: 'customer-1', isDeleted: false },
       select: { id: true },
     });
     expect(customer.update).toHaveBeenCalledWith({
       where: { id: 'customer-1' },
-      data: { isActive: false },
+      data: { isDeleted: true },
     });
   });
 

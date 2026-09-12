@@ -11,6 +11,7 @@ export interface Customer {
   ownerEmail: string;
   ownerPhone: string;
   isActive: boolean;
+  isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
   addressId: string | null;

@@ -9,6 +9,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
 
   async findAll(): Promise<Customer[]> {
     return this.prisma.customer.findMany({
+      where: { isDeleted: false },
       include: {
         address: true,
         sector: true,
@@ -18,7 +19,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
 
   async remove(id: string): Promise<boolean> {
     const customer = await this.prisma.customer.findUnique({
-      where: { id },
+      where: { id, isDeleted: false },
       select: { id: true },
     });
 
@@ -28,7 +29,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
 
     await this.prisma.customer.update({
       where: { id: customer.id },
-      data: { isActive: false },
+      data: { isDeleted: true },
     });
 
     return true;

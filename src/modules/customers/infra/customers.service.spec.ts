@@ -21,7 +21,7 @@ describe('CustomersService', () => {
     expect(listCustomersUseCase.listCustomers).toHaveBeenCalledTimes(1);
   });
 
-  it('deactivates a customer through the remove use case', async () => {
+  it('removes a customer through the remove use case', async () => {
     const removeCustomer = jest.fn().mockResolvedValue(true);
     const removeCustomerUseCase = {
       removeCustomer,

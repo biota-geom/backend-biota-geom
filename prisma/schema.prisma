@@ -27,11 +27,25 @@ model User {
   @@map("users")
 }
 
+enum DocumentType {
+  CPF
+  CNPJ
+
+  @@map("document_type")
+}
+
+enum AddressType {
+  BILLING
+  SHIPPING
+
+  @@map("address_type")
+}
+
 model Customer {
   id             String           @id @default(uuid(7)) @db.Uuid
   name           String           @db.VarChar(255)
-  document       String           @db.VarChar(50)
-  documentType   String           @map("document_type") @db.VarChar(50)
+  document       String           @unique @db.VarChar(50)
+  documentType   DocumentType     @map("document_type")
   email          String           @db.VarChar(255)
   ownerName      String           @map("owner_name") @db.VarChar(255)
   ownerEmail     String           @map("owner_email") @db.VarChar(255)
@@ -51,7 +65,7 @@ model Customer {
 
 model CustomerAddress {
   id          String    @id @default(uuid(7)) @db.Uuid
-  type        String    @db.VarChar(50)
+  type        AddressType
   street      String    @db.VarChar(255)
   number      String    @db.VarChar(50)
   city        String    @db.VarChar(100)

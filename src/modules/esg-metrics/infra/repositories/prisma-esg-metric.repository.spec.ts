@@ -177,4 +177,32 @@ describe('PrismaEsgMetricRepository', () => {
       orderBy: [{ pillar: 'asc' }, { name: 'asc' }],
     });
   });
+
+  it('finds metrics by a list of ids', async () => {
+    const { repository, findMany } = buildRepository();
+    findMany.mockResolvedValue([ROW]);
+
+    await expect(
+      repository.findByIds(['metric-1', 'metric-2']),
+    ).resolves.toEqual([
+      {
+        id: 'metric-1',
+        name: 'Water consumption',
+        unit: 'm3',
+        pillar: EsgPillar.AMBIENTAL,
+        customerId: 'client-1',
+        griStandardId: 'gri-1',
+      },
+    ]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: { id: { in: ['metric-1', 'metric-2'] } },
+    });
+  });
+
+  it('returns an empty array without querying when no ids are given', async () => {
+    const { repository, findMany } = buildRepository();
+
+    await expect(repository.findByIds([])).resolves.toEqual([]);
+    expect(findMany).not.toHaveBeenCalled();
+  });
 });

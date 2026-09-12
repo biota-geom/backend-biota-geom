@@ -17,5 +17,6 @@ import { EsgMetricsController } from './presentation/controllers/esg-metrics.con
       useClass: PrismaEsgMetricRepository,
     },
   ],
+  exports: [EsgMetricRepository],
 })
 export class EsgMetricsModule {}

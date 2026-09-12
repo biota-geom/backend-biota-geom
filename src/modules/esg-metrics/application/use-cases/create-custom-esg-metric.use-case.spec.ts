@@ -38,6 +38,10 @@ class InMemoryEsgMetricRepository extends EsgMetricRepository {
 
     return Promise.resolve(null);
   }
+
+  findByIds(): Promise<EsgMetricEntity[]> {
+    throw new Error('Not implemented');
+  }
 }
 
 describe('CreateCustomEsgMetricUseCase', () => {

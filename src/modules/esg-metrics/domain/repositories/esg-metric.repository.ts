@@ -18,4 +18,5 @@ export abstract class EsgMetricRepository {
     customerId: string,
     name: string,
   ): Promise<EsgMetricEntity | null>;
+  abstract findByIds(ids: string[]): Promise<EsgMetricEntity[]>;
 }

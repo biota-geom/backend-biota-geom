@@ -13,6 +13,7 @@ describe('PrismaCustomerRepository', () => {
 
     await expect(repository.findAll()).resolves.toEqual([{ id: 'customer-1' }]);
     expect(customer.findMany).toHaveBeenCalledWith({
+      where: { isDeleted: false },
       include: {
         address: true,
         sector: true,
@@ -31,7 +32,7 @@ describe('PrismaCustomerRepository', () => {
       id: 'customer-1',
     });
     expect(findOne).toHaveBeenCalledWith({
-      where: { id: 'customer-1' },
+      where: { id: 'customer-1', isDeleted: false },
       include: { address: true, sector: true },
     });
   });
@@ -44,5 +45,19 @@ describe('PrismaCustomerRepository', () => {
     } as unknown as PrismaService);
 
     await expect(repository.findOne('missing-id')).resolves.toBeNull();
+  });
+
+  it('returns null when the requested customer is deleted', async () => {
+    const findOne = jest.fn().mockResolvedValue(null);
+    const customer = { findMany: jest.fn(), findUnique: findOne };
+    const repository = new PrismaCustomerRepository({
+      customer,
+    } as unknown as PrismaService);
+
+    await expect(repository.findOne('deleted-id')).resolves.toBeNull();
+    expect(findOne).toHaveBeenCalledWith({
+      where: { id: 'deleted-id', isDeleted: false },
+      include: { address: true, sector: true },
+    });
   });
 });

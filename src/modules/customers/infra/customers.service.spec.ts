@@ -38,7 +38,7 @@ describe('CustomersService', () => {
     );
 
     await expect(service.findOne('missing-id')).rejects.toThrow(
-      'Empresa não encontrada ou acesso negado',
+      'Empresa não encontrada',
     );
   });
 });

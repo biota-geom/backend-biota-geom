@@ -19,7 +19,7 @@ export class CustomersService {
     const customer = await this.findCustomerUseCase.findCustomer(id);
 
     if (!customer) {
-      throw new NotFoundException('Empresa não encontrada ou acesso negado');
+      throw new NotFoundException('Empresa não encontrada');
     }
 
     return customer;

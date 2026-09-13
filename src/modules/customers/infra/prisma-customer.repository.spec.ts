@@ -4,7 +4,16 @@ import { PrismaCustomerRepository } from './prisma-customer.repository';
 function buildRepository() {
   const findMany = jest.fn();
   const findUnique = jest.fn();
-  const update = jest.fn();
+  const update = jest.fn<
+    Promise<unknown>,
+    [
+      {
+        where: { id: string };
+        data: Record<string, unknown>;
+      },
+    ]
+  >();
+
   const repository = new PrismaCustomerRepository({
     customer: { findMany, findUnique, update },
   } as unknown as PrismaService);
@@ -46,5 +55,32 @@ describe('PrismaCustomerRepository', () => {
       where: { id: 'customer-1' },
       data: { isDeleted: true },
     });
+  });
+
+  it('removes a customer that is inactive but not deleted, without touching isActive', async () => {
+    const { repository, findUnique, update } = buildRepository();
+    findUnique.mockResolvedValue({ id: 'customer-1', isActive: false });
+
+    await expect(repository.remove('customer-1')).resolves.toBe(true);
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'customer-1' },
+      data: { isDeleted: true },
+    });
+  });
+
+  it('returns false when the customer is already deleted', async () => {
+    const { repository, findUnique, update } = buildRepository();
+
+    // An already-deleted customer does not match the isDeleted: false filter,
+    // so it is treated the same as a non-existent customer (404).
+    findUnique.mockResolvedValue(null);
+
+    await expect(repository.remove('customer-1')).resolves.toBe(false);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: 'customer-1', isDeleted: false },
+      select: { id: true },
+    });
+    expect(update).not.toHaveBeenCalled();
   });
 });

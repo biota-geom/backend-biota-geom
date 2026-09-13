@@ -113,6 +113,7 @@ async function main() {
         ownerEmail: 'roberto@ecoverde.com',
         ownerPhone: '+55 51 99988-7766',
         isActive: true,
+        isDeleted: false,
         sectorId: sectors[0].id,
       },
       address: {
@@ -135,6 +136,7 @@ async function main() {
         ownerEmail: 'mariana@solbrilho.com',
         ownerPhone: '+55 11 98877-6655',
         isActive: true,
+        isDeleted: false,
         sectorId: sectors[1].id,
       },
       address: {
@@ -157,6 +159,7 @@ async function main() {
         ownerEmail: 'carlos@metalaco.com',
         ownerPhone: '+55 31 97766-5544',
         isActive: true,
+        isDeleted: false,
         sectorId: sectors[2].id,
       },
       address: {

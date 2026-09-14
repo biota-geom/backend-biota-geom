@@ -29,7 +29,8 @@ import {
   CustomerCreatedResponseDTO,
   toCustomerCreatedResponse,
 } from './dto/customer-created-response.dto';
-import { CustomerResponseDTO } from './dto/customer-responde.dto';
+import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
+import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { CustomersExceptionFilter } from './filters/customers-exception.filter';
 
 @ApiTags('customers')
@@ -44,8 +45,8 @@ export class CustomerController {
   @ApiOperation({
     summary: 'List all customer branches available to the authenticated admin.',
   })
-  @ApiOkResponse({ type: CustomerResponseDTO, isArray: true })
-  async listCustomers(): Promise<CustomerResponseDTO[]> {
+  @ApiOkResponse({ type: CustomerListResponseDTO, isArray: true })
+  async listCustomers(): Promise<CustomerListResponseDTO[]> {
     return this.service.findAll();
   }
 
@@ -80,6 +81,18 @@ export class CustomerController {
     });
 
     return toCustomerCreatedResponse(customer);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Find a customer by id',
+  })
+  @ApiOkResponse({ type: CustomerResponseDTO })
+  @ApiNotFoundResponse({ description: 'Customer not found' })
+  async getCustomer(@Param('id') id: string): Promise<CustomerResponseDTO> {
+    return this.service.findOne(id);
   }
 
   @Delete(':id')

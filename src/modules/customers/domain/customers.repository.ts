@@ -8,5 +8,7 @@ export abstract class CustomerRepository {
 
   abstract create(data: CreateCustomerData): Promise<Customer>;
 
+  abstract findOne(id: string): Promise<Customer | null>;
+
   abstract remove(id: string): Promise<boolean>;
 }

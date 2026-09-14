@@ -6,15 +6,24 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 describe('CustomerController', () => {
   it('returns the list from the customer service', async () => {
     const expected = [{ id: 'customer-1', name: 'Unidade Industrial RS' }];
-    const service: Pick<CustomersService, 'findAll'> = {
-      findAll: jest.fn().mockResolvedValue(expected),
-    };
-    const controller = new CustomerController(
-      service as unknown as CustomersService,
-    );
+    const findAll = jest.fn().mockResolvedValue(expected);
+    const service = { findAll } as unknown as CustomersService;
+    const controller = new CustomerController(service);
 
     await expect(controller.listCustomers()).resolves.toEqual(expected);
-    expect(service.findAll).toHaveBeenCalledTimes(1);
+    expect(findAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('delegates the detail lookup with the route id', async () => {
+    const expected = { id: 'customer-1', name: 'Unidade Industrial RS' };
+    const findOne = jest.fn().mockResolvedValue(expected);
+    const service = { findOne } as unknown as CustomersService;
+    const controller = new CustomerController(service);
+
+    await expect(controller.getCustomer('customer-1')).resolves.toEqual(
+      expected,
+    );
+    expect(findOne).toHaveBeenCalledWith('customer-1');
   });
 
   it('maps the snake_case payload onto the domain shape and back', async () => {

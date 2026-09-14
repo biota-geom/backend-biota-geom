@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { SectorsModule } from '../sectors/sectors.module';
 import { CreateCustomerUseCase } from './application/create-customer.use-case';
+import { FindCustomerUseCase } from './application/find-a-customer.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
 import { RemoveCustomerUseCase } from './application/remove-customer.use-case';
 import { CustomerRepository } from './domain/customers.repository';
@@ -16,6 +17,7 @@ import { CustomerController } from './presentation/customers.controller';
     { provide: CustomerRepository, useClass: PrismaCustomerRepository },
     ListCustomersUseCase,
     CreateCustomerUseCase,
+    FindCustomerUseCase,
     RemoveCustomerUseCase,
     CustomersService,
   ],

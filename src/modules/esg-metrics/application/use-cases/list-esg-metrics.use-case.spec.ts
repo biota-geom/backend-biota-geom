@@ -25,6 +25,10 @@ class InMemoryEsgMetricRepository extends EsgMetricRepository {
   findByCustomerIdAndName(): Promise<EsgMetricEntity | null> {
     throw new Error('Not implemented');
   }
+
+  findByIds(): Promise<EsgMetricEntity[]> {
+    throw new Error('Not implemented');
+  }
 }
 
 describe('ListEsgMetricsUseCase', () => {

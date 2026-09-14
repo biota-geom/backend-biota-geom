@@ -12,9 +12,11 @@ import {
   invalidCustomerIdException,
 } from './customers.controller';
 import { CreateCustomerDto } from './dto/create-customer.dto';
+import { CustomerDetailResponseDto } from './dto/customer-detail-response.dto';
 import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
 import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 const CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -130,6 +132,29 @@ describe('CustomerController', () => {
       expected,
     );
     expect(service.findOne).toHaveBeenCalledWith('customer-1');
+  });
+
+  it('delegates update to the customer service', async () => {
+    const expected = {
+      id: 'customer-1',
+      name: 'Empresa Atualizada',
+    } as CustomerDetailResponseDto;
+    const service: Pick<CustomersService, 'update'> = {
+      update: jest.fn<CustomersService['update']>().mockResolvedValue(expected),
+    };
+    const controller = new CustomerController(
+      service as unknown as CustomersService,
+      {} as LinkCustomerEsgMetricsUseCase,
+      {} as ListCustomerEsgMetricsUseCase,
+    );
+    const dto = Object.assign(new UpdateCustomerDto(), {
+      name: 'Empresa Atualizada',
+    });
+
+    await expect(controller.updateCustomer('customer-1', dto)).resolves.toEqual(
+      expected,
+    );
+    expect(service.update).toHaveBeenCalledWith('customer-1', dto);
   });
 
   it('maps the snake_case payload onto the domain shape and back', async () => {

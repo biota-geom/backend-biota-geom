@@ -4,13 +4,16 @@ import { CreateCustomerUseCase } from '../application/create-customer.use-case';
 import { FindCustomerUseCase } from '../application/find-a-customer.use-case';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
 import { RemoveCustomerUseCase } from '../application/remove-customer.use-case';
+import { UpdateCustomerUseCase } from '../application/update-customer.use-case';
 import { CreateCustomerData } from '../domain/create-customer.data';
+import { UpdateCustomerDto } from '../presentation/dto/update-customer.dto';
 import { CustomersService } from './customers.service';
 
 function buildService(overrides: {
   listCustomers?: jest.Mock;
   createCustomer?: jest.Mock;
   findCustomer?: jest.Mock;
+  updateCustomerUseCase?: Pick<UpdateCustomerUseCase, 'execute'>;
   removeCustomer?: jest.Mock;
 }): CustomersService {
   const listCustomersUseCase = {
@@ -22,6 +25,9 @@ function buildService(overrides: {
   const findCustomerUseCase = {
     findCustomer: overrides.findCustomer ?? jest.fn(),
   };
+  const updateCustomerUseCase = overrides.updateCustomerUseCase ?? {
+    execute: jest.fn(),
+  };
   const removeCustomerUseCase = {
     removeCustomer: overrides.removeCustomer ?? jest.fn(),
   };
@@ -30,6 +36,7 @@ function buildService(overrides: {
     listCustomersUseCase as unknown as ListCustomersUseCase,
     createCustomerUseCase as unknown as CreateCustomerUseCase,
     findCustomerUseCase as unknown as FindCustomerUseCase,
+    updateCustomerUseCase as unknown as UpdateCustomerUseCase,
     removeCustomerUseCase as unknown as RemoveCustomerUseCase,
   );
 }
@@ -90,6 +97,80 @@ describe('CustomersService', () => {
     await expect(
       buildService({ findCustomer }).findOne('missing-id'),
     ).rejects.toThrow('Empresa não encontrada');
+  });
+
+  it('delegates the update operation to the use case and maps the response', async () => {
+    const updateCustomerUseCase: Pick<UpdateCustomerUseCase, 'execute'> = {
+      execute: jest.fn().mockResolvedValue({
+        id: 'customer-1',
+        name: 'Empresa Atualizada',
+        document: '12345678000199',
+        documentType: DocumentType.CNPJ,
+        email: 'contato@empresa.com',
+        ownerName: 'Novo Responsável',
+        ownerEmail: 'novo@empresa.com',
+        ownerPhone: '+55 51 99988-7766',
+        isActive: true,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        addressId: 'address-1',
+        address: {
+          id: 'address-1',
+          type: AddressType.BILLING,
+          street: 'Avenida das Palmeiras',
+          number: '1000',
+          city: 'Canoas',
+          state: 'RS',
+          postalCode: '90000-000',
+          countryCode: 'BR',
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        },
+        sectorId: 'sector-1',
+        sector: null,
+      }),
+    };
+
+    const dto = Object.assign(new UpdateCustomerDto(), {
+      name: 'Empresa Atualizada',
+      document: '12345678000199',
+      document_type: DocumentType.CNPJ,
+      sector_id: 'sector-1',
+      responsible_name: 'Novo Responsável',
+      responsible_email: 'novo@empresa.com',
+      address: { type: AddressType.BILLING, state: 'RS', city: 'Canoas' },
+    });
+
+    const response = await buildService({ updateCustomerUseCase }).update(
+      'customer-1',
+      dto,
+    );
+
+    expect(response).toMatchObject({
+      id: 'customer-1',
+      name: 'Empresa Atualizada',
+      responsible_name: 'Novo Responsável',
+    });
+    expect(response.address).toMatchObject({ city: 'Canoas', state: 'RS' });
+    expect(updateCustomerUseCase.execute).toHaveBeenCalledWith('customer-1', {
+      name: 'Empresa Atualizada',
+      document: '12345678000199',
+      documentType: DocumentType.CNPJ,
+      email: undefined,
+      sectorId: 'sector-1',
+      ownerName: 'Novo Responsável',
+      ownerEmail: 'novo@empresa.com',
+      ownerPhone: undefined,
+      address: {
+        type: AddressType.BILLING,
+        street: undefined,
+        number: undefined,
+        city: 'Canoas',
+        state: 'RS',
+        postalCode: undefined,
+        countryCode: undefined,
+      },
+    });
   });
 
   it('removes a customer through the remove use case', async () => {

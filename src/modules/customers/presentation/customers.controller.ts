@@ -9,6 +9,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -38,9 +39,11 @@ import {
   CustomerCreatedResponseDTO,
   toCustomerCreatedResponse,
 } from './dto/customer-created-response.dto';
+import { CustomerDetailResponseDto } from './dto/customer-detail-response.dto';
 import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
 import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomersExceptionFilter } from './filters/customers-exception.filter';
 
 export function invalidCustomerIdException(): BadRequestException {
@@ -115,6 +118,21 @@ export class CustomerController {
   @ApiNotFoundResponse({ description: 'Customer not found' })
   async getCustomer(@Param('id') id: string): Promise<CustomerResponseDTO> {
     return this.service.findOne(id);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Atualiza os dados cadastrais de uma empresa e seu endereço.',
+  })
+  @ApiOkResponse({ type: CustomerDetailResponseDto })
+  @ApiNotFoundResponse({ description: 'Empresa não encontrada.' })
+  async updateCustomer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCustomerDto,
+  ): Promise<CustomerDetailResponseDto> {
+    return this.service.update(id, dto);
   }
 
   /*

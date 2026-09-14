@@ -1,0 +1,71 @@
+import { describe, expect, it } from '@jest/globals';
+import { AddressType, DocumentType } from '@prisma/client';
+import type { Customer } from '../../domain/customer.entity';
+import { toCustomerDetailResponse } from './customer-detail-response.dto';
+
+const BASE_CUSTOMER: Customer = {
+  id: 'customer-1',
+  name: 'Unidade Industrial RS',
+  document: '12345678000199',
+  documentType: DocumentType.CNPJ,
+  email: 'contato@empresa.com',
+  ownerName: 'Responsável',
+  ownerEmail: 'responsavel@empresa.com',
+  ownerPhone: '+55 51 90000-0000',
+  isActive: true,
+  isDeleted: false,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  addressId: 'address-1',
+  sectorId: 'sector-1',
+};
+
+describe('toCustomerDetailResponse', () => {
+  it('maps a customer with an address', () => {
+    const customer: Customer = {
+      ...BASE_CUSTOMER,
+      address: {
+        id: 'address-1',
+        type: AddressType.BILLING,
+        street: 'Avenida das Palmeiras',
+        number: '1000',
+        city: 'Canoas',
+        state: 'RS',
+        postalCode: '90000-000',
+        countryCode: 'BR',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    };
+
+    expect(toCustomerDetailResponse(customer)).toEqual({
+      id: 'customer-1',
+      name: 'Unidade Industrial RS',
+      document: '12345678000199',
+      document_type: DocumentType.CNPJ,
+      email: 'contato@empresa.com',
+      responsible_name: 'Responsável',
+      responsible_email: 'responsavel@empresa.com',
+      responsible_phone: '+55 51 90000-0000',
+      is_active: true,
+      sector_id: 'sector-1',
+      address: {
+        type: AddressType.BILLING,
+        street: 'Avenida das Palmeiras',
+        number: '1000',
+        city: 'Canoas',
+        state: 'RS',
+        postal_code: '90000-000',
+        country_code: 'BR',
+      },
+    });
+  });
+
+  it('maps a customer without an address', () => {
+    const customer: Customer = { ...BASE_CUSTOMER, address: null };
+
+    const result = toCustomerDetailResponse(customer);
+
+    expect(result.address).toBeNull();
+  });
+});

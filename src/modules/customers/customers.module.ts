@@ -7,6 +7,7 @@ import { LinkCustomerEsgMetricsUseCase } from './application/link-customer-esg-m
 import { ListCustomerEsgMetricsUseCase } from './application/list-customer-esg-metrics.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
 import { RemoveCustomerUseCase } from './application/remove-customer.use-case';
+import { UpdateCustomerUseCase } from './application/update-customer.use-case';
 import { CustomerEsgMetricRepository } from './domain/customer-esg-metric.repository';
 import { CustomerRepository } from './domain/customers.repository';
 import { CustomersService } from './infra/customers.service';
@@ -27,6 +28,7 @@ import { CustomerController } from './presentation/customers.controller';
     CreateCustomerUseCase,
     FindCustomerUseCase,
     RemoveCustomerUseCase,
+    UpdateCustomerUseCase,
     LinkCustomerEsgMetricsUseCase,
     ListCustomerEsgMetricsUseCase,
     CustomersService,

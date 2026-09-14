@@ -1,6 +1,7 @@
 import { ArgumentsHost, HttpStatus } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
+import { CustomerAddressNotFoundError } from '../../domain/errors/customer-address-not-found.error';
 import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import { CustomerNotFoundError } from '../../domain/errors/customer-not-found.error';
 import { EsgMetricsNotFoundError } from '../../domain/errors/esg-metrics-not-found.error';
@@ -31,8 +32,19 @@ describe('CustomersExceptionFilter', () => {
 
     expect(status).toHaveBeenCalledWith(404);
     expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: AUTH_MESSAGES.CUSTOMER_NOT_FOUND }),
+    );
+  });
+
+  it('maps CustomerAddressNotFoundError to 400', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new CustomerAddressNotFoundError('customer-1'), host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: AUTH_MESSAGES.CUSTOMER_NOT_FOUND,
+        message: AUTH_MESSAGES.CUSTOMER_ADDRESS_NOT_FOUND,
       }),
     );
   });

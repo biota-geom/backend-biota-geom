@@ -7,4 +7,6 @@ export abstract class CustomerRepository {
   abstract findAll(): Promise<Customer[]>;
 
   abstract create(data: CreateCustomerData): Promise<Customer>;
+
+  abstract remove(id: string): Promise<boolean>;
 }

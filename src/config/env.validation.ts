@@ -60,7 +60,17 @@ export function validateEnv(config: Record<string, unknown>): EnvVars {
 
   if (!result.success) {
     const issues = result.error.issues
-      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+      .map((issue) => {
+        // Stryker disable next-line all: todo path deste schema tem um único
+        // segmento (só existem chaves de primeiro nível), então o separador
+        // '.' nunca chega a ser aplicado e trocá-lo por '' produz exatamente
+        // a mesma string. É um mutante equivalente: nenhum teste conseguiria
+        // matá-lo enquanto o schema for plano. Se algum campo aninhado for
+        // adicionado, remova esta linha e cubra o separador com um teste.
+        const path = issue.path.join('.');
+
+        return `  - ${path}: ${issue.message}`;
+      })
       .join('\n');
     throw new Error(`Invalid environment variables:\n${issues}`);
   }

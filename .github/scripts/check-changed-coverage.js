@@ -117,6 +117,16 @@ function fileEmitsRuntimeCode(relFile) {
 }
 
 const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+
+// Guarda contra um summary vazio/quebrado: sem isto, uma config de cobertura
+// mal configurada deixaria todos os arquivos sem entrada e o gate só olharia
+// para `fileEmitsRuntimeCode`, passando sem ter medido cobertura nenhuma.
+const measuredFiles = Object.keys(summary).filter((k) => k !== 'total');
+if (measuredFiles.length === 0) {
+  console.error(`Coverage summary at ${summaryPath} has no per-file entries.`);
+  process.exit(1);
+}
+
 const failures = [];
 
 for (const relFile of changedFiles) {

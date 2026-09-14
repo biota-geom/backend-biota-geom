@@ -46,6 +46,10 @@ class InMemoryCustomerRepository extends CustomerRepository {
 
   findById = jest.fn((): Promise<Customer | null> => Promise.resolve(CUSTOMER));
 
+  findOne(): Promise<Customer | null> {
+    throw new Error('Not implemented');
+  }
+
   update(id: string, data: UpdateCustomerData): Promise<Customer> {
     this.updateData = { id, data };
     return Promise.resolve({

@@ -1,9 +1,19 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
@@ -37,5 +47,19 @@ export class CustomerController {
   @ApiNotFoundResponse({ description: 'Customer not found' })
   async getCustomer(@Param('id') id: string): Promise<CustomerResponseDTO> {
     return this.service.findOne(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'id', description: 'Customer ID', type: 'string' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a customer',
+  })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ description: 'Customer not found' })
+  async deleteCustomer(@Param('id') id: string): Promise<void> {
+    await this.service.remove(id);
   }
 }

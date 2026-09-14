@@ -52,6 +52,17 @@ export class PrismaEsgMetricRepository extends EsgMetricRepository {
     return metric ? this.toDomain(metric) : null;
   }
 
+  async findVisibleToCustomer(customerId: string): Promise<EsgMetricEntity[]> {
+    const metrics = await this.prisma.esgMetric.findMany({
+      where: {
+        OR: [{ customerId: null }, { customerId }],
+      },
+      orderBy: [{ pillar: 'asc' }, { name: 'asc' }],
+    });
+
+    return metrics.map((metric) => this.toDomain(metric));
+  }
+
   private toDomain(metric: PrismaEsgMetric): EsgMetricEntity {
     return new EsgMetricEntity(
       metric.id,

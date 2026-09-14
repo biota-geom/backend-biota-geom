@@ -1,7 +1,15 @@
-import { Body, Controller, Post, UseFilters, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -9,6 +17,7 @@ import {
 import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../auth/presentation/decorators/current-user.decorator';
 import { CreateCustomEsgMetricUseCase } from '../../application/use-cases/create-custom-esg-metric.use-case';
+import { ListEsgMetricsUseCase } from '../../application/use-cases/list-esg-metrics.use-case';
 import { CreateCustomEsgMetricDto } from '../dtos/create-custom-esg-metric.dto';
 import {
   EsgMetricResponseDto,
@@ -23,7 +32,24 @@ import { EsgMetricsExceptionFilter } from '../filters/esg-metrics-exception.filt
 export class EsgMetricsController {
   constructor(
     private readonly createCustomEsgMetricUseCase: CreateCustomEsgMetricUseCase,
+    private readonly listEsgMetricsUseCase: ListEsgMetricsUseCase,
   ) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Lista métricas ESG visíveis para o usuário autenticado.',
+    description:
+      'Retorna métricas globais e métricas customizadas da conta autenticada.',
+  })
+  @ApiOkResponse({ type: EsgMetricResponseDto, isArray: true })
+  async list(
+    @CurrentUser() user: { id: string },
+  ): Promise<EsgMetricResponseDto[]> {
+    const metrics = await this.listEsgMetricsUseCase.execute(user.id);
+
+    return metrics.map(toEsgMetricResponse);
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard)

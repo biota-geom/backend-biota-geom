@@ -3,32 +3,49 @@ import { ListCustomersUseCase } from './list-customers.use-case';
 
 describe('ListCustomersUseCase', () => {
   it('maps all customer data and exposes status as text', async () => {
-    const findAll = jest.fn().mockResolvedValue([
-      {
-        id: 'customer-1',
-        name: 'Unidade Industrial RS',
-        isActive: true,
-        address: { city: 'Porto Alegre', state: 'RS' },
-        sector: { name: 'Siderurgia' },
-      },
-      {
-        id: 'customer-2',
-        name: 'Filial SP',
-        isActive: false,
-        address: { city: 'São Paulo', state: 'SP' },
-        sector: null,
-      },
-      {
-        id: 'customer-3',
-        name: 'Filial sem localização',
-        isActive: true,
-        address: null,
-        sector: undefined,
-      },
-    ]);
-    const repository = { findAll } as unknown as CustomerRepository;
+    const repository: Pick<CustomerRepository, 'findAll'> = {
+      findAll: jest.fn().mockResolvedValue([
+        {
+          id: 'customer-1',
+          name: 'Unidade Industrial RS',
+          isActive: true,
+          address: { city: 'Porto Alegre', state: 'RS' },
+          sector: { name: 'Siderurgia' },
+        },
+        {
+          id: 'customer-2',
+          name: 'Filial SP',
+          isActive: false,
+          address: { city: 'São Paulo', state: 'SP' },
+          sector: null,
+        },
+        {
+          id: 'customer-3',
+          name: 'Filial sem endereço',
+          isActive: true,
+          address: undefined,
+          sector: undefined,
+        },
+        {
+          id: 'customer-4',
+          name: 'Filial sem cidade',
+          isActive: true,
+          address: { city: '', state: 'SC' },
+          sector: { name: 'Metalurgia' },
+        },
+        {
+          id: 'customer-5',
+          name: 'Filial sem estado',
+          isActive: true,
+          address: { city: 'Curitiba', state: '' },
+          sector: { name: 'Serviços' },
+        },
+      ]),
+    };
 
-    const useCase = new ListCustomersUseCase(repository);
+    const useCase = new ListCustomersUseCase(
+      repository as unknown as CustomerRepository,
+    );
 
     await expect(useCase.listCustomers()).resolves.toEqual([
       {
@@ -47,13 +64,27 @@ describe('ListCustomersUseCase', () => {
       },
       {
         id: 'customer-3',
-        name: 'Filial sem localização',
+        name: 'Filial sem endereço',
         status: 'Ativo',
         segment: '',
         location: '',
       },
+      {
+        id: 'customer-4',
+        name: 'Filial sem cidade',
+        status: 'Ativo',
+        segment: 'Metalurgia',
+        location: 'SC',
+      },
+      {
+        id: 'customer-5',
+        name: 'Filial sem estado',
+        status: 'Ativo',
+        segment: 'Serviços',
+        location: 'Curitiba',
+      },
     ]);
 
-    expect(findAll).toHaveBeenCalledTimes(1);
+    expect(repository.findAll).toHaveBeenCalledTimes(1);
   });
 });

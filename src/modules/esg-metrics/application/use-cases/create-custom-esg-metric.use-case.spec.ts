@@ -21,6 +21,10 @@ class InMemoryEsgMetricRepository extends EsgMetricRepository {
     });
   }
 
+  findVisibleToCustomer(): Promise<EsgMetricEntity[]> {
+    throw new Error('Not implemented');
+  }
+
   findByCustomerIdAndName(
     customerId: string,
     name: string,

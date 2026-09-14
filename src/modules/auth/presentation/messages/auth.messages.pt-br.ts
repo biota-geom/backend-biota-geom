@@ -17,6 +17,9 @@ export const AUTH_MESSAGES = {
     'Não foi possível concluir a operação. Tente novamente mais tarde.',
   ESG_METRIC_NAME_ALREADY_EXISTS:
     'Já existe uma métrica com este nome para este cliente.',
+  CUSTOMER_NOT_FOUND: 'Não foi possível encontrar esta empresa.',
+  ESG_METRICS_NOT_FOUND:
+    'Uma ou mais métricas informadas não foram encontradas.',
   CUSTOMER_DOCUMENT_ALREADY_EXISTS:
     'Já existe uma empresa cadastrada com este CNPJ.',
   SECTOR_NOT_FOUND: 'O segmento informado não existe.',

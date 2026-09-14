@@ -1,0 +1,75 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { JwtAuthGuard } from '../../../auth/presentation/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../auth/presentation/decorators/current-user.decorator';
+import { CreateCustomEsgMetricUseCase } from '../../application/use-cases/create-custom-esg-metric.use-case';
+import { ListEsgMetricsUseCase } from '../../application/use-cases/list-esg-metrics.use-case';
+import { CreateCustomEsgMetricDto } from '../dtos/create-custom-esg-metric.dto';
+import {
+  EsgMetricResponseDto,
+  toEsgMetricResponse,
+} from '../dtos/esg-metric-response.dto';
+import { EsgMetricsExceptionFilter } from '../filters/esg-metrics-exception.filter';
+
+@ApiTags('esg-metrics')
+@ApiBearerAuth()
+@UseFilters(EsgMetricsExceptionFilter)
+@Controller('api/esg-metrics')
+export class EsgMetricsController {
+  constructor(
+    private readonly createCustomEsgMetricUseCase: CreateCustomEsgMetricUseCase,
+    private readonly listEsgMetricsUseCase: ListEsgMetricsUseCase,
+  ) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Lista métricas ESG visíveis para o usuário autenticado.',
+    description:
+      'Retorna métricas globais e métricas customizadas da conta autenticada.',
+  })
+  @ApiOkResponse({ type: EsgMetricResponseDto, isArray: true })
+  async list(
+    @CurrentUser() user: { id: string },
+  ): Promise<EsgMetricResponseDto[]> {
+    const metrics = await this.listEsgMetricsUseCase.execute(user.id);
+
+    return metrics.map(toEsgMetricResponse);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Cria uma métrica ESG customizada.',
+    description: 'Métrica ESG customizada criada com sucesso.',
+  })
+  @ApiCreatedResponse({ type: EsgMetricResponseDto })
+  async create(
+    @Body() dto: CreateCustomEsgMetricDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<EsgMetricResponseDto> {
+    const metric = await this.createCustomEsgMetricUseCase.execute({
+      name: dto.name,
+      unit: dto.unit,
+      pillar: dto.pillar,
+      griStandardId: dto.gri_standard_id,
+      customerId: user.id,
+    });
+
+    return toEsgMetricResponse(metric);
+  }
+}

@@ -1,4 +1,5 @@
 import { validateEnv } from './env.validation';
+import { describe, expect, it } from '@jest/globals';
 
 // Exemplo de teste de referência: `validateEnv` é uma função pura (sem
 // NestJS, sem banco, sem I/O), então não precisamos de TestingModule nem de

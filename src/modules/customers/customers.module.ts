@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { FindCustomerUseCase } from './application/find-a-customer.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
 import { RemoveCustomerUseCase } from './application/remove-customer.use-case';
 import { CustomerRepository } from './domain/customers.repository';
@@ -13,6 +14,7 @@ import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
   providers: [
     { provide: CustomerRepository, useClass: PrismaCustomerRepository },
     ListCustomersUseCase,
+    FindCustomerUseCase,
     RemoveCustomerUseCase,
     CustomersService,
   ],

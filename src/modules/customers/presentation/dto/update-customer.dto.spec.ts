@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { AddressType, DocumentType } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { UpdateCustomerDto } from './update-customer.dto';
@@ -11,11 +12,11 @@ describe('UpdateCustomerDto', () => {
   const validPlain = {
     name: 'Siderurgia Sul Porto Alegre (Atualizada)',
     document: '12345678000199',
-    document_type: 'cnpj',
+    document_type: DocumentType.CNPJ,
     sector_id: '550e8400-e29b-41d4-a716-446655440000',
     responsible_name: 'Novo Responsável',
     responsible_email: 'novo@empresa.com',
-    address: { type: 'billing', state: 'RS', city: 'Canoas' },
+    address: { type: AddressType.BILLING, state: 'RS', city: 'Canoas' },
     esg_indicator_ids: [
       '550e8400-e29b-41d4-a716-446655440001',
       '550e8400-e29b-41d4-a716-446655440002',

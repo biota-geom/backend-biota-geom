@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateCustomerUseCase } from '../application/create-customer.use-case';
 import { FindCustomerUseCase } from '../application/find-a-customer.use-case';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
 import { RemoveCustomerUseCase } from '../application/remove-customer.use-case';
 import { UpdateCustomerUseCase } from '../application/update-customer.use-case';
+import { CreateCustomerData } from '../domain/create-customer.data';
+import { Customer } from '../domain/customer.entity';
 import {
   CustomerDetailResponseDto,
   toCustomerDetailResponse,
@@ -15,6 +18,7 @@ import { UpdateCustomerDto } from '../presentation/dto/update-customer.dto';
 export class CustomersService {
   constructor(
     private readonly listCustomersUseCase: ListCustomersUseCase,
+    private readonly createCustomerUseCase: CreateCustomerUseCase,
     private readonly findCustomerUseCase: FindCustomerUseCase,
     private readonly updateCustomerUseCase: UpdateCustomerUseCase,
     private readonly removeCustomerUseCase: RemoveCustomerUseCase,
@@ -22,6 +26,10 @@ export class CustomersService {
 
   async findAll(): Promise<CustomerListResponseDTO[]> {
     return this.listCustomersUseCase.listCustomers();
+  }
+
+  async create(data: CreateCustomerData): Promise<Customer> {
+    return this.createCustomerUseCase.createCustomer(data);
   }
 
   async findOne(id: string): Promise<CustomerResponseDTO> {

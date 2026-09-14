@@ -1,19 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { AddressType } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 function trimString({ value }: { value: unknown }): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
 
 export class UpdateCustomerAddressDto {
-  @ApiPropertyOptional({ example: 'billing' })
+  @ApiPropertyOptional({ enum: AddressType, example: AddressType.BILLING })
   @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  type?: string;
+  @IsEnum(AddressType)
+  type?: AddressType;
 
   @ApiPropertyOptional({ example: 'Avenida das Palmeiras' })
   @IsOptional()

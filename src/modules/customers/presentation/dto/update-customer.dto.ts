@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DocumentType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -34,13 +36,10 @@ export class UpdateCustomerDto {
   @MaxLength(50)
   document?: string;
 
-  @ApiPropertyOptional({ example: 'cnpj' })
+  @ApiPropertyOptional({ enum: DocumentType, example: DocumentType.CNPJ })
   @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  document_type?: string;
+  @IsEnum(DocumentType)
+  document_type?: DocumentType;
 
   @ApiPropertyOptional({ example: 'contato@empresa.com' })
   @IsOptional()

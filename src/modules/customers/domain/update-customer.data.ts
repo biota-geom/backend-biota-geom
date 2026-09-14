@@ -1,5 +1,7 @@
+import { AddressType, DocumentType } from '@prisma/client';
+
 export type UpdateCustomerAddressData = {
-  type?: string;
+  type?: AddressType;
   street?: string;
   number?: string;
   city?: string;
@@ -11,7 +13,7 @@ export type UpdateCustomerAddressData = {
 export type UpdateCustomerData = {
   name?: string;
   document?: string;
-  documentType?: string;
+  documentType?: DocumentType;
   email?: string;
   sectorId?: string;
   ownerName?: string;

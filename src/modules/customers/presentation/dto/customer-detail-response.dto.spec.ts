@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { AddressType, DocumentType } from '@prisma/client';
 import type { Customer } from '../../domain/customer.entity';
 import { toCustomerDetailResponse } from './customer-detail-response.dto';
 
@@ -6,7 +7,7 @@ const BASE_CUSTOMER: Customer = {
   id: 'customer-1',
   name: 'Unidade Industrial RS',
   document: '12345678000199',
-  documentType: 'cnpj',
+  documentType: DocumentType.CNPJ,
   email: 'contato@empresa.com',
   ownerName: 'Responsável',
   ownerEmail: 'responsavel@empresa.com',
@@ -25,7 +26,7 @@ describe('toCustomerDetailResponse', () => {
       ...BASE_CUSTOMER,
       address: {
         id: 'address-1',
-        type: 'billing',
+        type: AddressType.BILLING,
         street: 'Avenida das Palmeiras',
         number: '1000',
         city: 'Canoas',
@@ -42,7 +43,7 @@ describe('toCustomerDetailResponse', () => {
       id: 'customer-1',
       name: 'Unidade Industrial RS',
       document: '12345678000199',
-      document_type: 'cnpj',
+      document_type: DocumentType.CNPJ,
       email: 'contato@empresa.com',
       responsible_name: 'Responsável',
       responsible_email: 'responsavel@empresa.com',
@@ -50,7 +51,7 @@ describe('toCustomerDetailResponse', () => {
       is_active: true,
       sector_id: 'sector-1',
       address: {
-        type: 'billing',
+        type: AddressType.BILLING,
         street: 'Avenida das Palmeiras',
         number: '1000',
         city: 'Canoas',

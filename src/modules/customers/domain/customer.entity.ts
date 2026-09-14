@@ -1,11 +1,11 @@
-import { CustomerAddress } from '@prisma/client';
+import { CustomerAddress, DocumentType } from '@prisma/client';
 import { Sector } from '../../sectors/domain/sector.entity';
 
 export interface Customer {
   id: string;
   name: string;
   document: string;
-  documentType: string;
+  documentType: DocumentType;
   email: string;
   ownerName: string;
   ownerEmail: string;

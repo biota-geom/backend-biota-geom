@@ -1,21 +1,24 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
+import { SectorsModule } from '../sectors/sectors.module';
+import { CreateCustomerUseCase } from './application/create-customer.use-case';
 import { FindCustomerUseCase } from './application/find-a-customer.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
 import { RemoveCustomerUseCase } from './application/remove-customer.use-case';
 import { UpdateCustomerUseCase } from './application/update-customer.use-case';
 import { CustomerRepository } from './domain/customers.repository';
 import { CustomersService } from './infra/customers.service';
-import { CustomerController } from './presentation/customers.controller';
 import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
+import { CustomerController } from './presentation/customers.controller';
 
 @Module({
-  imports: [AuthModule, EsgMetricsModule],
+  imports: [AuthModule, EsgMetricsModule, SectorsModule],
   controllers: [CustomerController],
   providers: [
     { provide: CustomerRepository, useClass: PrismaCustomerRepository },
     ListCustomersUseCase,
+    CreateCustomerUseCase,
     FindCustomerUseCase,
     RemoveCustomerUseCase,
     UpdateCustomerUseCase,

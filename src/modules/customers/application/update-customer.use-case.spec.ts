@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { DocumentType } from '@prisma/client';
 import type { EsgMetricEntity } from '../../esg-metrics/domain/entities/esg-metric.entity';
 import { EsgPillar } from '../../esg-metrics/domain/esg-pillar';
 import { EsgMetricRepository } from '../../esg-metrics/domain/repositories/esg-metric.repository';
@@ -13,7 +14,7 @@ const CUSTOMER: Customer = {
   id: 'customer-1',
   name: 'Unidade Industrial RS',
   document: '12345678000199',
-  documentType: 'cnpj',
+  documentType: DocumentType.CNPJ,
   email: 'contato@empresa.com',
   ownerName: 'Responsável Original',
   ownerEmail: 'original@empresa.com',
@@ -41,6 +42,10 @@ class InMemoryCustomerRepository extends CustomerRepository {
   updateData?: { id: string; data: UpdateCustomerData };
 
   findAll(): Promise<Customer[]> {
+    throw new Error('Not implemented');
+  }
+
+  create(): Promise<Customer> {
     throw new Error('Not implemented');
   }
 

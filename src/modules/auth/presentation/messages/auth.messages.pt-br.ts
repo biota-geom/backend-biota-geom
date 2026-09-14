@@ -20,4 +20,7 @@ export const AUTH_MESSAGES = {
   CUSTOMER_NOT_FOUND: 'Não foi possível encontrar esta empresa.',
   ESG_METRICS_NOT_FOUND:
     'Uma ou mais métricas informadas não foram encontradas.',
+  CUSTOMER_DOCUMENT_ALREADY_EXISTS:
+    'Já existe uma empresa cadastrada com este CNPJ.',
+  SECTOR_NOT_FOUND: 'O segmento informado não existe.',
 } as const;

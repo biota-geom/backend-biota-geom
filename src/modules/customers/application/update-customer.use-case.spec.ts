@@ -19,6 +19,7 @@ const CUSTOMER: Customer = {
   ownerEmail: 'original@empresa.com',
   ownerPhone: '+55 51 90000-0000',
   isActive: true,
+  isDeleted: false,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   addressId: 'address-1',
@@ -52,6 +53,10 @@ class InMemoryCustomerRepository extends CustomerRepository {
       name: data.name ?? CUSTOMER.name,
       esgIndicatorIds: data.esgIndicatorIds,
     });
+  }
+
+  remove(): Promise<boolean> {
+    throw new Error('Not implemented');
   }
 }
 

@@ -34,4 +34,19 @@ describe('CustomerController', () => {
     );
     expect(service.update).toHaveBeenCalledWith('customer-1', dto);
   });
+
+  it('delegates customer deletion to the service', async () => {
+    const service: Pick<CustomersService, 'findAll' | 'remove'> = {
+      findAll: jest.fn(),
+      remove: jest.fn().mockResolvedValue(true),
+    };
+    const controller = new CustomerController(
+      service as unknown as CustomersService,
+    );
+
+    await expect(
+      controller.deleteCustomer('customer-1'),
+    ).resolves.toBeUndefined();
+    expect(service.remove).toHaveBeenCalledWith('customer-1');
+  });
 });

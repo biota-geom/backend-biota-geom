@@ -1,3 +1,5 @@
+import { NotFoundException } from '@nestjs/common';
+import { RemoveCustomerUseCase } from '../application/remove-customer.use-case';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
 import { UpdateCustomerUseCase } from '../application/update-customer.use-case';
 import { UpdateCustomerDto } from '../presentation/dto/update-customer.dto';
@@ -12,9 +14,13 @@ describe('CustomersService', () => {
     const updateCustomerUseCase: Pick<UpdateCustomerUseCase, 'execute'> = {
       execute: jest.fn(),
     };
+    const removeCustomerUseCase = {
+      removeCustomer: jest.fn(),
+    } as unknown as RemoveCustomerUseCase;
     const service = new CustomersService(
       listCustomersUseCase as unknown as ListCustomersUseCase,
       updateCustomerUseCase as unknown as UpdateCustomerUseCase,
+      removeCustomerUseCase,
     );
 
     await expect(service.findAll()).resolves.toEqual(result);
@@ -56,9 +62,13 @@ describe('CustomersService', () => {
         esgIndicatorIds: ['metric-1'],
       }),
     };
+    const removeCustomerUseCase = {
+      removeCustomer: jest.fn(),
+    } as unknown as RemoveCustomerUseCase;
     const service = new CustomersService(
       listCustomersUseCase as unknown as ListCustomersUseCase,
       updateCustomerUseCase as unknown as UpdateCustomerUseCase,
+      removeCustomerUseCase,
     );
 
     const dto = Object.assign(new UpdateCustomerDto(), {
@@ -101,5 +111,35 @@ describe('CustomersService', () => {
       },
       esgIndicatorIds: ['metric-1'],
     });
+  });
+
+  it('removes a customer through the remove use case', async () => {
+    const removeCustomer = jest.fn().mockResolvedValue(true);
+    const removeCustomerUseCase = {
+      removeCustomer,
+    } as unknown as RemoveCustomerUseCase;
+    const service = new CustomersService(
+      {} as ListCustomersUseCase,
+      {} as UpdateCustomerUseCase,
+      removeCustomerUseCase,
+    );
+
+    await expect(service.remove('customer-1')).resolves.toBe(true);
+    expect(removeCustomer).toHaveBeenCalledWith('customer-1');
+  });
+
+  it('throws not found when the remove use case finds no customer', async () => {
+    const removeCustomerUseCase = {
+      removeCustomer: jest.fn().mockResolvedValue(false),
+    } as unknown as RemoveCustomerUseCase;
+    const service = new CustomersService(
+      {} as ListCustomersUseCase,
+      {} as UpdateCustomerUseCase,
+      removeCustomerUseCase,
+    );
+
+    await expect(service.remove('missing-id')).rejects.toEqual(
+      new NotFoundException('Empresa não encontrada'),
+    );
   });
 });

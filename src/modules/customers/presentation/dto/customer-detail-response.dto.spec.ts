@@ -12,6 +12,7 @@ const BASE_CUSTOMER: Customer = {
   ownerEmail: 'responsavel@empresa.com',
   ownerPhone: '+55 51 90000-0000',
   isActive: true,
+  isDeleted: false,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   addressId: 'address-1',

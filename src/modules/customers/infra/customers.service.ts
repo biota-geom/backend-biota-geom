@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
+import { RemoveCustomerUseCase } from '../application/remove-customer.use-case';
 import { UpdateCustomerUseCase } from '../application/update-customer.use-case';
 import {
   CustomerDetailResponseDto,
@@ -13,6 +14,7 @@ export class CustomersService {
   constructor(
     private readonly listCustomersUseCase: ListCustomersUseCase,
     private readonly updateCustomerUseCase: UpdateCustomerUseCase,
+    private readonly removeCustomerUseCase: RemoveCustomerUseCase,
   ) {}
 
   async findAll(): Promise<CustomerResponseDTO[]> {
@@ -47,5 +49,15 @@ export class CustomersService {
     });
 
     return toCustomerDetailResponse(customer);
+  }
+
+  async remove(id: string): Promise<boolean> {
+    const removed = await this.removeCustomerUseCase.removeCustomer(id);
+
+    if (!removed) {
+      throw new NotFoundException('Empresa não encontrada');
+    }
+
+    return true;
   }
 }

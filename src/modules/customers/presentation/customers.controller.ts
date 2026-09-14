@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Put,
@@ -10,9 +13,11 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
@@ -53,5 +58,19 @@ export class CustomerController {
     @Body() dto: UpdateCustomerDto,
   ): Promise<CustomerDetailResponseDto> {
     return this.service.update(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'id', description: 'Customer ID', type: 'string' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a customer',
+  })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ description: 'Customer not found' })
+  async deleteCustomer(@Param('id') id: string): Promise<void> {
+    await this.service.remove(id);
   }
 }

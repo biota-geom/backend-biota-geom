@@ -8,7 +8,7 @@ import { describe, expect, it } from '@jest/globals';
 describe('validateEnv', () => {
   // Config mínima e válida usada como base em cada teste. Cada `it` só
   // sobrescreve o que quer testar, deixando claro qual é a variável em foco.
-  const validConfig = {
+  const VALID_BASE = {
     NODE_ENV: 'test',
     PORT: '3000',
     DATABASE_URL: 'postgresql://user:password@localhost:5432/db',
@@ -17,7 +17,7 @@ describe('validateEnv', () => {
   };
 
   it('returns the parsed and typed env vars when the config is valid', () => {
-    const result = validateEnv(validConfig);
+    const result = validateEnv(VALID_BASE);
 
     expect(result).toEqual({
       NODE_ENV: 'test',
@@ -36,9 +36,9 @@ describe('validateEnv', () => {
 
   it('applies the documented defaults for the optional variables', () => {
     const result = validateEnv({
-      DATABASE_URL: validConfig.DATABASE_URL,
-      JWT_ACCESS_SECRET: validConfig.JWT_ACCESS_SECRET,
-      JWT_REFRESH_SECRET: validConfig.JWT_REFRESH_SECRET,
+      DATABASE_URL: VALID_BASE.DATABASE_URL,
+      JWT_ACCESS_SECRET: VALID_BASE.JWT_ACCESS_SECRET,
+      JWT_REFRESH_SECRET: VALID_BASE.JWT_REFRESH_SECRET,
     });
 
     expect(result.NODE_ENV).toBe('development');
@@ -51,8 +51,20 @@ describe('validateEnv', () => {
     expect(result.CORS_ORIGINS).toBe('http://localhost:5173');
   });
 
+  it('applies defaults for the remaining optional variables', () => {
+    const result = validateEnv({
+      DATABASE_URL: VALID_BASE.DATABASE_URL,
+      JWT_ACCESS_SECRET: VALID_BASE.JWT_ACCESS_SECRET,
+      JWT_REFRESH_SECRET: VALID_BASE.JWT_REFRESH_SECRET,
+    });
+
+    expect(result.JWT_ACCESS_TTL).toBe('15m');
+    expect(result.JWT_REFRESH_TTL).toBe('7d');
+    expect(result.AUTH_ALLOWED_EMAIL_DOMAIN).toBe('biotageom.com.br');
+  });
+
   it('throws with a message naming the missing variable when DATABASE_URL is absent', () => {
-    const { DATABASE_URL: _ignored, ...configWithoutDatabaseUrl } = validConfig;
+    const { DATABASE_URL: _ignored, ...configWithoutDatabaseUrl } = VALID_BASE;
     void _ignored;
 
     // Testamos o conteúdo da mensagem, não só que "lançou algo": é isso que
@@ -64,7 +76,7 @@ describe('validateEnv', () => {
   it('accepts both the bare "postgres" and the "postgresql" protocol', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         DATABASE_URL: 'postgres://user:password@localhost:5432/db',
       }),
     ).not.toThrow();
@@ -72,7 +84,7 @@ describe('validateEnv', () => {
 
   it('throws when DATABASE_URL uses a protocol other than postgres/postgresql', () => {
     expect(() =>
-      validateEnv({ ...validConfig, DATABASE_URL: 'mysql://localhost/db' }),
+      validateEnv({ ...VALID_BASE, DATABASE_URL: 'mysql://localhost/db' }),
     ).toThrow(/DATABASE_URL/);
   });
 
@@ -82,7 +94,7 @@ describe('validateEnv', () => {
   it('rejects a protocol that merely starts with "postgres" (e.g. "postgresqlx")', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         DATABASE_URL: 'postgresqlx://localhost/db',
       }),
     ).toThrow(/DATABASE_URL/);
@@ -91,18 +103,18 @@ describe('validateEnv', () => {
   it('rejects a protocol that merely ends with "postgresql" (e.g. "xpostgresql")', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         DATABASE_URL: 'xpostgresql://localhost/db',
       }),
     ).toThrow(/DATABASE_URL/);
   });
 
   it('throws when PORT is not a positive integer', () => {
-    expect(() => validateEnv({ ...validConfig, PORT: '-1' })).toThrow(/PORT/);
+    expect(() => validateEnv({ ...VALID_BASE, PORT: '-1' })).toThrow(/PORT/);
   });
 
   it('throws when NODE_ENV is outside the allowed enum', () => {
-    expect(() => validateEnv({ ...validConfig, NODE_ENV: 'staging' })).toThrow(
+    expect(() => validateEnv({ ...VALID_BASE, NODE_ENV: 'staging' })).toThrow(
       /NODE_ENV/,
     );
   });
@@ -110,14 +122,14 @@ describe('validateEnv', () => {
   it.each(['development', 'production', 'test'] as const)(
     'accepts %s as a valid NODE_ENV',
     (nodeEnv) => {
-      expect(validateEnv({ ...validConfig, NODE_ENV: nodeEnv }).NODE_ENV).toBe(
+      expect(validateEnv({ ...VALID_BASE, NODE_ENV: nodeEnv }).NODE_ENV).toBe(
         nodeEnv,
       );
     },
   );
 
   it('rejects a missing JWT secret', () => {
-    const { JWT_ACCESS_SECRET: _ignored, ...rest } = validConfig;
+    const { JWT_ACCESS_SECRET: _ignored, ...rest } = VALID_BASE;
     void _ignored;
 
     expect(() => validateEnv(rest)).toThrow(/JWT_ACCESS_SECRET/);
@@ -125,14 +137,14 @@ describe('validateEnv', () => {
 
   it('rejects a secret shorter than 32 characters', () => {
     expect(() =>
-      validateEnv({ ...validConfig, JWT_ACCESS_SECRET: 'short' }),
+      validateEnv({ ...VALID_BASE, JWT_ACCESS_SECRET: 'short' }),
     ).toThrow(/JWT_ACCESS_SECRET/);
   });
 
   it('rejects identical access and refresh secrets', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         JWT_ACCESS_SECRET: 'a'.repeat(32),
         JWT_REFRESH_SECRET: 'a'.repeat(32),
       }),
@@ -142,7 +154,7 @@ describe('validateEnv', () => {
   it('rejects the placeholder access secret in production', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         NODE_ENV: 'production',
         JWT_ACCESS_SECRET:
           'replace-with-a-random-secret-at-least-32-characters-access',
@@ -153,7 +165,7 @@ describe('validateEnv', () => {
   it('rejects the placeholder refresh secret in production', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         NODE_ENV: 'production',
         JWT_ACCESS_SECRET: 'a'.repeat(32),
         JWT_REFRESH_SECRET:
@@ -165,7 +177,7 @@ describe('validateEnv', () => {
   it('allows the placeholder-looking secret outside production', () => {
     expect(() =>
       validateEnv({
-        ...validConfig,
+        ...VALID_BASE,
         NODE_ENV: 'development',
         JWT_ACCESS_SECRET:
           'replace-with-a-random-secret-at-least-32-characters-access',
@@ -180,7 +192,7 @@ describe('validateEnv', () => {
     // porque duas issues concatenadas sem separador ainda conteriam ambos os
     // nomes de campo, só que numa linha só.
     try {
-      validateEnv({ ...validConfig, NODE_ENV: 'staging', PORT: '-1' });
+      validateEnv({ ...VALID_BASE, NODE_ENV: 'staging', PORT: '-1' });
       throw new Error('expected validateEnv to throw');
     } catch (error) {
       const lines = (error as Error).message.split('\n');

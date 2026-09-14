@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { FindCustomerUseCase } from './application/find-a-customer.use-case';
 import { LinkCustomerEsgMetricsUseCase } from './application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from './application/list-customer-esg-metrics.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
@@ -21,6 +22,7 @@ import { CustomerController } from './presentation/customers.controller';
       useClass: PrismaCustomerEsgMetricRepository,
     },
     ListCustomersUseCase,
+    FindCustomerUseCase,
     RemoveCustomerUseCase,
     LinkCustomerEsgMetricsUseCase,
     ListCustomerEsgMetricsUseCase,

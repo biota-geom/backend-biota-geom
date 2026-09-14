@@ -21,31 +21,44 @@ describe('PrismaCustomerRepository', () => {
     });
   });
 
-  it('finds a customer by id', async () => {
-    const customer = {
-      findMany: jest.fn(),
-      findUnique: jest.fn().mockResolvedValue({ id: 'customer-1' }),
-    };
-    const prisma = { customer } as unknown as PrismaService;
-    const repository = new PrismaCustomerRepository(prisma);
+  it('finds one customer by id with its address and sector', async () => {
+    const findOne = jest.fn().mockResolvedValue({ id: 'customer-1' });
+    const customer = { findMany: jest.fn(), findUnique: findOne };
+    const repository = new PrismaCustomerRepository({
+      customer,
+    } as unknown as PrismaService);
 
-    await expect(repository.findById('customer-1')).resolves.toEqual({
+    await expect(repository.findOne('customer-1')).resolves.toEqual({
       id: 'customer-1',
     });
-    expect(customer.findUnique).toHaveBeenCalledWith({
+    expect(findOne).toHaveBeenCalledWith({
       where: { id: 'customer-1', isDeleted: false },
+      include: { address: true, sector: true },
     });
   });
 
-  it('returns null when the customer does not exist', async () => {
-    const customer = {
-      findMany: jest.fn(),
-      findUnique: jest.fn().mockResolvedValue(null),
-    };
-    const prisma = { customer } as unknown as PrismaService;
-    const repository = new PrismaCustomerRepository(prisma);
+  it('returns null when the requested customer does not exist', async () => {
+    const findOne = jest.fn().mockResolvedValue(null);
+    const customer = { findMany: jest.fn(), findUnique: findOne };
+    const repository = new PrismaCustomerRepository({
+      customer,
+    } as unknown as PrismaService);
 
-    await expect(repository.findById('missing')).resolves.toBeNull();
+    await expect(repository.findOne('missing-id')).resolves.toBeNull();
+  });
+
+  it('returns null when the requested customer is deleted', async () => {
+    const findOne = jest.fn().mockResolvedValue(null);
+    const customer = { findMany: jest.fn(), findUnique: findOne };
+    const repository = new PrismaCustomerRepository({
+      customer,
+    } as unknown as PrismaService);
+
+    await expect(repository.findOne('deleted-id')).resolves.toBeNull();
+    expect(findOne).toHaveBeenCalledWith({
+      where: { id: 'deleted-id', isDeleted: false },
+      include: { address: true, sector: true },
+    });
   });
 
   it('marks an existing customer as deleted instead of deleting it', async () => {

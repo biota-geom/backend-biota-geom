@@ -10,24 +10,26 @@ import {
   CustomerController,
   invalidCustomerIdException,
 } from './customers.controller';
-import { CustomerResponseDTO } from './dto/customer-responde.dto';
+import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
+import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
 
 const CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440000';
 
 describe('CustomerController', () => {
   function buildController() {
-    const listedCustomer: CustomerResponseDTO = {
+    const listedCustomer: CustomerListResponseDTO = {
       id: 'customer-1',
       name: 'Unidade Industrial RS',
       status: 'Ativo',
       segment: 'Siderurgia',
       location: 'Porto Alegre - RS',
     };
-    const service: Pick<CustomersService, 'findAll' | 'remove'> = {
+    const service = {
       findAll: jest
-        .fn<() => Promise<CustomerResponseDTO[]>>()
+        .fn<() => Promise<CustomerListResponseDTO[]>>()
         .mockResolvedValue([listedCustomer]),
+      findOne: jest.fn<(id: string) => Promise<CustomerResponseDTO>>(),
       remove: jest
         .fn<(id: string) => Promise<boolean>>()
         .mockResolvedValue(true),
@@ -112,6 +114,20 @@ describe('CustomerController', () => {
         message: AUTH_MESSAGES.INVALID_REQUEST,
       }),
     );
+  });
+
+  it('delegates the detail lookup with the route id', async () => {
+    const { controller, service } = buildController();
+    const expected = {
+      id: 'customer-1',
+      name: 'Unidade Industrial RS',
+    } as CustomerResponseDTO;
+    service.findOne.mockResolvedValue(expected);
+
+    await expect(controller.getCustomer('customer-1')).resolves.toEqual(
+      expected,
+    );
+    expect(service.findOne).toHaveBeenCalledWith('customer-1');
   });
 
   it('delegates customer deletion to the service', async () => {

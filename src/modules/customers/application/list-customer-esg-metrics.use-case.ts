@@ -12,7 +12,7 @@ export class ListCustomerEsgMetricsUseCase {
   ) {}
 
   async execute(customerId: string): Promise<EsgMetricEntity[]> {
-    const customer = await this.customerRepository.findById(customerId);
+    const customer = await this.customerRepository.findOne(customerId);
 
     if (!customer) {
       throw new CustomerNotFoundError(customerId);

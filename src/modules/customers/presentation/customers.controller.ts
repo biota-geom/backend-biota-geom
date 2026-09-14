@@ -30,7 +30,8 @@ import {
 import { LinkCustomerEsgMetricsUseCase } from '../application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from '../application/list-customer-esg-metrics.use-case';
 import { CustomersService } from '../infra/customers.service';
-import { CustomerResponseDTO } from './dto/customer-responde.dto';
+import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
+import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
 import { CustomersExceptionFilter } from './filters/customers-exception.filter';
 
@@ -58,9 +59,21 @@ export class CustomerController {
   @ApiOperation({
     summary: 'List all customer branches available to the authenticated admin.',
   })
-  @ApiOkResponse({ type: CustomerResponseDTO, isArray: true })
-  async listCustomers(): Promise<CustomerResponseDTO[]> {
+  @ApiOkResponse({ type: CustomerListResponseDTO, isArray: true })
+  async listCustomers(): Promise<CustomerListResponseDTO[]> {
     return this.service.findAll();
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Find a customer by id',
+  })
+  @ApiOkResponse({ type: CustomerResponseDTO })
+  @ApiNotFoundResponse({ description: 'Customer not found' })
+  async getCustomer(@Param('id') id: string): Promise<CustomerResponseDTO> {
+    return this.service.findOne(id);
   }
 
   /*

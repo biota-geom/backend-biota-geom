@@ -15,7 +15,7 @@ function buildUseCase(overrides?: {
 }) {
   const customerRepository = {
     findAll: jest.fn(),
-    findById: jest.fn(() =>
+    findOne: jest.fn(() =>
       Promise.resolve(
         overrides && 'customer' in overrides
           ? overrides.customer

@@ -12,7 +12,7 @@ export class LinkCustomerEsgMetricsUseCase {
   ) {}
 
   async execute(customerId: string, metricIds: string[]): Promise<void> {
-    const customer = await this.customerRepository.findById(customerId);
+    const customer = await this.customerRepository.findOne(customerId);
 
     if (!customer) {
       throw new CustomerNotFoundError(customerId);

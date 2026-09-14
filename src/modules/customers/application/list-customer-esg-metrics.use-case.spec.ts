@@ -19,7 +19,7 @@ const METRIC = {
 describe('ListCustomerEsgMetricsUseCase', () => {
   it('returns linked metrics for an existing customer', async () => {
     const customerRepository = {
-      findById: jest.fn(() => Promise.resolve({ id: CUSTOMER_ID })),
+      findOne: jest.fn(() => Promise.resolve({ id: CUSTOMER_ID })),
     } as unknown as CustomerRepository;
     const findMetricsByCustomerId = jest.fn<
       (customerId: string) => Promise<(typeof METRIC)[]>
@@ -38,7 +38,7 @@ describe('ListCustomerEsgMetricsUseCase', () => {
 
   it('rejects an unknown customer', async () => {
     const customerRepository = {
-      findById: jest.fn(() => Promise.resolve(null)),
+      findOne: jest.fn(() => Promise.resolve(null)),
     } as unknown as CustomerRepository;
     const findMetricsByCustomerId = jest.fn();
     const customerEsgMetricRepository = {

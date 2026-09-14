@@ -128,7 +128,6 @@ describe('CustomersService', () => {
         },
         sectorId: 'sector-1',
         sector: null,
-        esgIndicatorIds: ['metric-1'],
       }),
     };
 
@@ -140,7 +139,6 @@ describe('CustomersService', () => {
       responsible_name: 'Novo Responsável',
       responsible_email: 'novo@empresa.com',
       address: { type: AddressType.BILLING, state: 'RS', city: 'Canoas' },
-      esg_indicator_ids: ['metric-1'],
     });
 
     const response = await buildService({ updateCustomerUseCase }).update(
@@ -152,7 +150,6 @@ describe('CustomersService', () => {
       id: 'customer-1',
       name: 'Empresa Atualizada',
       responsible_name: 'Novo Responsável',
-      esg_indicator_ids: ['metric-1'],
     });
     expect(response.address).toMatchObject({ city: 'Canoas', state: 'RS' });
     expect(updateCustomerUseCase.execute).toHaveBeenCalledWith('customer-1', {
@@ -173,7 +170,6 @@ describe('CustomersService', () => {
         postalCode: undefined,
         countryCode: undefined,
       },
-      esgIndicatorIds: ['metric-1'],
     });
   });
 

@@ -1,10 +1,10 @@
 import { ArgumentsHost, HttpStatus } from '@nestjs/common';
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerAddressNotFoundError } from '../../domain/errors/customer-address-not-found.error';
 import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import { CustomerNotFoundError } from '../../domain/errors/customer-not-found.error';
-import { InvalidEsgIndicatorIdsError } from '../../domain/errors/invalid-esg-indicator-ids.error';
+import { EsgMetricsNotFoundError } from '../../domain/errors/esg-metrics-not-found.error';
 import { SectorNotFoundError } from '../../domain/errors/sector-not-found.error';
 import { CustomersExceptionFilter } from './customers-exception.filter';
 
@@ -49,15 +49,15 @@ describe('CustomersExceptionFilter', () => {
     );
   });
 
-  it('maps InvalidEsgIndicatorIdsError to 400', () => {
+  it('maps EsgMetricsNotFoundError to 400', () => {
     const { host, status, json } = buildHost();
 
-    filter.catch(new InvalidEsgIndicatorIdsError(['missing-id']), host);
+    filter.catch(new EsgMetricsNotFoundError(), host);
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: AUTH_MESSAGES.INVALID_ESG_INDICATOR_IDS,
+        message: AUTH_MESSAGES.ESG_METRICS_NOT_FOUND,
       }),
     );
   });

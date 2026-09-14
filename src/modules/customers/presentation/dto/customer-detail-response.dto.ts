@@ -57,9 +57,6 @@ export class CustomerDetailResponseDto {
 
   @ApiPropertyOptional({ type: CustomerAddressResponseDto, nullable: true })
   address!: CustomerAddressResponseDto | null;
-
-  @ApiProperty({ type: [String] })
-  esg_indicator_ids!: string[];
 }
 
 export function toCustomerDetailResponse(
@@ -87,6 +84,5 @@ export function toCustomerDetailResponse(
           country_code: customer.address.countryCode,
         }
       : null,
-    esg_indicator_ids: customer.esgIndicatorIds ?? [],
   };
 }

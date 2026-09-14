@@ -1,9 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { DocumentType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
-  ArrayUnique,
-  IsArray,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -77,18 +75,4 @@ export class UpdateCustomerDto {
   @ValidateNested()
   @Type(() => UpdateCustomerAddressDto)
   address?: UpdateCustomerAddressDto;
-
-  @ApiProperty({
-    type: [String],
-    example: [
-      '550e8400-e29b-41d4-a716-446655440001',
-      '550e8400-e29b-41d4-a716-446655440002',
-    ],
-    description:
-      'Lista completa de IDs de indicadores ESG vinculados à empresa. Substitui todos os vínculos existentes.',
-  })
-  @IsArray()
-  @ArrayUnique()
-  @IsUUID('all', { each: true })
-  esg_indicator_ids!: string[];
 }

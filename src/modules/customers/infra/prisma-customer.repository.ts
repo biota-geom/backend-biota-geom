@@ -1,10 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  Customer as PrismaCustomer,
-  CustomerAddress,
-  CustomerEnvironmentalTopic,
-  Sector,
-} from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateCustomerData } from '../domain/create-customer.data';
@@ -16,16 +10,9 @@ import type { UpdateCustomerData } from '../domain/update-customer.data';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 
-type PrismaCustomerWithRelations = PrismaCustomer & {
-  address: CustomerAddress | null;
-  sector: Sector | null;
-  environmentalTopics: CustomerEnvironmentalTopic[];
-};
-
 const CUSTOMER_DETAIL_INCLUDE = {
   address: true,
   sector: true,
-  environmentalTopics: true,
 } as const;
 
 function withoutUndefinedValues<T extends Record<string, unknown>>(
@@ -103,16 +90,14 @@ export class PrismaCustomerRepository implements CustomerRepository {
   }
 
   async findById(id: string): Promise<Customer | null> {
-    const customer = await this.prisma.customer.findUnique({
+    return this.prisma.customer.findUnique({
       where: { id },
       include: CUSTOMER_DETAIL_INCLUDE,
     });
-
-    return customer ? this.toDomain(customer) : null;
   }
 
   async update(id: string, data: UpdateCustomerData): Promise<Customer> {
-    const updated = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const current = await tx.customer.findUniqueOrThrow({ where: { id } });
 
       if (data.address) {
@@ -148,50 +133,11 @@ export class PrismaCustomerRepository implements CustomerRepository {
         }),
       });
 
-      await tx.customerEnvironmentalTopic.deleteMany({
-        where: { customerId: id },
-      });
-
-      if (data.esgIndicatorIds.length > 0) {
-        await tx.customerEnvironmentalTopic.createMany({
-          data: data.esgIndicatorIds.map((esgMetricId) => ({
-            customerId: id,
-            esgMetricId,
-          })),
-        });
-      }
-
       return tx.customer.findUniqueOrThrow({
         where: { id },
         include: CUSTOMER_DETAIL_INCLUDE,
       });
     });
-
-    return this.toDomain(updated);
-  }
-
-  private toDomain(customer: PrismaCustomerWithRelations): Customer {
-    return {
-      id: customer.id,
-      name: customer.name,
-      document: customer.document,
-      documentType: customer.documentType,
-      email: customer.email,
-      ownerName: customer.ownerName,
-      ownerEmail: customer.ownerEmail,
-      ownerPhone: customer.ownerPhone,
-      isActive: customer.isActive,
-      isDeleted: customer.isDeleted,
-      createdAt: customer.createdAt,
-      updatedAt: customer.updatedAt,
-      addressId: customer.addressId,
-      address: customer.address,
-      sectorId: customer.sectorId,
-      sector: customer.sector,
-      esgIndicatorIds: customer.environmentalTopics.map(
-        (topic) => topic.esgMetricId,
-      ),
-    };
   }
 
   async findOne(id: string): Promise<Customer | null> {

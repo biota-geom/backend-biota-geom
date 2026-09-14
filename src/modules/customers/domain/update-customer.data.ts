@@ -20,5 +20,4 @@ export type UpdateCustomerData = {
   ownerEmail?: string;
   ownerPhone?: string;
   address?: UpdateCustomerAddressData;
-  esgIndicatorIds: string[];
 };

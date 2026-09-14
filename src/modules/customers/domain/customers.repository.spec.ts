@@ -29,10 +29,6 @@ const CUSTOMER_ROW = {
   },
   sectorId: 'sector-1',
   sector: { id: 'sector-1', name: 'Siderurgia' },
-  environmentalTopics: [
-    { customerId: 'customer-1', esgMetricId: 'metric-1' },
-    { customerId: 'customer-1', esgMetricId: 'metric-2' },
-  ],
 };
 
 function buildRepository() {
@@ -40,13 +36,10 @@ function buildRepository() {
   const findUniqueOrThrow = jest.fn();
   const update = jest.fn();
   const customerAddressUpdate = jest.fn();
-  const deleteMany = jest.fn();
-  const createMany = jest.fn();
 
   const tx = {
     customer: { findUniqueOrThrow, update },
     customerAddress: { update: customerAddressUpdate },
-    customerEnvironmentalTopic: { deleteMany, createMany },
   };
 
   const prisma = {
@@ -62,8 +55,6 @@ function buildRepository() {
     findUniqueOrThrow,
     update,
     customerAddressUpdate,
-    deleteMany,
-    createMany,
   };
 }
 
@@ -86,16 +77,17 @@ describe('PrismaCustomerRepository', () => {
   });
 
   describe('findById', () => {
-    it('maps a customer including its linked ESG indicator ids', async () => {
+    it('loads a customer with its address and sector', async () => {
       const { repository, findUnique } = buildRepository();
       findUnique.mockResolvedValue(CUSTOMER_ROW);
 
       await expect(repository.findById('customer-1')).resolves.toEqual(
-        expect.objectContaining({
-          id: 'customer-1',
-          esgIndicatorIds: ['metric-1', 'metric-2'],
-        }),
+        expect.objectContaining({ id: 'customer-1' }),
       );
+      expect(findUnique).toHaveBeenCalledWith({
+        where: { id: 'customer-1' },
+        include: { address: true, sector: true },
+      });
     });
 
     it('returns null when the customer does not exist', async () => {
@@ -107,47 +99,21 @@ describe('PrismaCustomerRepository', () => {
   });
 
   describe('update', () => {
-    it('updates customer fields and replaces the ESG indicator links in a transaction', async () => {
-      const { repository, findUniqueOrThrow, update, deleteMany, createMany } =
-        buildRepository();
+    it('updates the provided customer fields in a transaction', async () => {
+      const { repository, findUniqueOrThrow, update } = buildRepository();
       findUniqueOrThrow
         .mockResolvedValueOnce({ ...CUSTOMER_ROW, addressId: 'address-1' })
         .mockResolvedValueOnce(CUSTOMER_ROW);
 
       const result = await repository.update('customer-1', {
         name: 'Empresa Atualizada',
-        esgIndicatorIds: ['metric-1', 'metric-2'],
       });
 
       expect(update).toHaveBeenCalledWith({
         where: { id: 'customer-1' },
         data: { name: 'Empresa Atualizada' },
       });
-      expect(deleteMany).toHaveBeenCalledWith({
-        where: { customerId: 'customer-1' },
-      });
-      expect(createMany).toHaveBeenCalledWith({
-        data: [
-          { customerId: 'customer-1', esgMetricId: 'metric-1' },
-          { customerId: 'customer-1', esgMetricId: 'metric-2' },
-        ],
-      });
-      expect(result.esgIndicatorIds).toEqual(['metric-1', 'metric-2']);
-    });
-
-    it('does not recreate indicator links when the list is empty', async () => {
-      const { repository, findUniqueOrThrow, deleteMany, createMany } =
-        buildRepository();
-      findUniqueOrThrow
-        .mockResolvedValueOnce({ ...CUSTOMER_ROW, addressId: 'address-1' })
-        .mockResolvedValueOnce({ ...CUSTOMER_ROW, environmentalTopics: [] });
-
-      await repository.update('customer-1', { esgIndicatorIds: [] });
-
-      expect(deleteMany).toHaveBeenCalledWith({
-        where: { customerId: 'customer-1' },
-      });
-      expect(createMany).not.toHaveBeenCalled();
+      expect(result).toEqual(expect.objectContaining({ id: 'customer-1' }));
     });
 
     it('updates only the provided address fields when the customer already has an address', async () => {
@@ -159,7 +125,6 @@ describe('PrismaCustomerRepository', () => {
 
       await repository.update('customer-1', {
         address: { city: 'Canoas', state: 'RS' },
-        esgIndicatorIds: [],
       });
 
       expect(customerAddressUpdate).toHaveBeenCalledWith({
@@ -178,7 +143,6 @@ describe('PrismaCustomerRepository', () => {
       await expect(
         repository.update('customer-1', {
           address: { city: 'Canoas' },
-          esgIndicatorIds: [],
         }),
       ).rejects.toThrow(CustomerAddressNotFoundError);
     });

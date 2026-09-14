@@ -66,7 +66,6 @@ export class CustomersService {
             countryCode: dto.address.country_code,
           }
         : undefined,
-      esgIndicatorIds: dto.esg_indicator_ids,
     });
 
     return toCustomerDetailResponse(customer);

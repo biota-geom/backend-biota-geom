@@ -17,10 +17,6 @@ describe('UpdateCustomerDto', () => {
     responsible_name: 'Novo Responsável',
     responsible_email: 'novo@empresa.com',
     address: { type: AddressType.BILLING, state: 'RS', city: 'Canoas' },
-    esg_indicator_ids: [
-      '550e8400-e29b-41d4-a716-446655440001',
-      '550e8400-e29b-41d4-a716-446655440002',
-    ],
   };
 
   it('accepts a complete valid payload', async () => {
@@ -29,45 +25,10 @@ describe('UpdateCustomerDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('accepts an empty esg_indicator_ids array to clear all links', async () => {
-    const errors = await validate(
-      toDto({ ...validPlain, esg_indicator_ids: [] }),
-    );
+  it('accepts an empty payload (all fields optional)', async () => {
+    const errors = await validate(toDto({}));
 
     expect(errors).toHaveLength(0);
-  });
-
-  it('accepts a payload with only esg_indicator_ids provided', async () => {
-    const errors = await validate(
-      toDto({ esg_indicator_ids: validPlain.esg_indicator_ids }),
-    );
-
-    expect(errors).toHaveLength(0);
-  });
-
-  it('requires esg_indicator_ids to be present', async () => {
-    const withoutIndicators: Record<string, unknown> = { ...validPlain };
-    delete withoutIndicators.esg_indicator_ids;
-    const errors = await validate(toDto(withoutIndicators));
-    const failedProperties = errors.map((error) => error.property);
-
-    expect(failedProperties).toContain('esg_indicator_ids');
-  });
-
-  it('rejects duplicated or invalid ESG indicator ids', async () => {
-    const errors = await validate(
-      toDto({
-        ...validPlain,
-        esg_indicator_ids: [
-          '550e8400-e29b-41d4-a716-446655440001',
-          '550e8400-e29b-41d4-a716-446655440001',
-          'not-a-uuid',
-        ],
-      }),
-    );
-    const failedProperties = errors.map((error) => error.property);
-
-    expect(failedProperties).toContain('esg_indicator_ids');
   });
 
   it('rejects an invalid nested address and invalid emails', async () => {

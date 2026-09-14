@@ -1,6 +1,6 @@
 export class CustomerNotFoundError extends Error {
-  constructor(id: string) {
-    super(`Customer with id "${id}" was not found`);
+  constructor(customerId: string) {
+    super(`Customer "${customerId}" was not found`);
     this.name = 'CustomerNotFoundError';
   }
 }

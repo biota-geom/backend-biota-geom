@@ -21,7 +21,7 @@ const BASE_CUSTOMER: Customer = {
 };
 
 describe('toCustomerDetailResponse', () => {
-  it('maps a customer with an address and indicators', () => {
+  it('maps a customer with an address', () => {
     const customer: Customer = {
       ...BASE_CUSTOMER,
       address: {
@@ -36,7 +36,6 @@ describe('toCustomerDetailResponse', () => {
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
-      esgIndicatorIds: ['metric-1', 'metric-2'],
     };
 
     expect(toCustomerDetailResponse(customer)).toEqual({
@@ -59,16 +58,14 @@ describe('toCustomerDetailResponse', () => {
         postal_code: '90000-000',
         country_code: 'BR',
       },
-      esg_indicator_ids: ['metric-1', 'metric-2'],
     });
   });
 
-  it('maps a customer without an address and without indicators', () => {
+  it('maps a customer without an address', () => {
     const customer: Customer = { ...BASE_CUSTOMER, address: null };
 
     const result = toCustomerDetailResponse(customer);
 
     expect(result.address).toBeNull();
-    expect(result.esg_indicator_ids).toEqual([]);
   });
 });

@@ -10,23 +10,23 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
-import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import { CustomerAddressNotFoundError } from '../../domain/errors/customer-address-not-found.error';
+import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import { CustomerNotFoundError } from '../../domain/errors/customer-not-found.error';
-import { InvalidEsgIndicatorIdsError } from '../../domain/errors/invalid-esg-indicator-ids.error';
+import { EsgMetricsNotFoundError } from '../../domain/errors/esg-metrics-not-found.error';
 import { SectorNotFoundError } from '../../domain/errors/sector-not-found.error';
 
 type CustomersDomainError =
   | CustomerNotFoundError
   | CustomerAddressNotFoundError
-  | InvalidEsgIndicatorIdsError
+  | EsgMetricsNotFoundError
   | CustomerAlreadyExistsError
   | SectorNotFoundError;
 
 @Catch(
   CustomerNotFoundError,
   CustomerAddressNotFoundError,
-  InvalidEsgIndicatorIdsError,
+  EsgMetricsNotFoundError,
   CustomerAlreadyExistsError,
   SectorNotFoundError,
 )
@@ -59,6 +59,6 @@ export class CustomersExceptionFilter implements ExceptionFilter {
       return new UnprocessableEntityException(AUTH_MESSAGES.SECTOR_NOT_FOUND);
     }
 
-    return new BadRequestException(AUTH_MESSAGES.INVALID_ESG_INDICATOR_IDS);
+    return new BadRequestException(AUTH_MESSAGES.ESG_METRICS_NOT_FOUND);
   }
 }

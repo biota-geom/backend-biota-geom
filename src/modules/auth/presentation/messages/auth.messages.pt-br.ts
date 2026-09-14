@@ -20,8 +20,8 @@ export const AUTH_MESSAGES = {
   CUSTOMER_NOT_FOUND: 'Empresa não encontrada.',
   CUSTOMER_ADDRESS_NOT_FOUND:
     'Não é possível atualizar o endereço: esta empresa ainda não possui um endereço cadastrado.',
-  INVALID_ESG_INDICATOR_IDS:
-    'Um ou mais indicadores ESG informados não existem.',
+  ESG_METRICS_NOT_FOUND:
+    'Uma ou mais métricas informadas não foram encontradas.',
   CUSTOMER_DOCUMENT_ALREADY_EXISTS:
     'Já existe uma empresa cadastrada com este CNPJ.',
   SECTOR_NOT_FOUND: 'O segmento informado não existe.',

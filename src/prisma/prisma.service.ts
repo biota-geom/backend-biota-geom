@@ -9,7 +9,6 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  /* c8 ignore next */
   constructor(configService: ConfigService<EnvVars, true>) {
     // Stryker disable next-line all: `infer` is a compile-time-only hint for
     // ConfigService's generics; mutating it (or dropping it, below) doesn't

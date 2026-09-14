@@ -8,6 +8,14 @@ services:
       NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgresql://biota:biota@postgres:5432/biota_geom?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      JWT_ISSUER: ${JWT_ISSUER:-biota-geom-api}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-biota-geom-web}
+      AUTH_ALLOWED_EMAIL_DOMAIN: ${AUTH_ALLOWED_EMAIL_DOMAIN:-biotageom.com.br}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     ports:
       - '3000:3000'
     depends_on:

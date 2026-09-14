@@ -183,7 +183,7 @@ Como o `@nestjs/config` não sobrescreve variáveis já presentes em `process.en
 
 Se `TEST_DATABASE_URL` não estiver definida (ou estiver vazia), nada é alterado e os testes usam a `DATABASE_URL` normal. É assim que o CI roda, já que lá cada job sobe um Postgres efêmero e exclusivo — por isso o workflow não precisou de nenhuma alteração.
 
-Localmente não há passo extra: a variável já vem preenchida no `.env.example` e a criação do banco é automática. Quando existirem migrations, rode uma vez `DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy` para preparar o schema do banco de teste.
+Localmente a criação do banco é automática (a variável já vem preenchida no `.env.example`), mas o schema não: rode uma vez `DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy` para aplicar as migrations no banco de teste, e de novo sempre que uma nova migration entrar.
 
 ### Testes de mutação
 
@@ -202,9 +202,9 @@ O relatório em HTML fica em `reports/mutation/mutation.html` (não versionado; 
 - Roda contra `test/jest-stryker.json`, uma config só para o Stryker que junta os testes **unitários e de integração** num único run (`*.spec.ts` + `*.integration-spec.ts`, sem os e2e). O objetivo é que o mutation score reflita a suíte inteira, não só a unitária — se rodasse só contra unit, tudo em `src/prisma/**` apareceria como `NoCoverage` mesmo estando coberto (pelo teste de integração), o que seria enganoso. Com `coverageAnalysis: "perTest"`, cada mutante só dispara os testes que realmente o cobrem, então isso não deixa o run inteiro lento — só os poucos mutantes do `PrismaService` acionam o teste de integração (com banco de verdade).
 - `thresholds.break` está em `90`: o job `Mutation Tests` do CI falha se o score cair abaixo disso.
 
-Hoje o mutation score geral é 100% (`env.validation.ts`, `prisma.service.ts`, `app.controller.ts` e `app.service.ts`, todos em 100%). Três mutantes equivalentes são explicitamente ignorados com o comentário `// Stryker disable next-line all: <razão>`: dois em `prisma.service.ts` (a opção `infer` do `ConfigService.get` é só uma dica de tipo do TypeScript, não muda o valor em runtime) e um em `env.validation.ts` (o separador do `issue.path.join('.')`, que nunca chega a ser aplicado porque todo path deste schema plano tem um único segmento). Para que o comentário se ancorasse na linha certa, o `join` foi extraído para um `const` dentro do callback do `map` — o Stryker não associa o `disable next-line` a um encadeamento `.map().join()` escrito numa expressão só.
+Três mutantes equivalentes são explicitamente ignorados com o comentário `// Stryker disable next-line all: <razão>`: dois em `prisma.service.ts` (a opção `infer` do `ConfigService.get` é só uma dica de tipo do TypeScript, não muda o valor em runtime) e um em `env.validation.ts` (o separador do `issue.path.join('.')`, que nunca chega a ser aplicado porque todo path deste schema plano tem um único segmento). Para que o comentário se ancorasse na linha certa, o `join` foi extraído para um `const` dentro do callback do `map` — o Stryker não associa o `disable next-line` a um encadeamento `.map().join()` escrito numa expressão só.
 
-Como não sobra nenhum mutante vivo, qualquer sobrevivente novo indica de fato um teste faltando, e não ruído aceito no relatório. Isso também dá folga ao `thresholds.break`: com poucos mutantes o score é muito sensível, e no estado anterior (94.44%, 17 de 18) um único sobrevivente novo já derrubaria o job para 89.47%.
+Os arquivos que já existiam quando o Stryker entrou (`env.validation.ts`, `prisma.service.ts`, `app.controller.ts`, `app.service.ts`) seguem sem mutante vivo além desses três. O módulo de autenticação, porém, entrou no escopo pelo merge da `main` sem nunca ter passado por teste de mutação, e derruba o score geral para 71.63% — abaixo do `thresholds.break`. Elevar esse número é trabalho de acompanhamento; veja o relatório HTML para a lista de sobreviventes por arquivo.
 
 ## Pre-commit Hook
 
@@ -251,7 +251,7 @@ Roda em todo pull request e todo push na branch `main`.
 
 Sobe um container Postgres (mesma imagem do `docker-compose.yml`) como `services:` do job, aplica as migrations (`prisma migrate deploy`) e roda `npm run test:integration` contra ele. Não depende do `docker-compose.yml` local — a `DATABASE_URL` é apontada direto para o serviço do GitHub Actions.
 
-O passo `prisma migrate deploy` ainda não faz nada: `prisma/schema.prisma` não declara nenhum model e a pasta `prisma/migrations/` nem existe, então o comando imprime `No migration found` e sai com código 0. Ele já está nos três jobs que usam banco (`Integration Tests`, `E2E Tests` e `Mutation Tests`) de propósito, para que o primeiro `npm run prisma:migrate` que criar um model não exija mexer no workflow.
+O passo `prisma migrate deploy` está nos três jobs que usam banco (`Integration Tests`, `E2E Tests` e `Mutation Tests`), aplicando as migrations de `prisma/migrations/` no Postgres efêmero antes de qualquer teste rodar.
 
 ### E2E Tests
 
@@ -271,11 +271,15 @@ Sobe o mesmo container Postgres do job `Integration Tests` (o escopo da mutaçã
 
 Roda apenas em pull requests.
 
-Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) tem no mínimo 85% de cobertura (statements, branches, functions, lines). Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
+Compara o PR com a branch base e verifica se **cada arquivo `.ts` alterado em `src/`** (exceto `*.spec.ts`) atinge um mínimo de cobertura: 85% para statements, functions e lines, e 85% para branches — **exceto em arquivos que usam pelo menos um decorator** (`@Injectable()`, `@Controller()`, `@ApiProperty()`, etc.), onde `branches` cai para 70%. Arquivos legados não tocados no PR não entram nessa checagem — o objetivo é elevar a cobertura aos poucos, sem travar o repositório todo de uma vez.
 
-Ficam de fora os arquivos excluídos do `collectCoverageFrom` (em `package.json`): `main.ts` (bootstrap) e `*.module.ts` (wiring de DI) — as mesmas exclusões do `mutate` do Stryker. Não têm lógica própria e nunca são carregados pelos testes unitários, então apareceriam com 0% e reprovariam qualquer PR que os tocasse. O script lista na saída os arquivos que pulou.
+O limite reduzido de `branches` é escopado a arquivos decorados de propósito: a emissão de metadados de decorators do TypeScript (`__decorate`/`__metadata`) cria uma entrada `design:paramtypes` para cada parâmetro de constructor, parâmetro de método e propriedade de classe decorados, e o remapeamento via source map do Istanbul atribui branches fantasmas (`cond-expr`/`binary-expr`) a essas linhas de declaração — branches que não correspondem a nenhuma condicional real no código e não podem ser exercitadas por nenhum teste. Isso é um artefato de instrumentação do ts-jest/Istanbul (confirmado via reprodução isolada, independente de cenários de teste, configuração do `tsconfig` e do coverage provider), não código sem teste. Um arquivo de domínio puro sem decorators (política de senha, parsing de duração, utilitários) não recebe essa folga e continua exigido em 85% de branches reais.
 
-Ao escrever uma classe com injeção de dependência, atenção a uma pegadinha: com `emitDecoratorMetadata` ligado, o TypeScript gera no construtor um ternário (`typeof Dep !== 'undefined' ? Dep : Object`) cujo ramo `Object` é inalcançável em runtime, e o provider de cobertura `v8` conta isso como branch descoberto. Numa classe pequena isso sozinho derruba branches para 75% e reprova o gate, sem nenhum teste capaz de resolver. A convenção do projeto é marcar o construtor com `/* c8 ignore next */` — ver `src/app.controller.ts` e `src/prisma/prisma.service.ts`.
+Um arquivo alterado que não aparece no `coverage-summary.json` é tratado como falha (`not covered by any test`), com uma exceção: arquivos que compilam para nada além de boilerplate — só `interface`/`type` exportados — não têm o que instrumentar e são ignorados. O script distingue os dois casos recompilando o arquivo isoladamente, porque o summary colapsa ambos em "sem entrada". `src/jest.setup-env.ts` é infraestrutura de teste e fica fora do gate por uma lista explícita.
+
+Wiring do Nest (`main.ts`, `*.module.ts`) **não** é excluído do `collectCoverageFrom`: `src/main.spec.ts` e os `*.module.spec.ts` carregam esses arquivos, então eles entram no summary normalmente. (O `mutate` do Stryker segue excluindo os dois — lá o critério é outro: não há mutante interessante em wiring de DI.)
+
+O gate também aborta se o summary vier sem nenhuma entrada por arquivo, para não passar "vazio" caso a configuração de cobertura quebre.
 
 Para rodar a mesma checagem localmente:
 
@@ -314,7 +318,21 @@ O arquivo `.env.example` mostra as variáveis necessárias:
 NODE_ENV=development
 PORT=3000
 DATABASE_URL="postgresql://biota:biota@localhost:5432/biota_geom?schema=public"
+TEST_DATABASE_URL="postgresql://biota:biota@localhost:5432/biota_geom_test?schema=public"
+
+JWT_ACCESS_SECRET=replace-with-a-random-secret-at-least-32-characters-access
+JWT_REFRESH_SECRET=replace-with-a-random-secret-at-least-32-characters-refresh
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=7d
+JWT_ISSUER=biota-geom-api
+JWT_AUDIENCE=biota-geom-web
+
+AUTH_ALLOWED_EMAIL_DOMAIN=biotageom.com.br
+
+CORS_ORIGINS=http://localhost:5173
 ```
+
+Gere segredos de JWT distintos por ambiente, por exemplo com `openssl rand -base64 48`. `JWT_ACCESS_SECRET` e `JWT_REFRESH_SECRET` nunca podem ser iguais, e valores de exemplo do `.env.example` são rejeitados automaticamente quando `NODE_ENV=production`.
 
 Para desenvolvimento local, a API usa o `.env`.
 
@@ -332,7 +350,13 @@ As variáveis são validadas na inicialização da aplicação (`src/config/env.
 
 - `NODE_ENV`: `development`, `production` ou `test` (padrão: `development`);
 - `PORT`: número inteiro positivo (padrão: `3000`);
-- `DATABASE_URL`: URL válida com protocolo `postgres` ou `postgresql`.
+- `DATABASE_URL`: URL válida com protocolo `postgres` ou `postgresql`;
+- `TEST_DATABASE_URL`: opcional, usada só pelos testes de integração e e2e (ver [Banco de teste](#banco-de-teste)); não é validada pelo schema porque não faz parte do ambiente da aplicação;
+- `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`: strings com no mínimo 32 caracteres, obrigatoriamente diferentes entre si;
+- `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL`: duração no formato `15m`, `7d`, etc. (padrão: `15m` / `7d`);
+- `JWT_ISSUER` / `JWT_AUDIENCE`: identificadores do emissor/audiência do token (padrão: `biota-geom-api` / `biota-geom-web`);
+- `AUTH_ALLOWED_EMAIL_DOMAIN`: único domínio de e-mail autorizado a se cadastrar (padrão: `biotageom.com.br`);
+- `CORS_ORIGINS`: lista de origens (separadas por vírgula) autorizadas a chamar a API (padrão: `http://localhost:5173`).
 
 Se alguma variável estiver ausente ou em formato inválido, a aplicação falha imediatamente ao iniciar, com uma mensagem listando exatamente o que está errado, em vez de falhar depois com um erro genérico de conexão com o banco.
 

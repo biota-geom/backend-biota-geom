@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { LinkCustomerEsgMetricsUseCase } from './application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from './application/list-customer-esg-metrics.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
+import { RemoveCustomerUseCase } from './application/remove-customer.use-case';
 import { CustomerEsgMetricRepository } from './domain/customer-esg-metric.repository';
 import { CustomerRepository } from './domain/customers.repository';
 import { CustomersService } from './infra/customers.service';
@@ -20,6 +21,7 @@ import { CustomerController } from './presentation/customers.controller';
       useClass: PrismaCustomerEsgMetricRepository,
     },
     ListCustomersUseCase,
+    RemoveCustomerUseCase,
     LinkCustomerEsgMetricsUseCase,
     ListCustomerEsgMetricsUseCase,
     CustomersService,

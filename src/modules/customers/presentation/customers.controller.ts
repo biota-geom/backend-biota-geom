@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -14,6 +15,7 @@ import {
 import {
   ApiBearerAuth,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -104,5 +106,19 @@ export class CustomerController {
       customerId,
       dto.metric_ids,
     );
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'id', description: 'Customer ID', type: 'string' })
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a customer',
+  })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ description: 'Customer not found' })
+  async deleteCustomer(@Param('id') id: string): Promise<void> {
+    await this.service.remove(id);
   }
 }

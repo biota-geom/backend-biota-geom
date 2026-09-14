@@ -5,4 +5,5 @@ import { Customer } from './customer.entity';
 export abstract class CustomerRepository {
   abstract findAll(): Promise<Customer[]>;
   abstract findById(id: string): Promise<Customer | null>;
+  abstract remove(id: string): Promise<boolean>;
 }

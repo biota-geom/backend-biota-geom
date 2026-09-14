@@ -24,10 +24,13 @@ describe('CustomerController', () => {
       segment: 'Siderurgia',
       location: 'Porto Alegre - RS',
     };
-    const service: Pick<CustomersService, 'findAll'> = {
+    const service: Pick<CustomersService, 'findAll' | 'remove'> = {
       findAll: jest
         .fn<() => Promise<CustomerResponseDTO[]>>()
         .mockResolvedValue([listedCustomer]),
+      remove: jest
+        .fn<(id: string) => Promise<boolean>>()
+        .mockResolvedValue(true),
     };
     const linkExecute = jest.fn<(id: string, ids: string[]) => Promise<void>>();
     linkExecute.mockResolvedValue(undefined);
@@ -109,5 +112,14 @@ describe('CustomerController', () => {
         message: AUTH_MESSAGES.INVALID_REQUEST,
       }),
     );
+  });
+
+  it('delegates customer deletion to the service', async () => {
+    const { controller, service } = buildController();
+
+    await expect(
+      controller.deleteCustomer('customer-1'),
+    ).resolves.toBeUndefined();
+    expect(service.remove).toHaveBeenCalledWith('customer-1');
   });
 });

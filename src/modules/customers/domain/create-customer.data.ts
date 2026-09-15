@@ -2,11 +2,11 @@ import { AddressType, DocumentType } from '@prisma/client';
 
 export interface CreateCustomerAddressData {
   type: AddressType;
-  street: string;
-  number: string;
+  street?: string;
+  number?: string;
   city: string;
   state: string;
-  postalCode: string;
+  postalCode?: string;
   countryCode: string;
 }
 
@@ -21,9 +21,9 @@ export interface CreateCustomerData {
   document: string;
   documentType: DocumentType;
   sectorId: string;
-  email: string;
+  email?: string;
   ownerName: string;
   ownerEmail: string;
-  ownerPhone: string;
+  ownerPhone?: string;
   address: CreateCustomerAddressData;
 }

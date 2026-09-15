@@ -9,10 +9,10 @@ export interface Customer {
   name: string;
   document: string;
   documentType: DocumentType;
-  email: string;
+  email: string | null;
   ownerName: string;
   ownerEmail: string;
-  ownerPhone: string;
+  ownerPhone: string | null;
   isActive: boolean;
   isDeleted: boolean;
   createdAt: Date;

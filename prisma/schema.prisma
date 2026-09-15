@@ -52,10 +52,13 @@ model Customer {
   // owner's own portfolio (see @@unique below).
   document     String       @db.VarChar(50)
   documentType DocumentType @map("document_type")
-  email        String       @db.VarChar(255)
+  // Optional: the company registration form collects the environmental
+  // contact (ownerName/ownerEmail) but not the company's own address details
+  // or switchboard, so these are filled in later when they are known.
+  email        String?      @db.VarChar(255)
   ownerName    String       @map("owner_name") @db.VarChar(255)
   ownerEmail   String       @map("owner_email") @db.VarChar(255)
-  ownerPhone   String       @map("owner_phone") @db.VarChar(50)
+  ownerPhone   String?      @map("owner_phone") @db.VarChar(50)
   isActive     Boolean      @default(true) @map("is_active")
   isDeleted    Boolean      @default(false) @map("is_deleted")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -85,11 +88,11 @@ model Customer {
 model CustomerAddress {
   id          String      @id @default(uuid(7)) @db.Uuid
   type        AddressType
-  street      String      @db.VarChar(255)
-  number      String      @db.VarChar(50)
+  street      String?     @db.VarChar(255)
+  number      String?     @db.VarChar(50)
   city        String      @db.VarChar(100)
   state       String      @db.VarChar(100)
-  postalCode  String      @map("postal_code") @db.VarChar(20)
+  postalCode  String?     @map("postal_code") @db.VarChar(20)
   countryCode String      @map("country_code") @db.VarChar(10)
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)

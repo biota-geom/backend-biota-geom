@@ -51,6 +51,87 @@ describe('CreateCustomerDto', () => {
     expect(validate(buildPayload()).errors).toHaveLength(0);
   });
 
+  /*
+   * The registration form collects the unit's identification, its segment and
+   * its environmental contact — not the company's own switchboard or the full
+   * street address. Those five fields stay in the model for whoever fills them
+   * in later, so the endpoint has to accept a payload that omits them.
+   */
+  describe('optional contact and address details', () => {
+    const OPTIONAL_CUSTOMER_FIELDS = ['email', 'owner_phone'] as const;
+    const OPTIONAL_ADDRESS_FIELDS = [
+      'street',
+      'number',
+      'postal_code',
+    ] as const;
+
+    function withoutOptionalFields(): Record<string, unknown> {
+      const payload = buildPayload();
+
+      for (const field of OPTIONAL_CUSTOMER_FIELDS) {
+        delete payload[field];
+      }
+
+      const address = payload.address as Record<string, unknown>;
+
+      for (const field of OPTIONAL_ADDRESS_FIELDS) {
+        delete address[field];
+      }
+
+      return payload;
+    }
+
+    it('accepts a payload that omits all of them at once', () => {
+      expect(validate(withoutOptionalFields()).errors).toHaveLength(0);
+    });
+
+    it.each(OPTIONAL_CUSTOMER_FIELDS)(
+      'accepts a payload without %s',
+      (field) => {
+        const payload = buildPayload();
+        delete payload[field];
+
+        expect(validate(payload).errors).toHaveLength(0);
+      },
+    );
+
+    it.each(OPTIONAL_ADDRESS_FIELDS)(
+      'accepts an address without %s',
+      (field) => {
+        const payload = buildPayload();
+        delete (payload.address as Record<string, unknown>)[field];
+
+        expect(validate(payload).errors).toHaveLength(0);
+      },
+    );
+
+    /*
+     * Optional means "may be absent", not "may be anything": a value that is
+     * present still has to be well formed, otherwise a typo in the e-mail would
+     * now sail through where it used to be caught.
+     */
+    it('still rejects a malformed e-mail when one is sent', () => {
+      const { errors } = validate(buildPayload({ email: 'nao-e-email' }));
+
+      expect(errors.some((error) => error.property === 'email')).toBe(true);
+    });
+
+    it('still rejects an over-long postal code when one is sent', () => {
+      const payload = buildPayload();
+      (payload.address as Record<string, unknown>).postal_code = 'x'.repeat(21);
+
+      const addressErrors = validate(payload).errors.find(
+        (error) => error.property === 'address',
+      );
+
+      expect(
+        addressErrors?.children?.some(
+          (child) => child.property === 'postal_code',
+        ),
+      ).toBe(true);
+    });
+  });
+
   it('strips the mask from the document', () => {
     const { dto, errors } = validate(
       buildPayload({ document: '11.222.333/0001-81' }),

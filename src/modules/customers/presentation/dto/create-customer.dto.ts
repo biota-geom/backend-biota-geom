@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { AddressType, DocumentType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsObject,
+  IsOptional,
   IsString,
   IsUUID,
   MaxLength,
@@ -32,19 +33,19 @@ export class CreateCustomerAddressDto {
   @IsEnum(AddressType)
   type!: AddressType;
 
-  @ApiProperty({ example: 'Av. Assis Brasil' })
+  @ApiPropertyOptional({ example: 'Av. Assis Brasil' })
   @Transform(trimString)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(255)
-  street!: string;
+  street?: string;
 
-  @ApiProperty({ example: '123' })
+  @ApiPropertyOptional({ example: '123' })
   @Transform(trimString)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
-  number!: string;
+  number?: string;
 
   @ApiProperty({ example: 'Porto Alegre' })
   @Transform(trimString)
@@ -60,12 +61,12 @@ export class CreateCustomerAddressDto {
   @MaxLength(100)
   state!: string;
 
-  @ApiProperty({ example: '91010-000' })
+  @ApiPropertyOptional({ example: '91010-000' })
   @Transform(trimString)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(20)
-  postal_code!: string;
+  postal_code?: string;
 
   @ApiProperty({ example: 'BR' })
   @Transform(trimString)
@@ -103,11 +104,12 @@ export class CreateCustomerDto {
   @IsUUID()
   sector_id!: string;
 
-  @ApiProperty({ example: 'contato@unidade.com.br' })
+  @ApiPropertyOptional({ example: 'contato@unidade.com.br' })
   @Transform(trimString)
+  @IsOptional()
   @IsEmail()
   @MaxLength(255)
-  email!: string;
+  email?: string;
 
   @ApiProperty({ example: 'Ana Silva' })
   @Transform(trimString)
@@ -122,12 +124,12 @@ export class CreateCustomerDto {
   @MaxLength(255)
   owner_email!: string;
 
-  @ApiProperty({ example: '+55 51 99999-0000' })
+  @ApiPropertyOptional({ example: '+55 51 99999-0000' })
   @Transform(trimString)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
-  owner_phone!: string;
+  owner_phone?: string;
 
   /*
    * @ValidateNested alone passes a payload with no address at all — it only

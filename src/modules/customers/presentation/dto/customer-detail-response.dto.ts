@@ -5,11 +5,11 @@ class CustomerAddressResponseDto {
   @ApiProperty({ example: 'billing' })
   type!: string;
 
-  @ApiProperty({ example: 'Avenida das Palmeiras' })
-  street!: string;
+  @ApiProperty({ example: 'Avenida das Palmeiras', nullable: true })
+  street!: string | null;
 
-  @ApiProperty({ example: '1000' })
-  number!: string;
+  @ApiProperty({ example: '1000', nullable: true })
+  number!: string | null;
 
   @ApiProperty({ example: 'Canoas' })
   city!: string;
@@ -17,8 +17,8 @@ class CustomerAddressResponseDto {
   @ApiProperty({ example: 'RS' })
   state!: string;
 
-  @ApiProperty({ example: '90000-000' })
-  postal_code!: string;
+  @ApiProperty({ example: '90000-000', nullable: true })
+  postal_code!: string | null;
 
   @ApiProperty({ example: 'BR' })
   country_code!: string;
@@ -37,8 +37,8 @@ export class CustomerDetailResponseDto {
   @ApiProperty({ example: 'cnpj' })
   document_type!: string;
 
-  @ApiProperty({ example: 'contato@empresa.com' })
-  email!: string;
+  @ApiProperty({ example: 'contato@empresa.com', nullable: true })
+  email!: string | null;
 
   @ApiProperty({ example: 'Novo Responsável' })
   responsible_name!: string;
@@ -46,8 +46,8 @@ export class CustomerDetailResponseDto {
   @ApiProperty({ example: 'novo@empresa.com' })
   responsible_email!: string;
 
-  @ApiProperty({ example: '+55 51 99988-7766' })
-  responsible_phone!: string;
+  @ApiProperty({ example: '+55 51 99988-7766', nullable: true })
+  responsible_phone!: string | null;
 
   @ApiProperty()
   is_active!: boolean;

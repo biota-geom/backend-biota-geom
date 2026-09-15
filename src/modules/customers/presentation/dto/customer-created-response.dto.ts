@@ -9,11 +9,11 @@ class CustomerAddressResponseDTO {
   @ApiProperty({ enum: AddressType })
   type!: AddressType;
 
-  @ApiProperty({ example: 'Av. Assis Brasil' })
-  street!: string;
+  @ApiProperty({ example: 'Av. Assis Brasil', nullable: true })
+  street!: string | null;
 
-  @ApiProperty({ example: '123' })
-  number!: string;
+  @ApiProperty({ example: '123', nullable: true })
+  number!: string | null;
 
   @ApiProperty({ example: 'Porto Alegre' })
   city!: string;
@@ -21,8 +21,8 @@ class CustomerAddressResponseDTO {
   @ApiProperty({ example: 'RS' })
   state!: string;
 
-  @ApiProperty({ example: '91010-000' })
-  postal_code!: string;
+  @ApiProperty({ example: '91010-000', nullable: true })
+  postal_code!: string | null;
 
   @ApiProperty({ example: 'BR' })
   country_code!: string;
@@ -41,8 +41,8 @@ export class CustomerCreatedResponseDTO {
   @ApiProperty({ enum: DocumentType })
   document_type!: DocumentType;
 
-  @ApiProperty({ example: 'contato@unidade.com.br' })
-  email!: string;
+  @ApiProperty({ example: 'contato@unidade.com.br', nullable: true })
+  email!: string | null;
 
   @ApiProperty({ example: 'Ana Silva' })
   owner_name!: string;
@@ -50,8 +50,8 @@ export class CustomerCreatedResponseDTO {
   @ApiProperty({ example: 'ana.silva@unidade.com.br' })
   owner_email!: string;
 
-  @ApiProperty({ example: '+55 51 99999-0000' })
-  owner_phone!: string;
+  @ApiProperty({ example: '+55 51 99999-0000', nullable: true })
+  owner_phone!: string | null;
 
   @ApiProperty({ example: true })
   is_active!: boolean;

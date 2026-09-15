@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { hash } from '@node-rs/argon2';
 import {
   AddressType,
   DocumentType,
@@ -10,191 +11,510 @@ import {
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-async function main() {
-  console.log('Iniciando o seed...');
+/*
+ * Senha única para todas as contas de seed. O hash é gerado com o mesmo
+ * Argon2id usado pelo Argon2PasswordHasher em runtime — um hash literal de
+ * exemplo não passa no `verify` do login, então as contas ficariam inúteis.
+ */
+const SEED_PASSWORD = 'Senha@1234';
 
-  // 1. Users (3 registros)
-  await Promise.all([
-    prisma.user.upsert({
-      where: { email: 'admin@esgplatform.com' },
-      update: {},
-      create: {
-        name: 'Ana Administradora',
-        email: 'admin@esgplatform.com',
-        passwordHash: '$2b$10$hashedpasswordexample1',
-        isAdmin: true,
-        isActive: true,
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'carlos.analista@esgplatform.com' },
-      update: {},
-      create: {
-        name: 'Carlos Analista',
-        email: 'carlos.analista@esgplatform.com',
-        passwordHash: '$2b$10$hashedpasswordexample2',
-        isAdmin: false,
-        isActive: true,
-      },
-    }),
-    prisma.user.upsert({
-      where: { email: 'julia.auditora@esgplatform.com' },
-      update: {},
-      create: {
-        name: 'Julia Auditora',
-        email: 'julia.auditora@esgplatform.com',
-        passwordHash: '$2b$10$hashedpasswordexample3',
-        isAdmin: false,
-        isActive: false,
-      },
-    }),
-  ]);
+/*
+ * O domínio precisa bater com AUTH_ALLOWED_EMAIL_DOMAIN, senão as contas do
+ * seed ficam inconsistentes com o que o /auth/register aceita criar.
+ */
+const SEED_EMAIL_DOMAIN =
+  process.env.AUTH_ALLOWED_EMAIL_DOMAIN ?? 'biotageom.com.br';
 
-  // 2. Sectors (3 registros)
-  const sectors = await Promise.all([
-    prisma.sector.upsert({
-      where: { name: 'Agronegócio Sustentável' },
-      update: {},
-      create: {
-        name: 'Agronegócio Sustentável',
-        description:
-          'Setor focado em produção agrícola com práticas ecológicas.',
-      },
-    }),
-    prisma.sector.upsert({
-      where: { name: 'Energia Renovável' },
-      update: {},
-      create: {
-        name: 'Energia Renovável',
-        description: 'Geração de energia solar, eólica e biomassa.',
-      },
-    }),
-    prisma.sector.upsert({
-      where: { name: 'Indústria Metalúrgica' },
-      update: {},
-      create: {
-        name: 'Indústria Metalúrgica',
-        description: 'Processamento e transformação de metais.',
-      },
-    }),
-  ]);
+const seedUsers = [
+  { name: 'Ana Administradora', local: 'admin', isAdmin: true, isActive: true },
+  {
+    name: 'Carlos Analista',
+    local: 'carlos.analista',
+    isAdmin: false,
+    isActive: true,
+  },
+  {
+    name: 'Julia Auditora (conta inativa)',
+    local: 'julia.auditora',
+    isAdmin: false,
+    isActive: false,
+  },
+];
 
-  // 3. EsgMetrics (3 registros globais)
-  const esgMetrics = [
-    { name: 'Consumo de Água', unit: 'm³', pillar: EsgPillar.AMBIENTAL },
-    {
-      name: 'Emissão de CO2 Equivalente',
-      unit: 'ton',
-      pillar: EsgPillar.AMBIENTAL,
+const seedSectors = [
+  { name: 'Mineração', description: 'Extração e beneficiamento mineral.' },
+  { name: 'Agronegócio', description: 'Produção agrícola e agroindústria.' },
+  {
+    name: 'Siderurgia',
+    description: 'Processamento e transformação de metais.',
+  },
+  {
+    name: 'Energia Renovável',
+    description: 'Geração solar, eólica e biomassa.',
+  },
+  { name: 'Saneamento', description: 'Tratamento de água e efluentes.' },
+  {
+    name: 'Papel e Celulose',
+    description: 'Florestas plantadas e produção de celulose.',
+  },
+];
+
+const seedEsgMetrics = [
+  { name: 'Consumo de Água', unit: 'm³', pillar: EsgPillar.AMBIENTAL },
+  {
+    name: 'Emissão de CO2 Equivalente',
+    unit: 'ton',
+    pillar: EsgPillar.AMBIENTAL,
+  },
+  {
+    name: 'Resíduos Sólidos Gerados',
+    unit: 'ton',
+    pillar: EsgPillar.AMBIENTAL,
+  },
+  { name: 'Consumo de Energia', unit: 'kWh', pillar: EsgPillar.AMBIENTAL },
+  {
+    name: 'Horas de Treinamento em Segurança',
+    unit: 'horas',
+    pillar: EsgPillar.SOCIAL,
+  },
+  { name: 'Número de Funcionários', unit: 'pessoas', pillar: EsgPillar.SOCIAL },
+  {
+    name: 'Não Conformidades Ambientais',
+    unit: 'ocorrências',
+    pillar: EsgPillar.GOVERNANCA,
+  },
+];
+
+/*
+ * `owner` é o login (parte local do e-mail) da conta dona da empresa — no
+ * modelo, `User` é a consultoria que assina o sistema e `Customer` é a empresa
+ * atendida por ela. A carteira é dividida entre duas contas de propósito: ao
+ * entrar com `admin` e depois com `carlos.analista` as listas têm que vir
+ * diferentes (e nenhuma vazia), que é a demonstração manual da US10.
+ *
+ * Carteira variada de propósito: segmentos e UFs repetidos em combinações
+ * diferentes, unidades ativas e inativas, para exercitar a listagem (US03) e
+ * a busca/filtros (US05) com resultados que de fato mudam conforme o filtro.
+ * `state` usa a sigla da UF porque o card exibe "Cidade - Estado".
+ */
+const seedCompanies = [
+  {
+    name: 'Unidade Industrial Ouro Preto',
+    document: '12.345.678/0001-95',
+    owner: 'admin',
+    sector: 'Mineração',
+    isActive: true,
+    email: 'contato@mineracaoop.com.br',
+    ownerName: 'Roberto Andrade',
+    ownerPhone: '+55 31 99988-7766',
+    metrics: ['Consumo de Água', 'Resíduos Sólidos Gerados'],
+    address: {
+      street: 'Rodovia dos Minérios',
+      number: 'KM 12',
+      city: 'Ouro Preto',
+      state: 'MG',
+      postalCode: '35400-000',
     },
-    {
-      name: 'Horas de Treinamento em Segurança',
-      unit: 'horas',
-      pillar: EsgPillar.SOCIAL,
+  },
+  {
+    name: 'Complexo Minerário Carajás',
+    document: '23.456.789/0001-95',
+    owner: 'admin',
+    sector: 'Mineração',
+    isActive: true,
+    email: 'ambiental@carajasmin.com.br',
+    ownerName: 'Fernanda Lopes',
+    ownerPhone: '+55 94 99877-6655',
+    metrics: ['Consumo de Água', 'Emissão de CO2 Equivalente'],
+    address: {
+      street: 'Avenida dos Carajás',
+      number: '2100',
+      city: 'Parauapebas',
+      state: 'PA',
+      postalCode: '68515-000',
     },
-  ];
+  },
+  {
+    name: 'EcoVerde Agroindústria S.A.',
+    document: '34.567.890/0001-30',
+    owner: 'admin',
+    sector: 'Agronegócio',
+    isActive: true,
+    email: 'contato@ecoverde.com.br',
+    ownerName: 'Mariana Souza',
+    ownerPhone: '+55 51 99988-7766',
+    metrics: ['Consumo de Água', 'Número de Funcionários'],
+    address: {
+      street: 'Avenida das Palmeiras',
+      number: '1000',
+      city: 'Porto Alegre',
+      state: 'RS',
+      postalCode: '90000-000',
+    },
+  },
+  {
+    name: 'Fazenda Santa Clara - Unidade Sorriso',
+    document: '45.678.901/0001-75',
+    owner: 'admin',
+    sector: 'Agronegócio',
+    isActive: false,
+    email: 'santaclara@agro.com.br',
+    ownerName: 'Paulo Menezes',
+    ownerPhone: '+55 66 99766-5544',
+    metrics: ['Consumo de Água'],
+    address: {
+      street: 'Rodovia BR-163',
+      number: 'KM 740',
+      city: 'Sorriso',
+      state: 'MT',
+      postalCode: '78890-000',
+    },
+  },
+  {
+    name: 'MetalAço Brasil Ltda',
+    document: '56.789.012/0001-00',
+    owner: 'admin',
+    sector: 'Siderurgia',
+    isActive: true,
+    email: 'contato@metalaco.com.br',
+    ownerName: 'Carlos Aço',
+    ownerPhone: '+55 31 97766-5544',
+    metrics: [
+      'Emissão de CO2 Equivalente',
+      'Consumo de Energia',
+      'Horas de Treinamento em Segurança',
+    ],
+    address: {
+      street: 'Avenida Siderúrgica',
+      number: '450',
+      city: 'Ipatinga',
+      state: 'MG',
+      postalCode: '35160-000',
+    },
+  },
+  {
+    name: 'Usina Siderúrgica Volta Redonda',
+    document: '67.890.123/0001-16',
+    owner: 'admin',
+    sector: 'Siderurgia',
+    isActive: false,
+    email: 'meioambiente@usinavr.com.br',
+    ownerName: 'Helena Martins',
+    ownerPhone: '+55 24 99655-4433',
+    metrics: ['Emissão de CO2 Equivalente'],
+    address: {
+      street: 'Rua da Fundição',
+      number: '88',
+      city: 'Volta Redonda',
+      state: 'RJ',
+      postalCode: '27255-000',
+    },
+  },
+  {
+    name: 'SolBrilho Energia Limpa',
+    document: '78.901.234/0001-05',
+    owner: 'carlos.analista',
+    sector: 'Energia Renovável',
+    isActive: true,
+    email: 'contato@solbrilho.com.br',
+    ownerName: 'Mariana Luz',
+    ownerPhone: '+55 11 98877-6655',
+    metrics: ['Consumo de Energia', 'Número de Funcionários'],
+    address: {
+      street: 'Rua do Sol',
+      number: '450',
+      city: 'São Paulo',
+      state: 'SP',
+      postalCode: '01000-000',
+    },
+  },
+  {
+    name: 'Parque Eólico Serra do Vento',
+    document: '89.012.345/0001-79',
+    owner: 'carlos.analista',
+    sector: 'Energia Renovável',
+    isActive: true,
+    email: 'operacao@serradovento.com.br',
+    ownerName: 'Ricardo Nunes',
+    ownerPhone: '+55 84 99544-3322',
+    metrics: ['Consumo de Energia'],
+    address: {
+      street: 'Estrada da Serra',
+      number: 's/n',
+      city: 'Serra do Mel',
+      state: 'RN',
+      postalCode: '59660-000',
+    },
+  },
+  {
+    name: 'Estação de Tratamento Vale Azul',
+    document: '90.123.456/0001-31',
+    owner: 'carlos.analista',
+    sector: 'Saneamento',
+    isActive: true,
+    email: 'eta@valeazul.com.br',
+    ownerName: 'Beatriz Ramos',
+    ownerPhone: '+55 62 99433-2211',
+    metrics: ['Consumo de Água', 'Não Conformidades Ambientais'],
+    address: {
+      street: 'Avenida das Águas',
+      number: '75',
+      city: 'Goiânia',
+      state: 'GO',
+      postalCode: '74000-000',
+    },
+  },
+  {
+    name: 'Celulose Rio Branco',
+    document: '01.234.567/0001-95',
+    owner: 'admin',
+    sector: 'Papel e Celulose',
+    isActive: true,
+    email: 'ambiental@celuloseriobranco.com.br',
+    ownerName: 'Tiago Ferraz',
+    ownerPhone: '+55 27 99322-1100',
+    metrics: ['Consumo de Água', 'Resíduos Sólidos Gerados'],
+    address: {
+      street: 'Rodovia do Eucalipto',
+      number: 'KM 30',
+      city: 'Aracruz',
+      state: 'ES',
+      postalCode: '29190-000',
+    },
+  },
+  /*
+   * Registro excluído logicamente: não deve aparecer na listagem nem no
+   * detalhe. Serve de regressão para o filtro de soft delete do GET
+   * /customers e /customers/:id.
+   */
+  {
+    name: 'Unidade Desativada (soft delete)',
+    document: '11.222.333/0001-81',
+    owner: 'admin',
+    sector: 'Mineração',
+    isActive: false,
+    isDeleted: true,
+    email: 'arquivo@desativada.com.br',
+    ownerName: 'Registro Arquivado',
+    ownerPhone: '+55 00 00000-0000',
+    metrics: [],
+    address: {
+      street: 'Rua Desativada',
+      number: '0',
+      city: 'Curitiba',
+      state: 'PR',
+      postalCode: '80000-000',
+    },
+  },
+];
 
-  for (const metric of esgMetrics) {
-    const existingMetric = await prisma.esgMetric.findFirst({
+async function seedUsersTable() {
+  const passwordHash = await hash(SEED_PASSWORD);
+  // login (parte local do e-mail) -> id, para vincular as empresas ao dono.
+  const users = new Map<string, string>();
+
+  for (const user of seedUsers) {
+    const email = `${user.local}@${SEED_EMAIL_DOMAIN}`;
+
+    const created = await prisma.user.upsert({
+      where: { email },
+      // Reaplica o hash para que um banco semeado por uma versão antiga (que
+      // gravava hash literal) volte a ter contas com senha utilizável.
+      update: { passwordHash, isAdmin: user.isAdmin, isActive: user.isActive },
+      create: {
+        name: user.name,
+        email,
+        passwordHash,
+        isAdmin: user.isAdmin,
+        isActive: user.isActive,
+      },
+    });
+
+    users.set(user.local, created.id);
+  }
+
+  return users;
+}
+
+async function seedSectorsTable() {
+  const sectors = new Map<string, string>();
+
+  for (const sector of seedSectors) {
+    const created = await prisma.sector.upsert({
+      where: { name: sector.name },
+      update: { description: sector.description },
+      create: sector,
+    });
+
+    sectors.set(created.name, created.id);
+  }
+
+  return sectors;
+}
+
+async function seedEsgMetricsTable() {
+  const metrics = new Map<string, string>();
+
+  for (const metric of seedEsgMetrics) {
+    const existing = await prisma.esgMetric.findFirst({
       where: { customerId: null, name: metric.name },
     });
 
-    if (!existingMetric) {
-      await prisma.esgMetric.create({
+    const created =
+      existing ??
+      (await prisma.esgMetric.create({
         data: { ...metric, customerId: null },
-      });
+      }));
+
+    metrics.set(created.name, created.id);
+  }
+
+  return metrics;
+}
+
+async function seedCompaniesTable(
+  users: Map<string, string>,
+  sectors: Map<string, string>,
+  metrics: Map<string, string>,
+) {
+  for (const company of seedCompanies) {
+    const ownerUserId = users.get(company.owner);
+
+    if (!ownerUserId) {
+      throw new Error(
+        `Empresa "${company.name}" referencia a conta "${company.owner}", que não está em seedUsers.`,
+      );
+    }
+
+    /*
+     * A coluna `document` guarda só dígitos — é o que o CreateCustomerDto
+     * grava (stripNonDigits) e é sobre esse formato que o índice único atua.
+     * Semear mascarado faria a mesma empresa ser aceita de novo via
+     * POST /customers, furando a regra de CNPJ duplicado da US01.
+     */
+    const document = company.document.replace(/\D/g, '');
+
+    /*
+     * A busca é por (dono, documento), que é o índice único de hoje: o mesmo
+     * CNPJ pode existir em carteiras diferentes, então procurar só pelo
+     * documento reencontraria a empresa de outra conta e pularia a criação.
+     */
+    const existing = await prisma.customer.findUnique({
+      where: { ownerUserId_document: { ownerUserId, document } },
+    });
+
+    if (existing) {
+      continue;
+    }
+
+    const address = await prisma.customerAddress.create({
+      data: {
+        ...company.address,
+        // O enum só admite BILLING/SHIPPING; o "tipo de unidade" do domínio
+        // (matriz, filial, planta) ainda não tem campo no schema.
+        type: AddressType.BILLING,
+        countryCode: 'BR',
+      },
+    });
+
+    const created = await prisma.customer.create({
+      data: {
+        ownerUserId,
+        name: company.name,
+        document,
+        documentType: DocumentType.CNPJ,
+        email: company.email,
+        ownerName: company.ownerName,
+        ownerEmail: company.email,
+        ownerPhone: company.ownerPhone,
+        isActive: company.isActive,
+        isDeleted: company.isDeleted ?? false,
+        sectorId: sectors.get(company.sector),
+        addressId: address.id,
+      },
+    });
+
+    // Vincula os indicadores ESG monitorados (join customer_esg_metrics), para
+    // que GET /customers/:id/esg-metrics devolva dados já no primeiro boot.
+    const links = company.metrics
+      .map((name: string) => metrics.get(name))
+      .filter((id): id is string => Boolean(id))
+      .map((esgMetricId) => ({ customerId: created.id, esgMetricId }));
+
+    if (links.length > 0) {
+      await prisma.customerEsgMetric.createMany({ data: links });
     }
   }
+}
 
-  // 4. CustomerAddresses & Customers (3 registros interligados)
-  const customerData = [
-    {
-      customer: {
-        name: 'EcoVerde Agroindústria S.A.',
-        document: '12345678000199',
-        documentType: DocumentType.CNPJ,
-        email: 'contato@ecoverde.com',
-        ownerName: 'Roberto Eco',
-        ownerEmail: 'roberto@ecoverde.com',
-        ownerPhone: '+55 51 99988-7766',
-        isActive: true,
-        isDeleted: false,
-        sectorId: sectors[0].id,
-      },
-      address: {
-        type: AddressType.BILLING,
-        street: 'Avenida das Palmeiras',
-        number: '1000',
-        city: 'Porto Alegre',
-        state: 'Rio Grande do Sul',
-        postalCode: '90000-000',
-        countryCode: 'BR',
-      },
-    },
-    {
-      customer: {
-        name: 'SolBrilho Energia Limpa',
-        document: '98765432000111',
-        documentType: DocumentType.CNPJ,
-        email: 'contato@solbrilho.com',
-        ownerName: 'Mariana Luz',
-        ownerEmail: 'mariana@solbrilho.com',
-        ownerPhone: '+55 11 98877-6655',
-        isActive: true,
-        isDeleted: false,
-        sectorId: sectors[1].id,
-      },
-      address: {
-        type: AddressType.BILLING,
-        street: 'Rua do Sol',
-        number: '450',
-        city: 'São Paulo',
-        state: 'São Paulo',
-        postalCode: '01000-000',
-        countryCode: 'BR',
-      },
-    },
-    {
-      customer: {
-        name: 'MetalAço Brasil Ltda',
-        document: '45123789000155',
-        documentType: DocumentType.CNPJ,
-        email: 'contato@metalaco.com',
-        ownerName: 'Carlos Aço',
-        ownerEmail: 'carlos@metalaco.com',
-        ownerPhone: '+55 31 97766-5544',
-        isActive: true,
-        isDeleted: false,
-        sectorId: sectors[2].id,
-      },
-      address: {
-        type: AddressType.SHIPPING,
-        street: 'Rodovia dos Minérios',
-        number: 'KM 12',
-        city: 'Belo Horizonte',
-        state: 'Minas Gerais',
-        postalCode: '30000-000',
-        countryCode: 'BR',
-      },
-    },
-  ];
+/*
+ * Lido do banco, e não da lista acima: assim o resumo mostra o estado real
+ * depois de uma reexecução do seed (idempotente) em vez de repetir a intenção.
+ */
+async function countCompaniesByOwner(users: Map<string, string>) {
+  const counts = new Map<string, { visible: number; deleted: number }>();
 
-  for (const item of customerData) {
-    // Cria ou atualiza o endereço primeiro
-    const createdAddress = await prisma.customerAddress.create({
-      data: item.address,
+  for (const [local, ownerUserId] of users) {
+    const visible = await prisma.customer.count({
+      where: { ownerUserId, isDeleted: false },
+    });
+    const deleted = await prisma.customer.count({
+      where: { ownerUserId, isDeleted: true },
     });
 
-    // Cria o cliente vinculando o endereço e o setor correspondente
-    await prisma.customer.create({
-      data: {
-        ...item.customer,
-        addressId: createdAddress.id,
-      },
-    });
+    counts.set(local, { visible, deleted });
   }
 
+  return counts;
+}
+
+async function main() {
+  console.log('Iniciando o seed...');
+
+  const users = await seedUsersTable();
+  const sectors = await seedSectorsTable();
+  const metrics = await seedEsgMetricsTable();
+  await seedCompaniesTable(users, sectors, metrics);
+
+  const visible = seedCompanies.filter((company) => !company.isDeleted);
+  const companiesByOwner = await countCompaniesByOwner(users);
+
   console.log('Seed completo executado com sucesso!');
+  console.log('');
+  console.log(`Usuários (senha para todos: ${SEED_PASSWORD}):`);
+  for (const user of seedUsers) {
+    const flags = [
+      user.isAdmin ? 'admin' : null,
+      user.isActive ? null : 'INATIVO',
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    // Cada conta só enxerga as próprias empresas (US03/US10): entrar com uma
+    // ou com outra tem que devolver exatamente a carteira listada aqui.
+    const owned = companiesByOwner.get(user.local) ?? {
+      visible: 0,
+      deleted: 0,
+    };
+    const portfolio = `${owned.visible} empresa(s) na carteira${
+      owned.deleted > 0 ? ` + ${owned.deleted} excluída(s) logicamente` : ''
+    }`;
+
+    console.log(
+      `  - ${user.local}@${SEED_EMAIL_DOMAIN}${flags ? ` (${flags})` : ''} — ${portfolio}`,
+    );
+  }
+  console.log('');
+  console.log(
+    `Empresas: ${visible.length} visíveis (${
+      visible.filter((company) => company.isActive).length
+    } ativas, ${visible.filter((company) => !company.isActive).length} inativas) + ${
+      seedCompanies.length - visible.length
+    } excluída logicamente.`,
+  );
+  console.log(
+    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length}`,
+  );
 }
 
 main()

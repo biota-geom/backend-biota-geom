@@ -6,8 +6,17 @@ import { CustomerResponseDTO } from '../presentation/dto/customer-response.dto';
 export class FindCustomerUseCase {
   constructor(private readonly repository: CustomerRepository) {}
 
-  async findCustomer(id: string): Promise<CustomerResponseDTO | null> {
-    const customer = await this.repository.findOne(id);
+  /*
+   * A customer owned by someone else comes back as null, exactly like an id
+   * that does not exist, and the caller turns both into 404. Telling the two
+   * apart (403 vs 404) would confirm the id is real and let a client
+   * enumerate other tenants' customers.
+   */
+  async findCustomer(
+    id: string,
+    ownerUserId: string,
+  ): Promise<CustomerResponseDTO | null> {
+    const customer = await this.repository.findOne(id, ownerUserId);
     if (!customer) {
       return null;
     }

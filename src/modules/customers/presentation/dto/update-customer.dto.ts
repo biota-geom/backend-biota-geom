@@ -11,10 +11,20 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+import { IsValidDocument } from '../validators/is-valid-document.validator';
 import { UpdateCustomerAddressDto } from './update-customer-address.dto';
 
 function trimString({ value }: { value: unknown }): unknown {
   return typeof value === 'string' ? value.trim() : value;
+}
+
+/*
+ * Same reason as in create-customer.dto.ts: the form may send the document
+ * masked, but the column (and its unique index) holds digits only, so the
+ * update path has to normalize it exactly like the create path does.
+ */
+function stripNonDigits({ value }: { value: unknown }): unknown {
+  return typeof value === 'string' ? value.replace(/\D/g, '') : value;
 }
 
 export class UpdateCustomerDto {
@@ -26,12 +36,17 @@ export class UpdateCustomerDto {
   @MaxLength(255)
   name?: string;
 
-  @ApiPropertyOptional({ example: '12345678000199' })
+  @ApiPropertyOptional({
+    example: '11222333000181',
+    description:
+      'Aceita com ou sem máscara; é gravado somente com dígitos. Os dígitos verificadores são conferidos conforme o document_type informado.',
+  })
   @IsOptional()
-  @Transform(trimString)
+  @Transform(stripNonDigits)
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
+  @IsValidDocument('document_type')
   document?: string;
 
   @ApiPropertyOptional({ enum: DocumentType, example: DocumentType.CNPJ })

@@ -6,8 +6,10 @@ import { CustomerListResponseDTO } from '../presentation/dto/customer-list-respo
 export class ListCustomersUseCase {
   constructor(private readonly repository: CustomerRepository) {}
 
-  async listCustomers(): Promise<CustomerListResponseDTO[]> {
-    const customers = await this.repository.findAll();
+  // Only the authenticated owner's portfolio (US03) — the repository scopes
+  // the query, so there is no unfiltered list to fall back to.
+  async listCustomers(ownerUserId: string): Promise<CustomerListResponseDTO[]> {
+    const customers = await this.repository.findAll(ownerUserId);
 
     return customers.map((customer) => {
       const city = customer.address?.city ?? '';

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateCustomerUseCase } from '../application/create-customer.use-case';
 import { FindCustomerUseCase } from '../application/find-a-customer.use-case';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
@@ -24,19 +25,27 @@ export class CustomersService {
     private readonly removeCustomerUseCase: RemoveCustomerUseCase,
   ) {}
 
-  async findAll(): Promise<CustomerListResponseDTO[]> {
-    return this.listCustomersUseCase.listCustomers();
+  async findAll(ownerUserId: string): Promise<CustomerListResponseDTO[]> {
+    return this.listCustomersUseCase.listCustomers(ownerUserId);
   }
 
   async create(data: CreateCustomerData): Promise<Customer> {
     return this.createCustomerUseCase.createCustomer(data);
   }
 
-  async findOne(id: string): Promise<CustomerResponseDTO> {
-    const customer = await this.findCustomerUseCase.findCustomer(id);
+  /*
+   * 404 covers both "no such customer" and "customer of another owner": the
+   * scoped lookup cannot tell them apart, and it must not — a 403 would
+   * confirm the id belongs to somebody, which is enough to enumerate ids.
+   */
+  async findOne(id: string, ownerUserId: string): Promise<CustomerResponseDTO> {
+    const customer = await this.findCustomerUseCase.findCustomer(
+      id,
+      ownerUserId,
+    );
 
     if (!customer) {
-      throw new NotFoundException('Empresa não encontrada');
+      throw new NotFoundException(AUTH_MESSAGES.CUSTOMER_NOT_FOUND);
     }
 
     return customer;
@@ -44,9 +53,10 @@ export class CustomersService {
 
   async update(
     id: string,
+    ownerUserId: string,
     dto: UpdateCustomerDto,
   ): Promise<CustomerDetailResponseDto> {
-    const customer = await this.updateCustomerUseCase.execute(id, {
+    const customer = await this.updateCustomerUseCase.execute(id, ownerUserId, {
       name: dto.name,
       document: dto.document,
       documentType: dto.document_type,
@@ -71,11 +81,15 @@ export class CustomersService {
     return toCustomerDetailResponse(customer);
   }
 
-  async remove(id: string): Promise<boolean> {
-    const removed = await this.removeCustomerUseCase.removeCustomer(id);
+  async remove(id: string, ownerUserId: string): Promise<boolean> {
+    const removed = await this.removeCustomerUseCase.removeCustomer(
+      id,
+      ownerUserId,
+    );
 
+    // Same 404 for "does not exist" and "not yours" — see findOne above.
     if (!removed) {
-      throw new NotFoundException('Empresa não encontrada');
+      throw new NotFoundException(AUTH_MESSAGES.CUSTOMER_NOT_FOUND);
     }
 
     return true;

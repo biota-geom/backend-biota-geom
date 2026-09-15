@@ -4,7 +4,10 @@ import { CreateCustomerData } from '../domain/create-customer.data';
 import { CustomerAlreadyExistsError } from '../domain/errors/customer-already-exists.error';
 import { PrismaCustomerRepository } from './prisma-customer.repository';
 
+const OWNER = 'owner-1';
+
 const DATA: CreateCustomerData = {
+  ownerUserId: OWNER,
   name: 'Unidade Industrial RS',
   document: '12345678000199',
   documentType: DocumentType.CNPJ,
@@ -38,6 +41,7 @@ describe('PrismaCustomerRepository.create', () => {
     await expect(buildRepository(create).create(DATA)).resolves.toBe(created);
     expect(create).toHaveBeenCalledWith({
       data: {
+        ownerUser: { connect: { id: OWNER } },
         name: DATA.name,
         document: DATA.document,
         documentType: DocumentType.CNPJ,
@@ -62,6 +66,11 @@ describe('PrismaCustomerRepository.create', () => {
     });
   });
 
+  /*
+   * The violated index is (owner_user_id, document), so the 409 this produces
+   * can only mean "this owner already has this document" — never that some
+   * other consultancy holds the same CNPJ.
+   */
   it('translates a unique violation into a domain error', async () => {
     const create = jest.fn().mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {

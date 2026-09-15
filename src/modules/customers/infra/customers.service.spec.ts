@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { AddressType, DocumentType } from '@prisma/client';
+import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateCustomerUseCase } from '../application/create-customer.use-case';
 import { FindCustomerUseCase } from '../application/find-a-customer.use-case';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
@@ -8,6 +9,8 @@ import { UpdateCustomerUseCase } from '../application/update-customer.use-case';
 import { CreateCustomerData } from '../domain/create-customer.data';
 import { UpdateCustomerDto } from '../presentation/dto/update-customer.dto';
 import { CustomersService } from './customers.service';
+
+const OWNER = 'owner-1';
 
 function buildService(overrides: {
   listCustomers?: jest.Mock;
@@ -46,16 +49,17 @@ describe('CustomersService', () => {
     const result = [{ id: 'customer-1', name: 'Unidade Industrial RS' }];
     const listCustomers = jest.fn().mockResolvedValue(result);
 
-    await expect(buildService({ listCustomers }).findAll()).resolves.toEqual(
-      result,
-    );
-    expect(listCustomers).toHaveBeenCalledTimes(1);
+    await expect(
+      buildService({ listCustomers }).findAll(OWNER),
+    ).resolves.toEqual(result);
+    expect(listCustomers).toHaveBeenCalledWith(OWNER);
   });
 
   it('delegates the create operation to the use case', async () => {
     const created = { id: 'customer-1' };
     const createCustomer = jest.fn().mockResolvedValue(created);
     const data: CreateCustomerData = {
+      ownerUserId: OWNER,
       name: 'Unidade Industrial RS',
       document: '12345678000199',
       documentType: DocumentType.CNPJ,
@@ -86,17 +90,22 @@ describe('CustomersService', () => {
     const findCustomer = jest.fn().mockResolvedValue(customer);
 
     await expect(
-      buildService({ findCustomer }).findOne('customer-1'),
+      buildService({ findCustomer }).findOne('customer-1', OWNER),
     ).resolves.toEqual(customer);
-    expect(findCustomer).toHaveBeenCalledWith('customer-1');
+    expect(findCustomer).toHaveBeenCalledWith('customer-1', OWNER);
   });
 
-  it('hides missing customers behind the contracted not found error', async () => {
+  /*
+   * The use case returns null both for an unknown id and for a customer owned
+   * by another account, and this is where both become the same 404 — a 403
+   * would tell the caller that the id exists.
+   */
+  it('hides missing and foreign customers behind the same not found error', async () => {
     const findCustomer = jest.fn().mockResolvedValue(null);
 
     await expect(
-      buildService({ findCustomer }).findOne('missing-id'),
-    ).rejects.toThrow('Empresa não encontrada');
+      buildService({ findCustomer }).findOne('missing-id', OWNER),
+    ).rejects.toEqual(new NotFoundException(AUTH_MESSAGES.CUSTOMER_NOT_FOUND));
   });
 
   it('delegates the update operation to the use case and maps the response', async () => {
@@ -143,6 +152,7 @@ describe('CustomersService', () => {
 
     const response = await buildService({ updateCustomerUseCase }).update(
       'customer-1',
+      OWNER,
       dto,
     );
 
@@ -152,41 +162,45 @@ describe('CustomersService', () => {
       responsible_name: 'Novo Responsável',
     });
     expect(response.address).toMatchObject({ city: 'Canoas', state: 'RS' });
-    expect(updateCustomerUseCase.execute).toHaveBeenCalledWith('customer-1', {
-      name: 'Empresa Atualizada',
-      document: '12345678000199',
-      documentType: DocumentType.CNPJ,
-      email: undefined,
-      sectorId: 'sector-1',
-      ownerName: 'Novo Responsável',
-      ownerEmail: 'novo@empresa.com',
-      ownerPhone: undefined,
-      address: {
-        type: AddressType.BILLING,
-        street: undefined,
-        number: undefined,
-        city: 'Canoas',
-        state: 'RS',
-        postalCode: undefined,
-        countryCode: undefined,
+    expect(updateCustomerUseCase.execute).toHaveBeenCalledWith(
+      'customer-1',
+      OWNER,
+      {
+        name: 'Empresa Atualizada',
+        document: '12345678000199',
+        documentType: DocumentType.CNPJ,
+        email: undefined,
+        sectorId: 'sector-1',
+        ownerName: 'Novo Responsável',
+        ownerEmail: 'novo@empresa.com',
+        ownerPhone: undefined,
+        address: {
+          type: AddressType.BILLING,
+          street: undefined,
+          number: undefined,
+          city: 'Canoas',
+          state: 'RS',
+          postalCode: undefined,
+          countryCode: undefined,
+        },
       },
-    });
+    );
   });
 
   it('removes a customer through the remove use case', async () => {
     const removeCustomer = jest.fn().mockResolvedValue(true);
 
     await expect(
-      buildService({ removeCustomer }).remove('customer-1'),
+      buildService({ removeCustomer }).remove('customer-1', OWNER),
     ).resolves.toBe(true);
-    expect(removeCustomer).toHaveBeenCalledWith('customer-1');
+    expect(removeCustomer).toHaveBeenCalledWith('customer-1', OWNER);
   });
 
-  it('throws not found when the remove use case finds no customer', async () => {
+  it('throws not found when the remove use case finds no customer of this owner', async () => {
     const removeCustomer = jest.fn().mockResolvedValue(false);
 
     await expect(
-      buildService({ removeCustomer }).remove('missing-id'),
-    ).rejects.toEqual(new NotFoundException('Empresa não encontrada'));
+      buildService({ removeCustomer }).remove('missing-id', OWNER),
+    ).rejects.toEqual(new NotFoundException(AUTH_MESSAGES.CUSTOMER_NOT_FOUND));
   });
 });

@@ -1,6 +1,7 @@
 import { AddressType, DocumentType } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
+import { CUSTOMERS_MESSAGES } from '../messages/customers.messages.pt-br';
 import { CreateCustomerDto } from './create-customer.dto';
 
 function buildPayload(
@@ -8,7 +9,7 @@ function buildPayload(
 ): Record<string, unknown> {
   return {
     name: 'Unidade Industrial RS',
-    document: '12345678000199',
+    document: '11222333000181',
     document_type: DocumentType.CNPJ,
     sector_id: '550e8400-e29b-41d4-a716-446655440000',
     email: 'contato@unidade.com.br',
@@ -37,6 +38,14 @@ function validate(payload: Record<string, unknown>): {
   return { dto, errors: validateSync(dto, { whitelist: true }) };
 }
 
+function documentMessages(
+  errors: ReturnType<typeof validateSync>,
+): readonly string[] {
+  const documentError = errors.find((error) => error.property === 'document');
+
+  return Object.values(documentError?.constraints ?? {});
+}
+
 describe('CreateCustomerDto', () => {
   it('accepts a well-formed payload', () => {
     expect(validate(buildPayload()).errors).toHaveLength(0);
@@ -44,11 +53,11 @@ describe('CreateCustomerDto', () => {
 
   it('strips the mask from the document', () => {
     const { dto, errors } = validate(
-      buildPayload({ document: '12.345.678/0001-99' }),
+      buildPayload({ document: '11.222.333/0001-81' }),
     );
 
     expect(errors).toHaveLength(0);
-    expect(dto.document).toBe('12345678000199');
+    expect(dto.document).toBe('11222333000181');
   });
 
   it('trims surrounding whitespace on text fields', () => {
@@ -59,10 +68,10 @@ describe('CreateCustomerDto', () => {
 
   it('leaves a non-string document untouched for the validator to reject', () => {
     const { dto, errors } = validate(
-      buildPayload({ document: 12345678000199 }),
+      buildPayload({ document: 11222333000181 }),
     );
 
-    expect(dto.document).toBe(12345678000199);
+    expect(dto.document).toBe(11222333000181);
     expect(errors.map((error) => error.property)).toContain('document');
   });
 
@@ -77,6 +86,62 @@ describe('CreateCustomerDto', () => {
     const { errors } = validate(buildPayload({ document: '123456789001999' }));
 
     expect(errors.map((error) => error.property)).toContain('document');
+  });
+
+  it('rejects a CNPJ whose check digits do not add up', () => {
+    const { errors } = validate(buildPayload({ document: '12345678000199' }));
+
+    expect(documentMessages(errors)).toContain(CUSTOMERS_MESSAGES.INVALID_CNPJ);
+  });
+
+  it('rejects a masked CNPJ whose check digits do not add up', () => {
+    const { errors } = validate(
+      buildPayload({ document: '12.345.678/0001-99' }),
+    );
+
+    expect(documentMessages(errors)).toContain(CUSTOMERS_MESSAGES.INVALID_CNPJ);
+  });
+
+  it('rejects a repeated-digit sequence', () => {
+    const { errors } = validate(
+      buildPayload({ document: '11.111.111/1111-11' }),
+    );
+
+    expect(documentMessages(errors)).toContain(CUSTOMERS_MESSAGES.INVALID_CNPJ);
+  });
+
+  it('accepts a CPF when the payload declares document_type CPF', () => {
+    const { dto, errors } = validate(
+      buildPayload({
+        document: '529.982.247-25',
+        document_type: DocumentType.CPF,
+      }),
+    );
+
+    expect(errors).toHaveLength(0);
+    expect(dto.document).toBe('52998224725');
+  });
+
+  it('rejects a CPF sent as a CNPJ and reports the declared type', () => {
+    const { errors } = validate(
+      buildPayload({
+        document: '52998224725',
+        document_type: DocumentType.CNPJ,
+      }),
+    );
+
+    expect(documentMessages(errors)).toContain(CUSTOMERS_MESSAGES.INVALID_CNPJ);
+  });
+
+  it('rejects a CPF with a wrong check digit and reports it as a CPF', () => {
+    const { errors } = validate(
+      buildPayload({
+        document: '52998224724',
+        document_type: DocumentType.CPF,
+      }),
+    );
+
+    expect(documentMessages(errors)).toContain(CUSTOMERS_MESSAGES.INVALID_CPF);
   });
 
   it('rejects an unknown document type', () => {

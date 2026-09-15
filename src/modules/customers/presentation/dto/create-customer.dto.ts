@@ -12,6 +12,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+import { IsValidDocument } from '../validators/is-valid-document.validator';
 
 function trimString({ value }: { value: unknown }): unknown {
   return typeof value === 'string' ? value.trim() : value;
@@ -83,13 +84,15 @@ export class CreateCustomerDto {
   name!: string;
 
   @ApiProperty({
-    example: '12345678000199',
-    description: 'Aceita com ou sem máscara; é gravado somente com dígitos.',
+    example: '11222333000181',
+    description:
+      'Aceita com ou sem máscara; é gravado somente com dígitos. Os dígitos verificadores são conferidos conforme o document_type.',
   })
   @Transform(stripNonDigits)
   @IsString()
   @IsNotEmpty()
   @MaxLength(14)
+  @IsValidDocument('document_type')
   document!: string;
 
   @ApiProperty({ enum: DocumentType, example: DocumentType.CNPJ })

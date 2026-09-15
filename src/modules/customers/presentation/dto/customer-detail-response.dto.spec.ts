@@ -5,6 +5,7 @@ import { toCustomerDetailResponse } from './customer-detail-response.dto';
 
 const BASE_CUSTOMER: Customer = {
   id: 'customer-1',
+  ownerUserId: 'owner-1',
   name: 'Unidade Industrial RS',
   document: '12345678000199',
   documentType: DocumentType.CNPJ,

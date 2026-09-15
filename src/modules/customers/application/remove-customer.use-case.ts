@@ -5,7 +5,9 @@ import { CustomerRepository } from '../domain/customers.repository';
 export class RemoveCustomerUseCase {
   constructor(private readonly repository: CustomerRepository) {}
 
-  async removeCustomer(id: string): Promise<boolean> {
-    return this.repository.remove(id);
+  // Returns false for a customer owned by another account, the same answer an
+  // unknown id gets, so the caller reports 404 either way.
+  async removeCustomer(id: string, ownerUserId: string): Promise<boolean> {
+    return this.repository.remove(id, ownerUserId);
   }
 }

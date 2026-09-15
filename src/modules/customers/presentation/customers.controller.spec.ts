@@ -19,6 +19,8 @@ import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 const CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440000';
+// Stands in for what JwtAuthGuard puts on the request and @CurrentUser reads.
+const AUTHENTICATED_USER = { id: 'owner-1' };
 
 describe('CustomerController', () => {
   function buildController() {
@@ -31,17 +33,23 @@ describe('CustomerController', () => {
     };
     const service = {
       findAll: jest
-        .fn<() => Promise<CustomerListResponseDTO[]>>()
+        .fn<(ownerUserId: string) => Promise<CustomerListResponseDTO[]>>()
         .mockResolvedValue([listedCustomer]),
-      findOne: jest.fn<(id: string) => Promise<CustomerResponseDTO>>(),
+      findOne:
+        jest.fn<
+          (id: string, ownerUserId: string) => Promise<CustomerResponseDTO>
+        >(),
       remove: jest
-        .fn<(id: string) => Promise<boolean>>()
+        .fn<(id: string, ownerUserId: string) => Promise<boolean>>()
         .mockResolvedValue(true),
     };
-    const linkExecute = jest.fn<(id: string, ids: string[]) => Promise<void>>();
+    const linkExecute =
+      jest.fn<
+        (id: string, ownerUserId: string, ids: string[]) => Promise<void>
+      >();
     linkExecute.mockResolvedValue(undefined);
     const listExecute = jest.fn<
-      (customerId: string) => Promise<EsgMetricEntity[]>
+      (customerId: string, ownerUserId: string) => Promise<EsgMetricEntity[]>
     >(() =>
       Promise.resolve([
         new EsgMetricEntity(
@@ -67,23 +75,26 @@ describe('CustomerController', () => {
   it('returns the list from the customer service', async () => {
     const { controller, service } = buildController();
 
-    await expect(controller.listCustomers()).resolves.toEqual([
-      {
-        id: 'customer-1',
-        name: 'Unidade Industrial RS',
-        status: 'Ativo',
-        segment: 'Siderurgia',
-        location: 'Porto Alegre - RS',
-      },
-    ]);
-    expect(service.findAll).toHaveBeenCalledTimes(1);
+    await expect(controller.listCustomers(AUTHENTICATED_USER)).resolves.toEqual(
+      [
+        {
+          id: 'customer-1',
+          name: 'Unidade Industrial RS',
+          status: 'Ativo',
+          segment: 'Siderurgia',
+          location: 'Porto Alegre - RS',
+        },
+      ],
+    );
+    // The owner comes from the token, so the list cannot be widened by input.
+    expect(service.findAll).toHaveBeenCalledWith(AUTHENTICATED_USER.id);
   });
 
   it('maps linked metrics to the response dto', async () => {
     const { controller, listExecute } = buildController();
 
     await expect(
-      controller.listCustomerEsgMetrics(CUSTOMER_ID),
+      controller.listCustomerEsgMetrics(CUSTOMER_ID, AUTHENTICATED_USER),
     ).resolves.toEqual([
       {
         id: 'metric-1',
@@ -94,7 +105,10 @@ describe('CustomerController', () => {
         gri_standard_id: null,
       },
     ]);
-    expect(listExecute).toHaveBeenCalledWith(CUSTOMER_ID);
+    expect(listExecute).toHaveBeenCalledWith(
+      CUSTOMER_ID,
+      AUTHENTICATED_USER.id,
+    );
   });
 
   it('passes metric_ids to the link use case', async () => {
@@ -104,9 +118,13 @@ describe('CustomerController', () => {
     });
 
     await expect(
-      controller.linkCustomerEsgMetrics(CUSTOMER_ID, dto),
+      controller.linkCustomerEsgMetrics(CUSTOMER_ID, dto, AUTHENTICATED_USER),
     ).resolves.toBeUndefined();
-    expect(linkExecute).toHaveBeenCalledWith(CUSTOMER_ID, dto.metric_ids);
+    expect(linkExecute).toHaveBeenCalledWith(
+      CUSTOMER_ID,
+      AUTHENTICATED_USER.id,
+      dto.metric_ids,
+    );
   });
 
   it('builds the invalid uuid HTTP exception', () => {
@@ -128,10 +146,13 @@ describe('CustomerController', () => {
     } as CustomerResponseDTO;
     service.findOne.mockResolvedValue(expected);
 
-    await expect(controller.getCustomer('customer-1')).resolves.toEqual(
-      expected,
+    await expect(
+      controller.getCustomer('customer-1', AUTHENTICATED_USER),
+    ).resolves.toEqual(expected);
+    expect(service.findOne).toHaveBeenCalledWith(
+      'customer-1',
+      AUTHENTICATED_USER.id,
     );
-    expect(service.findOne).toHaveBeenCalledWith('customer-1');
   });
 
   it('delegates update to the customer service', async () => {
@@ -151,10 +172,14 @@ describe('CustomerController', () => {
       name: 'Empresa Atualizada',
     });
 
-    await expect(controller.updateCustomer('customer-1', dto)).resolves.toEqual(
-      expected,
+    await expect(
+      controller.updateCustomer('customer-1', dto, AUTHENTICATED_USER),
+    ).resolves.toEqual(expected);
+    expect(service.update).toHaveBeenCalledWith(
+      'customer-1',
+      AUTHENTICATED_USER.id,
+      dto,
     );
-    expect(service.update).toHaveBeenCalledWith('customer-1', dto);
   });
 
   it('maps the snake_case payload onto the domain shape and back', async () => {
@@ -212,9 +237,10 @@ describe('CustomerController', () => {
       },
     };
 
-    const response = await controller.createCustomer(dto);
+    const response = await controller.createCustomer(dto, AUTHENTICATED_USER);
 
     expect(service.create).toHaveBeenCalledWith({
+      ownerUserId: AUTHENTICATED_USER.id,
       name: 'Unidade Industrial RS',
       document: '12345678000199',
       documentType: DocumentType.CNPJ,
@@ -286,9 +312,12 @@ describe('CustomerController', () => {
       {} as ListCustomerEsgMetricsUseCase,
     );
 
-    const response = await controller.createCustomer({
-      address: {},
-    } as unknown as CreateCustomerDto);
+    const response = await controller.createCustomer(
+      {
+        address: {},
+      } as unknown as CreateCustomerDto,
+      AUTHENTICATED_USER,
+    );
 
     expect(response.segment).toBeNull();
     expect(response.address).toBeNull();
@@ -298,8 +327,11 @@ describe('CustomerController', () => {
     const { controller, service } = buildController();
 
     await expect(
-      controller.deleteCustomer('customer-1'),
+      controller.deleteCustomer('customer-1', AUTHENTICATED_USER),
     ).resolves.toBeUndefined();
-    expect(service.remove).toHaveBeenCalledWith('customer-1');
+    expect(service.remove).toHaveBeenCalledWith(
+      'customer-1',
+      AUTHENTICATED_USER.id,
+    );
   });
 });

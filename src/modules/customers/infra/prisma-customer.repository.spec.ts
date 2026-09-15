@@ -1,6 +1,8 @@
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaCustomerRepository } from './prisma-customer.repository';
 
+const OWNER = 'owner-1';
+
 function buildRepository() {
   const findMany = jest.fn();
   const findUnique = jest.fn();
@@ -27,9 +29,10 @@ describe('PrismaCustomerRepository', () => {
     const customers = [{ id: 'customer-1' }];
     findMany.mockResolvedValue(customers);
 
-    await expect(repository.findAll()).resolves.toBe(customers);
+    await expect(repository.findAll(OWNER)).resolves.toBe(customers);
+    // Scoped in the query itself: there is no unfiltered read to fall back to.
     expect(findMany).toHaveBeenCalledWith({
-      where: { isDeleted: false },
+      where: { ownerUserId: OWNER, isDeleted: false },
       include: { address: true, sector: true },
     });
   });
@@ -38,7 +41,7 @@ describe('PrismaCustomerRepository', () => {
     const { repository, findUnique, update } = buildRepository();
     findUnique.mockResolvedValue(null);
 
-    await expect(repository.remove('missing-id')).resolves.toBe(false);
+    await expect(repository.remove('missing-id', OWNER)).resolves.toBe(false);
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -46,9 +49,9 @@ describe('PrismaCustomerRepository', () => {
     const { repository, findUnique, update } = buildRepository();
     findUnique.mockResolvedValue({ id: 'customer-1' });
 
-    await expect(repository.remove('customer-1')).resolves.toBe(true);
+    await expect(repository.remove('customer-1', OWNER)).resolves.toBe(true);
     expect(findUnique).toHaveBeenCalledWith({
-      where: { id: 'customer-1', isDeleted: false },
+      where: { id: 'customer-1', ownerUserId: OWNER, isDeleted: false },
       select: { id: true },
     });
     expect(update).toHaveBeenCalledWith({
@@ -61,7 +64,7 @@ describe('PrismaCustomerRepository', () => {
     const { repository, findUnique, update } = buildRepository();
     findUnique.mockResolvedValue({ id: 'customer-1', isActive: false });
 
-    await expect(repository.remove('customer-1')).resolves.toBe(true);
+    await expect(repository.remove('customer-1', OWNER)).resolves.toBe(true);
 
     expect(update).toHaveBeenCalledWith({
       where: { id: 'customer-1' },
@@ -73,12 +76,13 @@ describe('PrismaCustomerRepository', () => {
     const { repository, findUnique, update } = buildRepository();
 
     // An already-deleted customer does not match the isDeleted: false filter,
-    // so it is treated the same as a non-existent customer (404).
+    // so it is treated the same as a non-existent customer (404). A customer
+    // of another owner falls out of the same query for the same reason.
     findUnique.mockResolvedValue(null);
 
-    await expect(repository.remove('customer-1')).resolves.toBe(false);
+    await expect(repository.remove('customer-1', OWNER)).resolves.toBe(false);
     expect(findUnique).toHaveBeenCalledWith({
-      where: { id: 'customer-1', isDeleted: false },
+      where: { id: 'customer-1', ownerUserId: OWNER, isDeleted: false },
       select: { id: true },
     });
     expect(update).not.toHaveBeenCalled();

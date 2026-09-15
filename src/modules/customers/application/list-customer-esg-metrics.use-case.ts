@@ -11,8 +11,16 @@ export class ListCustomerEsgMetricsUseCase {
     private readonly customerEsgMetricRepository: CustomerEsgMetricRepository,
   ) {}
 
-  async execute(customerId: string): Promise<EsgMetricEntity[]> {
-    const customer = await this.customerRepository.findOne(customerId);
+  async execute(
+    customerId: string,
+    ownerUserId: string,
+  ): Promise<EsgMetricEntity[]> {
+    // Another owner's customer is "not found" here as well — see
+    // CustomerRepository for why this is a 404 and not a 403.
+    const customer = await this.customerRepository.findOne(
+      customerId,
+      ownerUserId,
+    );
 
     if (!customer) {
       throw new CustomerNotFoundError(customerId);

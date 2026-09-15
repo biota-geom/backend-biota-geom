@@ -67,7 +67,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
 
   async function login(email: string): Promise<string> {
     const response = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email, password: PASSWORD })
       .expect(200);
 
@@ -76,7 +76,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
 
   function get(path: string, token: string) {
     return request(app.getHttpServer())
-      .get(path)
+      .get(`/api${path}`)
       .set('Authorization', `Bearer ${token}`);
   }
 
@@ -113,7 +113,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
     bobToken = await login(BOB_EMAIL);
 
     const alicePost = await request(app.getHttpServer())
-      .post('/customers')
+      .post('/api/customers')
       .set('Authorization', `Bearer ${aliceToken}`)
       .send(
         companyPayload({ name: 'Empresa da Alice', document: ALICE_DOCUMENT }),
@@ -122,7 +122,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
     aliceCustomerId = (alicePost.body as { id: string }).id;
 
     const bobPost = await request(app.getHttpServer())
-      .post('/customers')
+      .post('/api/customers')
       .set('Authorization', `Bearer ${bobToken}`)
       .send(companyPayload({ name: 'Empresa do Bob', document: BOB_DOCUMENT }))
       .expect(201);
@@ -189,7 +189,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
 
   it('refuses to update a company owned by someone else', async () => {
     await request(app.getHttpServer())
-      .put(`/customers/${aliceCustomerId}`)
+      .put(`/api/customers/${aliceCustomerId}`)
       .set('Authorization', `Bearer ${bobToken}`)
       .send({ name: 'Sequestrada pelo Bob' })
       .expect(404);
@@ -202,7 +202,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
 
   it('refuses to delete a company owned by someone else', async () => {
     await request(app.getHttpServer())
-      .delete(`/customers/${aliceCustomerId}`)
+      .delete(`/api/customers/${aliceCustomerId}`)
       .set('Authorization', `Bearer ${bobToken}`)
       .expect(404);
 
@@ -218,7 +218,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
     );
 
     await request(app.getHttpServer())
-      .post(`/customers/${aliceCustomerId}/esg-metrics`)
+      .post(`/api/customers/${aliceCustomerId}/esg-metrics`)
       .set('Authorization', `Bearer ${bobToken}`)
       .send({ metric_ids: [] })
       .expect(404);
@@ -236,7 +236,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
   describe('CNPJ uniqueness is per owner', () => {
     it('accepts the same document under two different owners', async () => {
       await request(app.getHttpServer())
-        .post('/customers')
+        .post('/api/customers')
         .set('Authorization', `Bearer ${aliceToken}`)
         .send(
           companyPayload({
@@ -247,7 +247,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
         .expect(201);
 
       await request(app.getHttpServer())
-        .post('/customers')
+        .post('/api/customers')
         .set('Authorization', `Bearer ${bobToken}`)
         .send(
           companyPayload({

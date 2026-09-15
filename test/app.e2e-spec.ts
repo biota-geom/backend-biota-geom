@@ -16,8 +16,8 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer()).get('/').expect(200).expect({
+  it('/api (GET)', () => {
+    return request(app.getHttpServer()).get('/api').expect(200).expect({
       status: 'ok',
       service: 'backend-biota-geom',
     });

@@ -11,6 +11,12 @@ export interface CreateCustomerAddressData {
 }
 
 export interface CreateCustomerData {
+  /*
+   * Owner of the new company, resolved from the authenticated token by the
+   * controller. It is deliberately absent from CreateCustomerDto: a client
+   * must not be able to register a company in another account's name.
+   */
+  ownerUserId: string;
   name: string;
   document: string;
   documentType: DocumentType;

@@ -22,7 +22,10 @@ export class CreateCustomerUseCase {
     /*
      * Duplicate documents are caught by the unique index inside the repository
      * rather than by a SELECT here: between a check and the insert another
-     * request can slip through, so only the constraint is race-proof.
+     * request can slip through, so only the constraint is race-proof. That
+     * index is (owner_user_id, document), so the conflict is raised only
+     * against the owner's own portfolio (US01) — `data.ownerUserId` comes from
+     * the authenticated token, never from the payload.
      */
     return this.repository.create(data);
   }

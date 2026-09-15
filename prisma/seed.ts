@@ -86,6 +86,12 @@ const seedEsgMetrics = [
 ];
 
 /*
+ * `owner` é o login (parte local do e-mail) da conta dona da empresa — no
+ * modelo, `User` é a consultoria que assina o sistema e `Customer` é a empresa
+ * atendida por ela. A carteira é dividida entre duas contas de propósito: ao
+ * entrar com `admin` e depois com `carlos.analista` as listas têm que vir
+ * diferentes (e nenhuma vazia), que é a demonstração manual da US10.
+ *
  * Carteira variada de propósito: segmentos e UFs repetidos em combinações
  * diferentes, unidades ativas e inativas, para exercitar a listagem (US03) e
  * a busca/filtros (US05) com resultados que de fato mudam conforme o filtro.
@@ -95,6 +101,7 @@ const seedCompanies = [
   {
     name: 'Unidade Industrial Ouro Preto',
     document: '12.345.678/0001-95',
+    owner: 'admin',
     sector: 'Mineração',
     isActive: true,
     email: 'contato@mineracaoop.com.br',
@@ -112,6 +119,7 @@ const seedCompanies = [
   {
     name: 'Complexo Minerário Carajás',
     document: '23.456.789/0001-95',
+    owner: 'admin',
     sector: 'Mineração',
     isActive: true,
     email: 'ambiental@carajasmin.com.br',
@@ -129,6 +137,7 @@ const seedCompanies = [
   {
     name: 'EcoVerde Agroindústria S.A.',
     document: '34.567.890/0001-30',
+    owner: 'admin',
     sector: 'Agronegócio',
     isActive: true,
     email: 'contato@ecoverde.com.br',
@@ -146,6 +155,7 @@ const seedCompanies = [
   {
     name: 'Fazenda Santa Clara - Unidade Sorriso',
     document: '45.678.901/0001-75',
+    owner: 'admin',
     sector: 'Agronegócio',
     isActive: false,
     email: 'santaclara@agro.com.br',
@@ -163,6 +173,7 @@ const seedCompanies = [
   {
     name: 'MetalAço Brasil Ltda',
     document: '56.789.012/0001-00',
+    owner: 'admin',
     sector: 'Siderurgia',
     isActive: true,
     email: 'contato@metalaco.com.br',
@@ -184,6 +195,7 @@ const seedCompanies = [
   {
     name: 'Usina Siderúrgica Volta Redonda',
     document: '67.890.123/0001-16',
+    owner: 'admin',
     sector: 'Siderurgia',
     isActive: false,
     email: 'meioambiente@usinavr.com.br',
@@ -201,6 +213,7 @@ const seedCompanies = [
   {
     name: 'SolBrilho Energia Limpa',
     document: '78.901.234/0001-05',
+    owner: 'carlos.analista',
     sector: 'Energia Renovável',
     isActive: true,
     email: 'contato@solbrilho.com.br',
@@ -218,6 +231,7 @@ const seedCompanies = [
   {
     name: 'Parque Eólico Serra do Vento',
     document: '89.012.345/0001-79',
+    owner: 'carlos.analista',
     sector: 'Energia Renovável',
     isActive: true,
     email: 'operacao@serradovento.com.br',
@@ -235,6 +249,7 @@ const seedCompanies = [
   {
     name: 'Estação de Tratamento Vale Azul',
     document: '90.123.456/0001-31',
+    owner: 'carlos.analista',
     sector: 'Saneamento',
     isActive: true,
     email: 'eta@valeazul.com.br',
@@ -252,6 +267,7 @@ const seedCompanies = [
   {
     name: 'Celulose Rio Branco',
     document: '01.234.567/0001-95',
+    owner: 'admin',
     sector: 'Papel e Celulose',
     isActive: true,
     email: 'ambiental@celuloseriobranco.com.br',
@@ -274,6 +290,7 @@ const seedCompanies = [
   {
     name: 'Unidade Desativada (soft delete)',
     document: '11.222.333/0001-81',
+    owner: 'admin',
     sector: 'Mineração',
     isActive: false,
     isDeleted: true,
@@ -293,11 +310,13 @@ const seedCompanies = [
 
 async function seedUsersTable() {
   const passwordHash = await hash(SEED_PASSWORD);
+  // login (parte local do e-mail) -> id, para vincular as empresas ao dono.
+  const users = new Map<string, string>();
 
   for (const user of seedUsers) {
     const email = `${user.local}@${SEED_EMAIL_DOMAIN}`;
 
-    await prisma.user.upsert({
+    const created = await prisma.user.upsert({
       where: { email },
       // Reaplica o hash para que um banco semeado por uma versão antiga (que
       // gravava hash literal) volte a ter contas com senha utilizável.
@@ -310,7 +329,11 @@ async function seedUsersTable() {
         isActive: user.isActive,
       },
     });
+
+    users.set(user.local, created.id);
   }
+
+  return users;
 }
 
 async function seedSectorsTable() {
@@ -350,10 +373,19 @@ async function seedEsgMetricsTable() {
 }
 
 async function seedCompaniesTable(
+  users: Map<string, string>,
   sectors: Map<string, string>,
   metrics: Map<string, string>,
 ) {
   for (const company of seedCompanies) {
+    const ownerUserId = users.get(company.owner);
+
+    if (!ownerUserId) {
+      throw new Error(
+        `Empresa "${company.name}" referencia a conta "${company.owner}", que não está em seedUsers.`,
+      );
+    }
+
     /*
      * A coluna `document` guarda só dígitos — é o que o CreateCustomerDto
      * grava (stripNonDigits) e é sobre esse formato que o índice único atua.
@@ -362,8 +394,13 @@ async function seedCompaniesTable(
      */
     const document = company.document.replace(/\D/g, '');
 
+    /*
+     * A busca é por (dono, documento), que é o índice único de hoje: o mesmo
+     * CNPJ pode existir em carteiras diferentes, então procurar só pelo
+     * documento reencontraria a empresa de outra conta e pularia a criação.
+     */
     const existing = await prisma.customer.findUnique({
-      where: { document },
+      where: { ownerUserId_document: { ownerUserId, document } },
     });
 
     if (existing) {
@@ -382,6 +419,7 @@ async function seedCompaniesTable(
 
     const created = await prisma.customer.create({
       data: {
+        ownerUserId,
         name: company.name,
         document,
         documentType: DocumentType.CNPJ,
@@ -409,15 +447,37 @@ async function seedCompaniesTable(
   }
 }
 
+/*
+ * Lido do banco, e não da lista acima: assim o resumo mostra o estado real
+ * depois de uma reexecução do seed (idempotente) em vez de repetir a intenção.
+ */
+async function countCompaniesByOwner(users: Map<string, string>) {
+  const counts = new Map<string, { visible: number; deleted: number }>();
+
+  for (const [local, ownerUserId] of users) {
+    const visible = await prisma.customer.count({
+      where: { ownerUserId, isDeleted: false },
+    });
+    const deleted = await prisma.customer.count({
+      where: { ownerUserId, isDeleted: true },
+    });
+
+    counts.set(local, { visible, deleted });
+  }
+
+  return counts;
+}
+
 async function main() {
   console.log('Iniciando o seed...');
 
-  await seedUsersTable();
+  const users = await seedUsersTable();
   const sectors = await seedSectorsTable();
   const metrics = await seedEsgMetricsTable();
-  await seedCompaniesTable(sectors, metrics);
+  await seedCompaniesTable(users, sectors, metrics);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
+  const companiesByOwner = await countCompaniesByOwner(users);
 
   console.log('Seed completo executado com sucesso!');
   console.log('');
@@ -430,8 +490,18 @@ async function main() {
       .filter(Boolean)
       .join(', ');
 
+    // Cada conta só enxerga as próprias empresas (US03/US10): entrar com uma
+    // ou com outra tem que devolver exatamente a carteira listada aqui.
+    const owned = companiesByOwner.get(user.local) ?? {
+      visible: 0,
+      deleted: 0,
+    };
+    const portfolio = `${owned.visible} empresa(s) na carteira${
+      owned.deleted > 0 ? ` + ${owned.deleted} excluída(s) logicamente` : ''
+    }`;
+
     console.log(
-      `  - ${user.local}@${SEED_EMAIL_DOMAIN}${flags ? ` (${flags})` : ''}`,
+      `  - ${user.local}@${SEED_EMAIL_DOMAIN}${flags ? ` (${flags})` : ''} — ${portfolio}`,
     );
   }
   console.log('');

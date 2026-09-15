@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { config as loadEnvFile } from 'dotenv';
 import { Client } from 'pg';
 
@@ -50,6 +51,21 @@ async function ensureDatabaseExists(databaseUrl: string): Promise<void> {
 }
 
 /**
+ * Aplica as migrations no banco de teste recém-criado. O CI não passa por aqui
+ * (lá não existe `TEST_DATABASE_URL`: cada job sobe um Postgres efêmero e roda
+ * `npx prisma migrate deploy` antes do Jest), mas localmente o banco criado
+ * acima nasce vazio — sem isto, qualquer suíte que toque em tabelas encontra
+ * um schema inexistente.
+ */
+function applyMigrations(databaseUrl: string): void {
+  execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
+    // Só a URL muda: o prisma.config.ts lê DATABASE_URL do ambiente.
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+    stdio: 'inherit',
+  });
+}
+
+/**
  * `globalSetup` compartilhado pelas suítes de integração e e2e: isola os
  * testes num banco dedicado, para que nenhum teste que escreva ou limpe dados
  * encoste no banco de desenvolvimento.
@@ -69,6 +85,7 @@ export default async function globalSetup(): Promise<void> {
   }
 
   await ensureDatabaseExists(testDatabaseUrl);
+  applyMigrations(testDatabaseUrl);
 
   // Os workers do Jest são criados depois do `globalSetup` e herdam este
   // `process.env`; o `@nestjs/config`, por sua vez, não sobrescreve o que já

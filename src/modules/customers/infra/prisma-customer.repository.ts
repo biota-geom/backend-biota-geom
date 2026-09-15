@@ -33,9 +33,9 @@ function withoutUndefinedValues<T extends Record<string, unknown>>(
 export class PrismaCustomerRepository implements CustomerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<Customer[]> {
+  async findAll(ownerUserId: string): Promise<Customer[]> {
     return this.prisma.customer.findMany({
-      where: { isDeleted: false },
+      where: { ownerUserId, isDeleted: false },
       include: {
         address: true,
         sector: true,
@@ -52,6 +52,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
        */
       return await this.prisma.customer.create({
         data: {
+          // From the token, never from the request body.
+          ownerUser: { connect: { id: data.ownerUserId } },
           name: data.name,
           document: data.document,
           documentType: data.documentType,
@@ -82,6 +84,11 @@ export class PrismaCustomerRepository implements CustomerRepository {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
+        /*
+         * The unique index is (owner_user_id, document), so this only fires
+         * when the same owner already registered the document — another
+         * consultancy holding the same CNPJ is not a conflict (US01).
+         */
         throw new CustomerAlreadyExistsError(data.document);
       }
 
@@ -89,16 +96,24 @@ export class PrismaCustomerRepository implements CustomerRepository {
     }
   }
 
-  async findById(id: string): Promise<Customer | null> {
+  async findById(id: string, ownerUserId: string): Promise<Customer | null> {
     return this.prisma.customer.findUnique({
-      where: { id },
+      where: { id, ownerUserId },
       include: CUSTOMER_DETAIL_INCLUDE,
     });
   }
 
-  async update(id: string, data: UpdateCustomerData): Promise<Customer> {
+  async update(
+    id: string,
+    ownerUserId: string,
+    data: UpdateCustomerData,
+  ): Promise<Customer> {
     return this.prisma.$transaction(async (tx) => {
-      const current = await tx.customer.findUniqueOrThrow({ where: { id } });
+      // Owner-scoped inside the transaction too: the use case already checked
+      // ownership, this keeps the write itself unable to touch a foreign row.
+      const current = await tx.customer.findUniqueOrThrow({
+        where: { id, ownerUserId },
+      });
 
       if (data.address) {
         if (!current.addressId) {
@@ -120,7 +135,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
       }
 
       await tx.customer.update({
-        where: { id },
+        where: { id, ownerUserId },
         data: withoutUndefinedValues({
           name: data.name,
           document: data.document,
@@ -134,15 +149,15 @@ export class PrismaCustomerRepository implements CustomerRepository {
       });
 
       return tx.customer.findUniqueOrThrow({
-        where: { id },
+        where: { id, ownerUserId },
         include: CUSTOMER_DETAIL_INCLUDE,
       });
     });
   }
 
-  async findOne(id: string): Promise<Customer | null> {
+  async findOne(id: string, ownerUserId: string): Promise<Customer | null> {
     return this.prisma.customer.findUnique({
-      where: { id, isDeleted: false },
+      where: { id, ownerUserId, isDeleted: false },
       include: {
         address: true,
         sector: true,
@@ -150,9 +165,9 @@ export class PrismaCustomerRepository implements CustomerRepository {
     });
   }
 
-  async remove(id: string): Promise<boolean> {
+  async remove(id: string, ownerUserId: string): Promise<boolean> {
     const customer = await this.prisma.customer.findUnique({
-      where: { id, isDeleted: false },
+      where: { id, ownerUserId, isDeleted: false },
       select: { id: true },
     });
 

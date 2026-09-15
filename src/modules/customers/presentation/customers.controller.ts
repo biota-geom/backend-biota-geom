@@ -25,6 +25,7 @@ import {
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import {
@@ -54,6 +55,12 @@ const uuidPipe = new ParseUUIDPipe({
   exceptionFactory: invalidCustomerIdException,
 });
 
+/*
+ * Every route here is scoped to the authenticated owner (US01/US03/US10).
+ * The owner always comes from the JWT via @CurrentUser — never from a path,
+ * query or body parameter, which a client could point at another account.
+ * `is_admin` grants nothing extra: isolation applies to every account.
+ */
 @ApiTags('customers')
 @UseFilters(CustomersExceptionFilter)
 @Controller('customers')
@@ -68,11 +75,13 @@ export class CustomerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'List all customer branches available to the authenticated admin.',
+    summary: 'List the companies owned by the authenticated user.',
   })
   @ApiOkResponse({ type: CustomerListResponseDTO, isArray: true })
-  async listCustomers(): Promise<CustomerListResponseDTO[]> {
-    return this.service.findAll();
+  async listCustomers(
+    @CurrentUser() user: { id: string },
+  ): Promise<CustomerListResponseDTO[]> {
+    return this.service.findAll(user.id);
   }
 
   @Post()
@@ -84,8 +93,12 @@ export class CustomerController {
   @ApiUnprocessableEntityResponse({ description: 'Segmento inexistente.' })
   async createCustomer(
     @Body() dto: CreateCustomerDto,
+    @CurrentUser() user: { id: string },
   ): Promise<CustomerCreatedResponseDTO> {
     const customer = await this.service.create({
+      // Owner taken from the token. CreateCustomerDto has no owner field, so
+      // a payload cannot register a company for somebody else.
+      ownerUserId: user.id,
       name: dto.name,
       document: dto.document,
       documentType: dto.document_type,
@@ -112,12 +125,23 @@ export class CustomerController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Find a customer by id',
+    summary: 'Find a company owned by the authenticated user, by id.',
   })
   @ApiOkResponse({ type: CustomerResponseDTO })
-  @ApiNotFoundResponse({ description: 'Customer not found' })
-  async getCustomer(@Param('id') id: string): Promise<CustomerResponseDTO> {
-    return this.service.findOne(id);
+  /*
+   * A customer that belongs to another owner answers 404, not 403: the two
+   * cases are deliberately indistinguishable. A 403 would confirm the id
+   * exists, which is all an attacker needs to enumerate other tenants' ids.
+   * Same reasoning as the auth module's uniform login/registration errors.
+   */
+  @ApiNotFoundResponse({
+    description: 'Customer not found: unknown id, or owned by another client.',
+  })
+  async getCustomer(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<CustomerResponseDTO> {
+    return this.service.findOne(id, user.id);
   }
 
   @Put(':id')
@@ -127,12 +151,15 @@ export class CustomerController {
     summary: 'Atualiza os dados cadastrais de uma empresa e seu endereço.',
   })
   @ApiOkResponse({ type: CustomerDetailResponseDto })
-  @ApiNotFoundResponse({ description: 'Empresa não encontrada.' })
+  @ApiNotFoundResponse({
+    description: 'Customer not found: unknown id, or owned by another client.',
+  })
   async updateCustomer(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomerDto,
+    @CurrentUser() user: { id: string },
   ): Promise<CustomerDetailResponseDto> {
-    return this.service.update(id, dto);
+    return this.service.update(id, user.id, dto);
   }
 
   /*
@@ -150,9 +177,12 @@ export class CustomerController {
   @ApiOkResponse({ type: EsgMetricResponseDto, isArray: true })
   async listCustomerEsgMetrics(
     @Param('id', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
   ): Promise<EsgMetricResponseDto[]> {
-    const metrics =
-      await this.listCustomerEsgMetricsUseCase.execute(customerId);
+    const metrics = await this.listCustomerEsgMetricsUseCase.execute(
+      customerId,
+      user.id,
+    );
 
     return metrics.map(toEsgMetricResponse);
   }
@@ -173,9 +203,11 @@ export class CustomerController {
   async linkCustomerEsgMetrics(
     @Param('id', uuidPipe) customerId: string,
     @Body() dto: LinkCustomerEsgMetricsDto,
+    @CurrentUser() user: { id: string },
   ): Promise<void> {
     await this.linkCustomerEsgMetricsUseCase.execute(
       customerId,
+      user.id,
       dto.metric_ids,
     );
   }
@@ -189,8 +221,13 @@ export class CustomerController {
   })
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse()
-  @ApiNotFoundResponse({ description: 'Customer not found' })
-  async deleteCustomer(@Param('id') id: string): Promise<void> {
-    await this.service.remove(id);
+  @ApiNotFoundResponse({
+    description: 'Customer not found: unknown id, or owned by another client.',
+  })
+  async deleteCustomer(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<void> {
+    await this.service.remove(id, user.id);
   }
 }

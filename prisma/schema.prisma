@@ -23,6 +23,9 @@ model User {
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
 
   esgMetrics EsgMetric[]
+  // Companies this account owns. A User is the consultancy that subscribes to
+  // the system (the tenant); a Customer is a company/site it looks after.
+  customers  Customer[]
 
   @@map("users")
 }
@@ -42,43 +45,56 @@ enum AddressType {
 }
 
 model Customer {
-  id             String           @id @default(uuid(7)) @db.Uuid
-  name           String           @db.VarChar(255)
-  document       String           @unique @db.VarChar(50)
-  documentType   DocumentType     @map("document_type")
-  email          String           @db.VarChar(255)
-  ownerName      String           @map("owner_name") @db.VarChar(255)
-  ownerEmail     String           @map("owner_email") @db.VarChar(255)
-  ownerPhone     String           @map("owner_phone") @db.VarChar(50)
-  isActive       Boolean          @default(true) @map("is_active")
-  isDeleted      Boolean          @default(false) @map("is_deleted")
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime         @updatedAt @map("updatad_at") @db.Timestamptz(3)
+  id           String       @id @default(uuid(7)) @db.Uuid
+  name         String       @db.VarChar(255)
+  // Unique per owner, not globally: two different consultancies may legitimately
+  // serve the same company, so the duplicate check only looks at the logged-in
+  // owner's own portfolio (see @@unique below).
+  document     String       @db.VarChar(50)
+  documentType DocumentType @map("document_type")
+  email        String       @db.VarChar(255)
+  ownerName    String       @map("owner_name") @db.VarChar(255)
+  ownerEmail   String       @map("owner_email") @db.VarChar(255)
+  ownerPhone   String       @map("owner_phone") @db.VarChar(50)
+  isActive     Boolean      @default(true) @map("is_active")
+  isDeleted    Boolean      @default(false) @map("is_deleted")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updatad_at") @db.Timestamptz(3)
 
-  addressId      String?          @unique @map("address_id") @db.Uuid
-  address        CustomerAddress? @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  // Tenant owner: the User (consultancy) that registered this company. Every
+  // read and write under /customers is scoped by it, so a customer belonging
+  // to another owner is indistinguishable from one that does not exist.
+  // Not to be confused with ownerName/ownerEmail/ownerPhone above, which
+  // describe the company's own contact person and are not system accounts.
+  // onDelete: Restrict — deleting a User must not silently drop its portfolio.
+  ownerUserId String @map("owner_user_id") @db.Uuid
+  ownerUser   User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
 
-  sectorId       String?          @map("sector_id") @db.Uuid
-  sector         Sector?          @relation(fields: [sectorId], references: [id])
+  addressId String?          @unique @map("address_id") @db.Uuid
+  address   CustomerAddress? @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  sectorId String? @map("sector_id") @db.Uuid
+  sector   Sector? @relation(fields: [sectorId], references: [id])
 
   monitoredEsgMetrics CustomerEsgMetric[]
 
+  @@unique([ownerUserId, document])
   @@map("customers")
 }
 
 model CustomerAddress {
-  id          String    @id @default(uuid(7)) @db.Uuid
+  id          String      @id @default(uuid(7)) @db.Uuid
   type        AddressType
-  street      String    @db.VarChar(255)
-  number      String    @db.VarChar(50)
-  city        String    @db.VarChar(100)
-  state       String    @db.VarChar(100)
-  postalCode  String    @map("postal_code") @db.VarChar(20)
-  countryCode String    @map("country_code") @db.VarChar(10)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
-  
-  customer    Customer?
+  street      String      @db.VarChar(255)
+  number      String      @db.VarChar(50)
+  city        String      @db.VarChar(100)
+  state       String      @db.VarChar(100)
+  postalCode  String      @map("postal_code") @db.VarChar(20)
+  countryCode String      @map("country_code") @db.VarChar(10)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer?
 
   @@map("customer_address")
 }
@@ -98,7 +114,7 @@ model Sector {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customers   Customer[]
+  customers Customer[]
 
   @@map("sectors")
 }

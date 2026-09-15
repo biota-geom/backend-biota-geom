@@ -11,8 +11,17 @@ export class LinkCustomerEsgMetricsUseCase {
     private readonly customerEsgMetricRepository: CustomerEsgMetricRepository,
   ) {}
 
-  async execute(customerId: string, metricIds: string[]): Promise<void> {
-    const customer = await this.customerRepository.findOne(customerId);
+  async execute(
+    customerId: string,
+    ownerUserId: string,
+    metricIds: string[],
+  ): Promise<void> {
+    // Scoped: linking metrics is a write on the customer, so it is refused
+    // (as "not found") when the customer belongs to another owner.
+    const customer = await this.customerRepository.findOne(
+      customerId,
+      ownerUserId,
+    );
 
     if (!customer) {
       throw new CustomerNotFoundError(customerId);

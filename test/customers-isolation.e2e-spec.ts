@@ -1,4 +1,8 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  RequestMethod,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AddressType, DocumentType } from '@prisma/client';
 import request from 'supertest';
@@ -86,6 +90,9 @@ describe('Customers multi-tenant isolation (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api', {
+      exclude: [{ path: '/', method: RequestMethod.GET }],
+    });
     // Same pipe main.ts installs, so the DTOs behave as they do in production.
     app.useGlobalPipes(
       new ValidationPipe({
@@ -260,7 +267,7 @@ describe('Customers multi-tenant isolation (e2e)', () => {
 
     it('rejects a document the same owner already registered', async () => {
       const response = await request(app.getHttpServer())
-        .post('/customers')
+        .post('/api/customers')
         .set('Authorization', `Bearer ${aliceToken}`)
         .send(
           companyPayload({

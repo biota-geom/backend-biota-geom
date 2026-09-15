@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, RequestMethod } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -13,11 +13,14 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api', {
+      exclude: [{ path: '/', method: RequestMethod.GET }],
+    });
     await app.init();
   });
 
-  it('/api (GET)', () => {
-    return request(app.getHttpServer()).get('/api').expect(200).expect({
+  it('/', () => {
+    return request(app.getHttpServer()).get('/').expect(200).expect({
       status: 'ok',
       service: 'backend-biota-geom',
     });

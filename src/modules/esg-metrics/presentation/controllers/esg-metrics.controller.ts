@@ -28,7 +28,7 @@ import { EsgMetricsExceptionFilter } from '../filters/esg-metrics-exception.filt
 @ApiTags('esg-metrics')
 @ApiBearerAuth()
 @UseFilters(EsgMetricsExceptionFilter)
-@Controller('api/esg-metrics')
+@Controller('esg-metrics')
 export class EsgMetricsController {
   constructor(
     private readonly createCustomEsgMetricUseCase: CreateCustomEsgMetricUseCase,

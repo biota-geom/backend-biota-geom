@@ -41,7 +41,20 @@ import { PdfFileValidator } from './validators/pdf-file.validator';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
-function invalidCustomerIdException(): BadRequestException {
+/*
+ * Only the fields this handler reads, rather than Express.Multer.File. Besides
+ * not depending on more of Multer's shape than needed, a plain interface keeps
+ * the decorated parameter's emitted metadata trivial: a namespaced type like
+ * Express.Multer.File makes TypeScript emit an `Express && Express.Multer &&
+ * ...` chain there, which shows up as uncoverable branches.
+ */
+interface UploadedDocument {
+  buffer: Buffer;
+  originalname: string;
+  mimetype: string;
+}
+
+export function invalidCustomerIdException(): BadRequestException {
   return new BadRequestException(AUTH_MESSAGES.INVALID_REQUEST);
 }
 
@@ -51,7 +64,7 @@ const uuidPipe = new ParseUUIDPipe({
 
 // Only our own PT-BR messages are trusted verbatim; anything else (e.g. Nest's
 // default "File is required") falls back to a generic, still-PT-BR reason.
-function fileValidationExceptionFactory(
+export function fileValidationExceptionFactory(
   error: string,
 ): UnprocessableEntityException {
   const knownMessages: string[] = [
@@ -122,7 +135,7 @@ export class LicensesController {
         exceptionFactory: fileValidationExceptionFactory,
       }),
     )
-    file: Express.Multer.File,
+    file: UploadedDocument,
     @CurrentUser() user: { id: string },
   ): Promise<LicenseCreatedResponseDto> {
     const license = await this.createLicenseUseCase.execute({

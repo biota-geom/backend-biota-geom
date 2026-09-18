@@ -38,6 +38,13 @@ describe('CreateLicenseDto', () => {
     expect(dto.process_number).toBe('LO nº 118/2020');
   });
 
+  it('leaves a non-string process_number untouched for the validator to reject', () => {
+    const { dto, errors } = validate(buildPayload({ process_number: 42 }));
+
+    expect(dto.process_number).toBe(42);
+    expect(errors.map((error) => error.property)).toContain('process_number');
+  });
+
   it('rejects an unknown license type', () => {
     const { errors } = validate(buildPayload({ type: 'LX' }));
 

@@ -18,9 +18,14 @@ import { PrismaService } from '../src/prisma/prisma.service';
  *   - type/size validation rejects a non-PDF and an over-limit file.
  *
  * No global TRUNCATE here (unlike customers-isolation.e2e-spec.ts): every
- * unique value (email, sector/agency name, request id) is suffixed per run so
- * this suite is safe to run alongside — or repeatedly against the same
- * database as — that other file, without wiping its fixtures.
+ * unique value (email, sector/agency name) is suffixed per run, so this suite
+ * can be run repeatedly against the same database and never wipes another
+ * suite's fixtures.
+ *
+ * That does not make it safe to run *concurrently* with that file, which
+ * truncates `sectors`/`users`/`customers` in its own setup and would delete
+ * the rows created below mid-run. jest-e2e.json therefore sets maxWorkers: 1
+ * so the e2e files share the database one at a time.
  */
 
 const PASSWORD = 'Senha@1234';

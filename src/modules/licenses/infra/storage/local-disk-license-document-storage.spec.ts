@@ -47,6 +47,23 @@ describe('LocalDiskLicenseDocumentStorage', () => {
     expect(written.toString()).toBe('%PDF-1.4 fake content');
   });
 
+  it('still stores a file whose original name has no extension', async () => {
+    const storage = buildStorage();
+
+    const result = await storage.upload(
+      {
+        buffer: Buffer.from('content'),
+        originalName: 'licenca-sem-extensao',
+        mimeType: 'application/pdf',
+      },
+      'customer-1',
+    );
+
+    expect(result.url).toMatch(
+      /^http:\/\/localhost:3000\/uploads\/licenses\/customer-1\/[0-9a-f-]{36}$/,
+    );
+  });
+
   it('generates a distinct file name per upload, even for the same original name', async () => {
     const storage = buildStorage();
     const file = {

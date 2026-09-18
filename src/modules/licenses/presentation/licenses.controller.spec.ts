@@ -1,6 +1,40 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
+import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateLicenseUseCase } from '../application/create-license.use-case';
-import { LicensesController } from './licenses.controller';
+import {
+  fileValidationExceptionFactory,
+  invalidCustomerIdException,
+  LicensesController,
+} from './licenses.controller';
+import { LICENSES_MESSAGES } from './messages/licenses.messages.pt-br';
+
+describe('invalidCustomerIdException', () => {
+  it('answers 400 with the generic invalid-request message', () => {
+    const exception = invalidCustomerIdException();
+
+    expect(exception.getStatus()).toBe(400);
+    expect(exception.message).toBe(AUTH_MESSAGES.INVALID_REQUEST);
+  });
+});
+
+describe('fileValidationExceptionFactory', () => {
+  it.each([
+    LICENSES_MESSAGES.FILE_TOO_LARGE,
+    LICENSES_MESSAGES.INVALID_FILE_TYPE,
+  ])('passes our own message "%s" through as a 422', (message) => {
+    const exception = fileValidationExceptionFactory(message);
+
+    expect(exception.getStatus()).toBe(422);
+    expect(exception.message).toBe(message);
+  });
+
+  it("replaces Nest's English default with the PT-BR file-required message", () => {
+    const exception = fileValidationExceptionFactory('File is required');
+
+    expect(exception.getStatus()).toBe(422);
+    expect(exception.message).toBe(LICENSES_MESSAGES.FILE_REQUIRED);
+  });
+});
 
 describe('LicensesController', () => {
   function buildFile(): Express.Multer.File {

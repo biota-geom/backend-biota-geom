@@ -80,6 +80,7 @@ model Customer {
   sector   Sector? @relation(fields: [sectorId], references: [id])
 
   monitoredEsgMetrics CustomerEsgMetric[]
+  licenses            License[]
 
   @@unique([ownerUserId, document])
   @@map("customers")
@@ -154,4 +155,59 @@ model CustomerEsgMetric {
   @@id([customerId, esgMetricId])
   @@index([esgMetricId])
   @@map("customer_esg_metrics")
+}
+
+enum LicenseType {
+  LP
+  LI
+  LO
+
+  @@map("license_type")
+}
+
+// Kept English on purpose (see AGENTS.md: domain/infra stay English-only).
+// The PT-BR labels ("Regular"/"Atenção"/"Vencida") required by the API
+// contract are produced at the presentation layer, not stored here.
+enum LicenseStatus {
+  REGULAR
+  ATTENTION
+  EXPIRED
+
+  @@map("license_status")
+}
+
+model IssuingAgency {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String   @unique @db.VarChar(150)
+  acronym   String?  @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  licenses License[]
+
+  @@map("issuing_agencies")
+}
+
+model License {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  type            LicenseType
+  processNumber   String        @map("process_number") @db.VarChar(255)
+  issueDate       DateTime      @map("issue_date") @db.Timestamptz(3)
+  expirationDate  DateTime      @map("expiration_date") @db.Timestamptz(3)
+  // Computed server-side at creation time from expirationDate — never
+  // accepted from a client. See CreateLicenseUseCase.
+  status          LicenseStatus
+  // Absolute URL of the uploaded PDF. Local storage or S3 depending on
+  // STORAGE_DRIVER — the column just holds whatever URL that driver returns.
+  documentUrl     String        @map("document_url") @db.VarChar(2048)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customerId      String        @map("customer_id") @db.Uuid
+  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  issuingAgencyId String        @map("issuing_agency_id") @db.Uuid
+  issuingAgency   IssuingAgency @relation(fields: [issuingAgencyId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@map("licenses")
 }

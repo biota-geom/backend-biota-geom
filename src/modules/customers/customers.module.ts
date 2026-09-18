@@ -33,5 +33,8 @@ import { CustomerController } from './presentation/customers.controller';
     ListCustomerEsgMetricsUseCase,
     CustomersService,
   ],
+  // CustomerRepository is reused by the licenses module (LicensesModule) to
+  // scope license creation to the authenticated owner's own customers.
+  exports: [CustomerRepository],
 })
 export class CustomerModule {}

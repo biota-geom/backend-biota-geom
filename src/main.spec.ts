@@ -1,5 +1,7 @@
+import { join } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { AuthConfigService } from './modules/auth/infra/auth-config.service';
+import { StorageConfigService } from './modules/licenses/infra/storage/storage-config.service';
 
 jest.mock('@nestjs/core', () => ({
   ...jest.requireActual<object>('@nestjs/core'),
@@ -22,10 +24,14 @@ describe('bootstrap', () => {
         if (token === ConfigService) {
           return { get: jest.fn().mockReturnValue(3000) };
         }
+        if (token === StorageConfigService) {
+          return { localStorageDir: './storage' };
+        }
         throw new Error(`Unexpected token: ${String(token)}`);
       }),
       set: jest.fn(),
       useGlobalPipes: jest.fn(),
+      useStaticAssets: jest.fn(),
       enableCors: jest.fn(),
       listen: jest.fn().mockResolvedValue(undefined),
     };
@@ -54,6 +60,10 @@ describe('bootstrap', () => {
     require('./main');
     await new Promise((resolve) => setImmediate(resolve));
 
+    expect(mockApp.useStaticAssets).toHaveBeenCalledWith(
+      join('./storage', 'licenses'),
+      { prefix: '/uploads/licenses' },
+    );
     expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
     expect(mockApp.enableCors).toHaveBeenCalledWith(
       expect.objectContaining({

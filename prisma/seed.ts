@@ -8,6 +8,20 @@ import {
   PrismaClient,
 } from '@prisma/client';
 
+const seedIssuingAgencies = [
+  { name: 'Fundação Estadual de Proteção Ambiental', acronym: 'FEPAM' },
+  { name: 'Instituto Brasileiro do Meio Ambiente', acronym: 'IBAMA' },
+  { name: 'Fundação do Meio Ambiente', acronym: 'FATMA' },
+  {
+    name: 'Instituto Estadual do Ambiente',
+    acronym: 'INEA',
+  },
+  {
+    name: 'Companhia Ambiental do Estado de São Paulo',
+    acronym: 'CETESB',
+  },
+];
+
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
@@ -352,6 +366,16 @@ async function seedSectorsTable() {
   return sectors;
 }
 
+async function seedIssuingAgenciesTable() {
+  for (const agency of seedIssuingAgencies) {
+    await prisma.issuingAgency.upsert({
+      where: { name: agency.name },
+      update: { acronym: agency.acronym },
+      create: agency,
+    });
+  }
+}
+
 async function seedEsgMetricsTable() {
   const metrics = new Map<string, string>();
 
@@ -474,6 +498,7 @@ async function main() {
   const users = await seedUsersTable();
   const sectors = await seedSectorsTable();
   const metrics = await seedEsgMetricsTable();
+  await seedIssuingAgenciesTable();
   await seedCompaniesTable(users, sectors, metrics);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
@@ -513,7 +538,7 @@ async function main() {
     } excluída logicamente.`,
   );
   console.log(
-    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length}`,
+    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
   );
 }
 

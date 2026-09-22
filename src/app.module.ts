@@ -8,6 +8,8 @@ import { EsgMetricsModule } from './modules/esg-metrics/esg-metrics.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CustomerModule } from './modules/customers/customers.module';
+import { IssuingAgenciesModule } from './modules/issuing-agencies/issuing-agencies.module';
+import { LicensesModule } from './modules/licenses/licenses.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
 
 @Module({
@@ -22,6 +24,8 @@ import { SectorsModule } from './modules/sectors/sectors.module';
     CustomerModule,
     SectorsModule,
     EsgMetricsModule,
+    IssuingAgenciesModule,
+    LicensesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -31,6 +31,10 @@ describe('validateEnv', () => {
       JWT_AUDIENCE: 'biota-geom-web',
       AUTH_ALLOWED_EMAIL_DOMAIN: 'biotageom.com.br',
       CORS_ORIGINS: 'http://localhost:5173',
+      APP_BASE_URL: 'http://localhost:3000',
+      STORAGE_DRIVER: 'local',
+      LOCAL_STORAGE_DIR: './storage',
+      AWS_REGION: 'us-east-1',
     });
   });
 
@@ -49,6 +53,10 @@ describe('validateEnv', () => {
     expect(result.JWT_AUDIENCE).toBe('biota-geom-web');
     expect(result.AUTH_ALLOWED_EMAIL_DOMAIN).toBe('biotageom.com.br');
     expect(result.CORS_ORIGINS).toBe('http://localhost:5173');
+    expect(result.APP_BASE_URL).toBe('http://localhost:3000');
+    expect(result.STORAGE_DRIVER).toBe('local');
+    expect(result.LOCAL_STORAGE_DIR).toBe('./storage');
+    expect(result.AWS_REGION).toBe('us-east-1');
   });
 
   it('applies defaults for the remaining optional variables', () => {
@@ -183,6 +191,36 @@ describe('validateEnv', () => {
           'replace-with-a-random-secret-at-least-32-characters-access',
       }),
     ).not.toThrow();
+  });
+
+  it('accepts STORAGE_DRIVER=local without any AWS variable', () => {
+    expect(() =>
+      validateEnv({ ...VALID_BASE, STORAGE_DRIVER: 'local' }),
+    ).not.toThrow();
+  });
+
+  it('rejects STORAGE_DRIVER=s3 when the AWS credentials are missing', () => {
+    expect(() => validateEnv({ ...VALID_BASE, STORAGE_DRIVER: 's3' })).toThrow(
+      /AWS_S3_BUCKET/,
+    );
+  });
+
+  it('accepts STORAGE_DRIVER=s3 once bucket and credentials are set', () => {
+    expect(() =>
+      validateEnv({
+        ...VALID_BASE,
+        STORAGE_DRIVER: 's3',
+        AWS_S3_BUCKET: 'biota-geom-licenses',
+        AWS_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+        AWS_SECRET_ACCESS_KEY: 'secret-example',
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects an unknown STORAGE_DRIVER value', () => {
+    expect(() => validateEnv({ ...VALID_BASE, STORAGE_DRIVER: 'ftp' })).toThrow(
+      /STORAGE_DRIVER/,
+    );
   });
 
   it('joins multiple validation issues in the error message with a newline per issue', () => {

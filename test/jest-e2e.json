@@ -3,6 +3,7 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": "\\.e2e-spec\\.ts$",
+  "maxWorkers": 1,
   "globalSetup": "<rootDir>/global-setup.ts",
   "setupFiles": ["reflect-metadata", "<rootDir>/../src/jest.setup-env.ts"],
   "transform": {

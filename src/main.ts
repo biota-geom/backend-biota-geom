@@ -1,4 +1,6 @@
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { join } from 'node:path';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -6,9 +8,22 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { EnvVars } from './config/env.validation';
 import { AuthConfigService } from './modules/auth/infra/auth-config.service';
+import { LOCAL_STORAGE_URL_PREFIX } from './modules/licenses/infra/storage/local-disk-license-document-storage';
+import { StorageConfigService } from './modules/licenses/infra/storage/storage-config.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  /*
+   * Serves files written by LocalDiskLicenseDocumentStorage (STORAGE_DRIVER=
+   * local, the default) at the same URL prefix that storage returns. Only
+   * matters for that driver: with STORAGE_DRIVER=s3, documents are served
+   * straight from the bucket and nothing is ever written under this path.
+   */
+  const storageConfig = app.get(StorageConfigService);
+  app.useStaticAssets(join(storageConfig.localStorageDir, 'licenses'), {
+    prefix: `/${LOCAL_STORAGE_URL_PREFIX}`,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

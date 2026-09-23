@@ -1,5 +1,5 @@
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { join } from 'node:path';
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -32,6 +32,10 @@ async function bootstrap() {
     }),
   );
 
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
+
   /*
    * Without this, ThrottlerGuard's per-IP tracking keys off the proxy's own
    * IP whenever the app runs behind a reverse proxy/load balancer — every
@@ -60,7 +64,7 @@ async function bootstrap() {
     .build();
 
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, swaggerDocument);
+  SwaggerModule.setup('docs', app, swaggerDocument, { useGlobalPrefix: true });
 
   const configService = app.get<ConfigService<EnvVars, true>>(ConfigService);
   const port = configService.get('PORT', { infer: true });

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AddressType, DocumentType, LicenseType } from '@prisma/client';
@@ -56,7 +56,7 @@ describe('Licenses (e2e)', () => {
     });
 
     const response = await request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email, password: PASSWORD })
       .expect(200);
 
@@ -74,7 +74,7 @@ describe('Licenses (e2e)', () => {
     };
 
     let req = request(app.getHttpServer())
-      .post(`/customers/${customerId}/licenses`)
+      .post(`/api/customers/${customerId}/licenses`)
       .set('Authorization', `Bearer ${token}`);
 
     for (const [key, value] of Object.entries(fields)) {
@@ -90,6 +90,9 @@ describe('Licenses (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.setGlobalPrefix('api', {
+      exclude: [{ path: '/', method: RequestMethod.GET }],
+    });
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -118,7 +121,7 @@ describe('Licenses (e2e)', () => {
     token = await createUserAndLogin();
 
     const customerResponse = await request(app.getHttpServer())
-      .post('/customers')
+      .post('/api/customers')
       .set('Authorization', `Bearer ${token}`)
       .send({
         name: 'Empresa com Licenças',
@@ -192,6 +195,8 @@ describe('Licenses (e2e)', () => {
 
     const documentUrl = (response.body as { document_url: string })
       .document_url;
+    // No /api here on purpose: useStaticAssets registers straight on the
+    // Express instance, so the served document sits outside the global prefix.
     const path = new URL(documentUrl).pathname;
 
     const fileResponse = await request(app.getHttpServer())

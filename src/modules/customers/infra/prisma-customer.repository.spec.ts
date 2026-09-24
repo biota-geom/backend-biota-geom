@@ -1,3 +1,4 @@
+import { LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaCustomerRepository } from './prisma-customer.repository';
 
@@ -24,16 +25,38 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with their address and sector', async () => {
+  it('lists customers with license totals and regular license counts', async () => {
     const { repository, findMany } = buildRepository();
-    const customers = [{ id: 'customer-1' }];
+    const customers = [
+      {
+        id: 'customer-1',
+        _count: { licenses: 10 },
+        licenses: Array.from({ length: 7 }, (_, index) => ({
+          id: `license-${index + 1}`,
+        })),
+      },
+    ];
     findMany.mockResolvedValue(customers);
 
-    await expect(repository.findAll(OWNER)).resolves.toBe(customers);
+    await expect(repository.findAll(OWNER)).resolves.toEqual([
+      {
+        id: 'customer-1',
+        totalLicenses: 10,
+        regularLicenses: 7,
+      },
+    ]);
     // Scoped in the query itself: there is no unfiltered read to fall back to.
     expect(findMany).toHaveBeenCalledWith({
       where: { ownerUserId: OWNER, isDeleted: false },
-      include: { address: true, sector: true },
+      include: {
+        address: true,
+        sector: true,
+        _count: { select: { licenses: true } },
+        licenses: {
+          where: { status: LicenseStatus.REGULAR },
+          select: { id: true },
+        },
+      },
     });
   });
 

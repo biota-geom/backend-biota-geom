@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCustomerData } from './create-customer.data';
 import { Customer } from './customer.entity';
+import { CustomerListItem } from './customer-list-item';
 import type { UpdateCustomerData } from './update-customer.data';
 
 /*
@@ -21,7 +22,7 @@ import type { UpdateCustomerData } from './update-customer.data';
  */
 @Injectable()
 export abstract class CustomerRepository {
-  abstract findAll(ownerUserId: string): Promise<Customer[]>;
+  abstract findAll(ownerUserId: string): Promise<CustomerListItem[]>;
   abstract create(data: CreateCustomerData): Promise<Customer>;
   abstract findById(id: string, ownerUserId: string): Promise<Customer | null>;
   abstract findOne(id: string, ownerUserId: string): Promise<Customer | null>;

@@ -7,6 +7,9 @@ export class CustomerListResponseDTO {
   @ApiProperty({ example: 'Unidade Industrial RS' })
   name!: string;
 
+  @ApiProperty({ example: '12345678000199' })
+  document!: string;
+
   @ApiProperty({ example: 'Ativo' })
   status!: string;
 
@@ -15,4 +18,20 @@ export class CustomerListResponseDTO {
 
   @ApiProperty({ example: 'Porto Alegre - RS' })
   location!: string;
+
+  @ApiProperty({ example: 6, minimum: 0 })
+  total_licenses!: number;
+
+  @ApiProperty({ example: '2026-09-17T14:30:00.000Z' })
+  updated_at!: string;
+
+  @ApiProperty({
+    example: 95,
+    minimum: 0,
+    maximum: 100,
+    nullable: true,
+    description:
+      'Percentage of regular licenses. Null when the customer has no licenses.',
+  })
+  conformity_percentage!: number | null;
 }

@@ -1,3 +1,4 @@
+import { LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CustomerAddressNotFoundError } from './errors/customer-address-not-found.error';
 import { PrismaCustomerRepository } from '../infra/prisma-customer.repository';
@@ -64,19 +65,34 @@ function buildRepository() {
 describe('PrismaCustomerRepository', () => {
   it('loads active customers with their nested address and sector', async () => {
     const customer = {
-      findMany: jest.fn().mockResolvedValue([{ id: 'customer-1' }]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'customer-1',
+          _count: { licenses: 3 },
+          licenses: [{ id: 'license-1' }, { id: 'license-2' }],
+        },
+      ]),
     };
     const prisma = { customer } as unknown as PrismaService;
     const repository = new PrismaCustomerRepository(prisma);
 
     await expect(repository.findAll(OWNER)).resolves.toEqual([
-      { id: 'customer-1' },
+      {
+        id: 'customer-1',
+        totalLicenses: 3,
+        regularLicenses: 2,
+      },
     ]);
     expect(customer.findMany).toHaveBeenCalledWith({
       where: { ownerUserId: OWNER, isDeleted: false },
       include: {
         address: true,
         sector: true,
+        _count: { select: { licenses: true } },
+        licenses: {
+          where: { status: LicenseStatus.REGULAR },
+          select: { id: true },
+        },
       },
     });
   });

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { calculateConformityPercentage } from '../domain/conformity-percentage';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerListResponseDTO } from '../presentation/dto/customer-list-response.dto';
 
@@ -19,9 +20,16 @@ export class ListCustomersUseCase {
       return {
         id: customer.id,
         name: customer.name,
+        document: customer.document,
         status: customer.isActive ? 'Ativo' : 'Inativo',
         segment: customer.sector?.name ?? '',
         location,
+        total_licenses: customer.totalLicenses,
+        updated_at: customer.updatedAt.toISOString(),
+        conformity_percentage: calculateConformityPercentage(
+          customer.regularLicenses,
+          customer.totalLicenses,
+        ),
       };
     });
   }

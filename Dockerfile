@@ -20,4 +20,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 EXPOSE 3000
-CMD ["node", "dist/src/main.js"]
+# Applies any pending migrations before booting — safe to run on every
+# container start, since `prisma migrate deploy` is a no-op when the
+# database is already up to date.
+CMD ["npm", "run", "start:prod"]

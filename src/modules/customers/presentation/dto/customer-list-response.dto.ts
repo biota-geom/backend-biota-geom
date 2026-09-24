@@ -26,6 +26,7 @@ export class CustomerListResponseDTO {
   updated_at!: string;
 
   @ApiProperty({
+    type: Number,
     example: 95,
     minimum: 0,
     maximum: 100,

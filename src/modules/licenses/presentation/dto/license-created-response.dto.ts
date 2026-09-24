@@ -1,15 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseType } from '@prisma/client';
 import { License } from '../../domain/license.entity';
-
-// PT-BR display labels the API contract requires verbatim in `status`. Kept
-// here, at the presentation boundary — the domain/infra layers only ever see
-// the English LicenseStatus enum (see license-status.calculator.ts).
-const STATUS_LABELS: Record<LicenseStatus, string> = {
-  [LicenseStatus.REGULAR]: 'Regular',
-  [LicenseStatus.ATTENTION]: 'Atenção',
-  [LicenseStatus.EXPIRED]: 'Vencida',
-};
+import { STATUS_LABELS } from './license-labels';
 
 export class LicenseCreatedResponseDto {
   @ApiProperty({ format: 'uuid', example: 'uuid-licenca-nova' })

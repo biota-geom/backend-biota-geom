@@ -25,4 +25,12 @@ export class PrismaLicenseRepository implements LicenseRepository {
       },
     });
   }
+
+  async findAllByCustomerId(customerId: string): Promise<License[]> {
+    return this.prisma.license.findMany({
+      where: { customerId },
+      include: { issuingAgency: true },
+      orderBy: { expirationDate: 'asc' },
+    });
+  }
 }

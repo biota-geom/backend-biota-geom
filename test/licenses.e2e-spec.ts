@@ -267,4 +267,120 @@ describe('Licenses (e2e)', () => {
       })
       .expect(400);
   });
+
+  describe('GET /customers/:customerId/licenses (panel)', () => {
+    let panelCustomerId: string;
+    let panelToken: string;
+
+    beforeAll(async () => {
+      panelToken = await createUserAndLogin();
+
+      const sector = await prisma.sector.create({
+        data: { name: `Setor Painel ${uniqueSuffix()}` },
+      });
+      const customerResponse = await request(app.getHttpServer())
+        .post('/api/customers')
+        .set('Authorization', `Bearer ${panelToken}`)
+        .send({
+          name: 'Empresa Painel de Licenças',
+          // Safe to reuse: uniqueness is scoped to (ownerUserId, document),
+          // and panelToken above is always a freshly created user.
+          document: VALID_CNPJ,
+          document_type: DocumentType.CNPJ,
+          sector_id: sector.id,
+          owner_name: 'Responsável Painel',
+          owner_email: 'responsavel-painel@empresa.com.br',
+          address: {
+            type: AddressType.BILLING,
+            city: 'Porto Alegre',
+            state: 'RS',
+            country_code: 'BR',
+          },
+        })
+        .expect(201);
+      panelCustomerId = (customerResponse.body as { id: string }).id;
+
+      async function createPanelLicense(
+        expirationDate: string,
+        processNumber: string,
+      ) {
+        let req = request(app.getHttpServer())
+          .post(`/api/customers/${panelCustomerId}/licenses`)
+          .set('Authorization', `Bearer ${panelToken}`);
+        const fields = {
+          type: LicenseType.LO,
+          process_number: processNumber,
+          issuing_agency_id: issuingAgencyId,
+          issue_date: '2015-01-10T00:00:00.000Z',
+          expiration_date: expirationDate,
+        };
+        for (const [key, value] of Object.entries(fields)) {
+          req = req.field(key, value);
+        }
+        await req
+          .attach('document_file', PDF_HEADER, {
+            filename: 'licenca.pdf',
+            contentType: 'application/pdf',
+          })
+          .expect(201);
+      }
+
+      // 1 regular, 1 attention, 2 expired.
+      await createPanelLicense(
+        new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString(),
+        `LO nº regular-${uniqueSuffix()}`,
+      );
+      await createPanelLicense(
+        new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+        `LO nº atencao-${uniqueSuffix()}`,
+      );
+      await createPanelLicense(
+        '2020-01-01T00:00:00.000Z',
+        `LO nº vencida-1-${uniqueSuffix()}`,
+      );
+      await createPanelLicense(
+        '2019-01-01T00:00:00.000Z',
+        `LO nº vencida-2-${uniqueSuffix()}`,
+      );
+    });
+
+    it('returns a summary whose total equals the sum of regular, attention and expired', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/customers/${panelCustomerId}/licenses`)
+        .set('Authorization', `Bearer ${panelToken}`)
+        .expect(200);
+
+      const body = response.body as {
+        summary: {
+          total: number;
+          regular: number;
+          attention: number;
+          expired: number;
+        };
+        licenses: unknown[];
+      };
+
+      expect(body.summary).toEqual({
+        total: 4,
+        regular: 1,
+        attention: 1,
+        expired: 2,
+      });
+      expect(
+        body.summary.regular + body.summary.attention + body.summary.expired,
+      ).toBe(body.summary.total);
+      expect(body.licenses).toHaveLength(4);
+    });
+
+    it("never returns another owner's licenses in the panel (data isolation)", async () => {
+      const otherToken = await createUserAndLogin();
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/customers/${panelCustomerId}/licenses`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .expect(404);
+
+      expect(response.body).not.toHaveProperty('summary');
+    });
+  });
 });

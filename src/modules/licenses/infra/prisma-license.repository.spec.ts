@@ -38,4 +38,20 @@ describe('PrismaLicenseRepository', () => {
       include: { issuingAgency: true },
     });
   });
+
+  it('finds all licenses for a customer ordered by soonest expiration first', async () => {
+    const findMany = jest.fn().mockResolvedValue([{ id: 'license-1' }]);
+    const repository = new PrismaLicenseRepository({
+      license: { findMany },
+    } as unknown as PrismaService);
+
+    await expect(repository.findAllByCustomerId('customer-1')).resolves.toEqual(
+      [{ id: 'license-1' }],
+    );
+    expect(findMany).toHaveBeenCalledWith({
+      where: { customerId: 'customer-1' },
+      include: { issuingAgency: true },
+      orderBy: { expirationDate: 'asc' },
+    });
+  });
 });

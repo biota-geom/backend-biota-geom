@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { LicenseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateCustomerData } from '../domain/create-customer.data';
 import { Customer } from '../domain/customer.entity';
+import { CustomerListItem } from '../domain/customer-list-item';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerAddressNotFoundError } from '../domain/errors/customer-address-not-found.error';
 import { CustomerAlreadyExistsError } from '../domain/errors/customer-already-exists.error';
@@ -33,14 +34,33 @@ function withoutUndefinedValues<T extends Record<string, unknown>>(
 export class PrismaCustomerRepository implements CustomerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(ownerUserId: string): Promise<Customer[]> {
-    return this.prisma.customer.findMany({
+  async findAll(ownerUserId: string): Promise<CustomerListItem[]> {
+    const customers = await this.prisma.customer.findMany({
       where: { ownerUserId, isDeleted: false },
       include: {
         address: true,
         sector: true,
+        _count: {
+          select: {
+            licenses: true,
+          },
+        },
+        licenses: {
+          where: {
+            status: LicenseStatus.REGULAR,
+          },
+          select: {
+            id: true,
+          },
+        },
       },
     });
+
+    return customers.map(({ _count, licenses, ...customer }) => ({
+      ...customer,
+      totalLicenses: _count.licenses,
+      regularLicenses: licenses.length,
+    }));
   }
 
   async create(data: CreateCustomerData): Promise<Customer> {

@@ -211,3 +211,62 @@ model License {
   @@index([customerId])
   @@map("licenses")
 }
+
+enum ConditionType {
+  INFORMATIVE   // Informativo
+  PERIODIC      // Periódico
+}
+
+enum ConditionPeriodicity {
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL    // Semestral
+  ANNUAL        // Anual
+}
+
+enum ConditionStatus {
+  FULFILLED     // Atendida
+  IN_PROGRESS   // Em atendimento
+  OVERDUE       // Vencida
+}
+
+model LicenseConditionCategory {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  name       String              @map("name") @db.VarChar(255)
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conditions License_condition[]
+
+  @@map("license_condition_category")
+}
+
+model LicenseCondition {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  itemNumber      String                @map("item_number") @db.VarChar(20)      // "1.1", "2.2"...
+  title           String?               @map("title") @db.VarChar(255)
+  description     String                @map("description") @db.VarChar(4095)
+  responsibleName String                @map("responsible_name") @db.VarChar(255)
+  conditionType   ConditionType         @map("condition_type")
+  periodicity     ConditionPeriodicity? @map("periodicity")                      // null = NA
+  deadline        DateTime?             @map("deadline") @db.Timestamptz(3)      // Prazo
+  dueDate         DateTime?             @map("due_date") @db.Timestamptz(3)      // Dia Limite
+  alertDate       DateTime?             @map("alert_date") @db.Timestamptz(3)
+  completionDate  DateTime?             @map("completion_date") @db.Timestamptz(3) // Data Cumpr.
+  status          ConditionStatus       @default(IN_PROGRESS) @map("status")
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  licenseId       String                @map("license_id") @db.Uuid
+  license         License               @relation(fields: [licenseId], references: [id], onDelete: Restrict)
+
+  categoryId      String                @map("category_id") @db.Uuid
+  category        License_condition_category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  alerts          Alert[]
+
+  @@unique([licenseId, itemNumber])
+  @@index([licenseId])
+  @@index([categoryId])
+  @@map("license_condition")
+}
+

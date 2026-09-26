@@ -220,6 +220,7 @@ model License {
   documentUrl     String        @map("document_url") @db.VarChar(2048)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conditions      LicenseCondition[]
 
   customerId      String        @map("customer_id") @db.Uuid
   customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
@@ -236,7 +237,7 @@ model LicenseConditionCategory {
   name       String              @map("name") @db.VarChar(255)
   createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conditions License_condition[]
+  conditions LicenseCondition[]
 
   @@map("license_condition_category")
 }
@@ -261,7 +262,7 @@ model LicenseCondition {
   license         License               @relation(fields: [licenseId], references: [id], onDelete: Restrict)
 
   categoryId      String                @map("category_id") @db.Uuid
-  category        License_condition_category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category        LicenseConditionCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@unique([licenseId, itemNumber])
   @@index([licenseId])

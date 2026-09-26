@@ -3,6 +3,8 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
+import { ConditionResponse } from '../domain/create-condition-response.entity';
+import { CreateConditionData } from '../domain/license-condition.data';
 
 @Injectable()
 export class PrismaLicenseRepository implements LicenseRepository {
@@ -23,6 +25,14 @@ export class PrismaLicenseRepository implements LicenseRepository {
       include: {
         issuingAgency: true,
       },
+    });
+  }
+
+  async createConditions(
+    data: CreateConditionData[],
+  ): Promise<ConditionResponse> {
+    return this.prisma.licenseCondition.createMany({
+      data: data,
     });
   }
 }

@@ -38,6 +38,9 @@ import {
 import { LicensesExceptionFilter } from './filters/licenses-exception.filter';
 import { LICENSES_MESSAGES } from './messages/licenses.messages.pt-br';
 import { PdfFileValidator } from './validators/pdf-file.validator';
+import { CreateLicenseConditionsDto } from './dto/create-license-conditions.dto';
+import { CreateLicenseConditionsResponseDto } from './dto/create-license-conditions-response.dto';
+import { CreateLicenseConditionUseCase } from '../application/create-license-conditions.use-case';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -81,7 +84,10 @@ export function fileValidationExceptionFactory(
 @UseFilters(LicensesExceptionFilter)
 @Controller('customers/:customerId/licenses')
 export class LicensesController {
-  constructor(private readonly createLicenseUseCase: CreateLicenseUseCase) {}
+  constructor(
+    private readonly createLicenseUseCase: CreateLicenseUseCase,
+    private readonly createLicenseConditionUseCase: CreateLicenseConditionUseCase,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -154,5 +160,23 @@ export class LicensesController {
     });
 
     return toLicenseCreatedResponse(license);
+  }
+
+  @Post(':licenseId/conditions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  async CreateLicenseConditions(
+    @Param('customerId') customerId: string,
+    @Param('licenseId') licenseId: string,
+    @Body() dto: CreateLicenseConditionsDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<CreateLicenseConditionsResponseDto> {
+    return this.createLicenseConditionUseCase.execute({
+      customerId: customerId,
+      licenseId: licenseId,
+      userId: user.id,
+      data: dto,
+    });
   }
 }

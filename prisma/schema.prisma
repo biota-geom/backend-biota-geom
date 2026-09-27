@@ -188,26 +188,45 @@ model IssuingAgency {
 }
 
 model License {
-  id              String        @id @default(uuid(7)) @db.Uuid
-  type            LicenseType
-  processNumber   String        @map("process_number") @db.VarChar(255)
-  issueDate       DateTime      @map("issue_date") @db.Timestamptz(3)
-  expirationDate  DateTime      @map("expiration_date") @db.Timestamptz(3)
+  id             String        @id @default(uuid(7)) @db.Uuid
+  type           LicenseType
+  processNumber  String        @map("process_number") @db.VarChar(255)
+  issueDate      DateTime      @map("issue_date") @db.Timestamptz(3)
+  expirationDate DateTime      @map("expiration_date") @db.Timestamptz(3)
   // Computed server-side at creation time from expirationDate — never
   // accepted from a client. See CreateLicenseUseCase.
-  status          LicenseStatus
+  status         LicenseStatus
   // Absolute URL of the uploaded PDF. Local storage or S3 depending on
   // STORAGE_DRIVER — the column just holds whatever URL that driver returns.
-  documentUrl     String        @map("document_url") @db.VarChar(2048)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  documentUrl    String        @map("document_url") @db.VarChar(2048)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerId      String        @map("customer_id") @db.Uuid
-  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   issuingAgencyId String        @map("issuing_agency_id") @db.Uuid
   issuingAgency   IssuingAgency @relation(fields: [issuingAgencyId], references: [id], onDelete: Restrict)
 
+  conditions LicenseCondition[]
+
   @@index([customerId])
   @@map("licenses")
+}
+
+model LicenseCondition {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  title       String   @db.VarChar(160)
+  description String   @db.VarChar(500)
+  category    String   @db.VarChar(120)
+  dueDate     DateTime @map("due_date") @db.Timestamptz(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  licenseId String  @map("license_id") @db.Uuid
+  license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId])
+  @@index([dueDate])
+  @@map("license_condition")
 }

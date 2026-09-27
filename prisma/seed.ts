@@ -5,6 +5,8 @@ import {
   AddressType,
   DocumentType,
   EsgPillar,
+  LicenseStatus,
+  LicenseType,
   PrismaClient,
 } from '@prisma/client';
 
@@ -96,6 +98,30 @@ const seedEsgMetrics = [
     name: 'Não Conformidades Ambientais',
     unit: 'ocorrências',
     pillar: EsgPillar.GOVERNANCA,
+  },
+];
+
+const seedLicenseConditions = [
+  {
+    title: 'Automonitoramento Atmosférico',
+    description:
+      'Avaliação periódica de emissões em chaminés e qualidade do ar no entorno industrial.',
+    category: 'Emissões',
+    daysUntilDue: 3,
+  },
+  {
+    title: 'Relatório Semestral de Efluentes Líquidos',
+    description:
+      'Laudos de análises físico-químicas de efluentes tratados e lançados nos corpos hídricos.',
+    category: 'Recursos Hídricos',
+    daysUntilDue: 15,
+  },
+  {
+    title: 'MTR - Manifesto de Transporte de Resíduos',
+    description:
+      'Emissão de manifesto obrigatório para movimentação e destinação final de resíduos industriais.',
+    category: 'Resíduos',
+    daysUntilDue: 45,
   },
 ];
 
@@ -367,13 +393,19 @@ async function seedSectorsTable() {
 }
 
 async function seedIssuingAgenciesTable() {
+  const agencies = new Map<string, string>();
+
   for (const agency of seedIssuingAgencies) {
-    await prisma.issuingAgency.upsert({
+    const created = await prisma.issuingAgency.upsert({
       where: { name: agency.name },
       update: { acronym: agency.acronym },
       create: agency,
     });
+
+    agencies.set(created.name, created.id);
   }
+
+  return agencies;
 }
 
 async function seedEsgMetricsTable() {
@@ -401,6 +433,8 @@ async function seedCompaniesTable(
   sectors: Map<string, string>,
   metrics: Map<string, string>,
 ) {
+  const companies = new Map<string, string>();
+
   for (const company of seedCompanies) {
     const ownerUserId = users.get(company.owner);
 
@@ -428,6 +462,7 @@ async function seedCompaniesTable(
     });
 
     if (existing) {
+      companies.set(existing.name, existing.id);
       continue;
     }
 
@@ -468,6 +503,85 @@ async function seedCompaniesTable(
     if (links.length > 0) {
       await prisma.customerEsgMetric.createMany({ data: links });
     }
+
+    companies.set(created.name, created.id);
+  }
+
+  return companies;
+}
+
+function dateAtUtcMidnight(daysFromToday: number): Date {
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() + daysFromToday);
+  return date;
+}
+
+async function seedLicensesAndConditionsTable(
+  companies: Map<string, string>,
+  agencies: Map<string, string>,
+) {
+  const firstAgencyId = Array.from(agencies.values())[0];
+  const agencyId =
+    agencies.get('Fundação Estadual de Proteção Ambiental') ?? firstAgencyId;
+
+  if (!agencyId) {
+    throw new Error('Nenhum órgão emissor encontrado para vincular licenças.');
+  }
+
+  for (const company of seedCompanies.filter((entry) => !entry.isDeleted)) {
+    const customerId = companies.get(company.name);
+
+    if (!customerId) {
+      throw new Error(
+        `Condicionantes referenciam a empresa "${company.name}", mas ela não foi encontrada no seed.`,
+      );
+    }
+
+    const processNumber = `LO seed ${company.document.replace(/\D/g, '')}`;
+    const existingLicense = await prisma.license.findFirst({
+      where: { customerId, processNumber },
+    });
+
+    const license =
+      existingLicense ??
+      (await prisma.license.create({
+        data: {
+          customerId,
+          type: LicenseType.LO,
+          processNumber,
+          issuingAgencyId: agencyId,
+          issueDate: dateAtUtcMidnight(-120),
+          expirationDate: dateAtUtcMidnight(365),
+          status: LicenseStatus.REGULAR,
+          documentUrl: `https://storage.example.com/licenses/${customerId}/seed.pdf`,
+        },
+      }));
+
+    for (const condition of seedLicenseConditions) {
+      const existingCondition = await prisma.licenseCondition.findFirst({
+        where: { licenseId: license.id, title: condition.title },
+      });
+
+      const data = {
+        title: condition.title,
+        description: condition.description,
+        category: condition.category,
+        dueDate: dateAtUtcMidnight(condition.daysUntilDue),
+      };
+
+      if (existingCondition) {
+        await prisma.licenseCondition.update({
+          where: { id: existingCondition.id },
+          data,
+        });
+        continue;
+      }
+
+      await prisma.licenseCondition.create({
+        data: { ...data, licenseId: license.id },
+      });
+    }
   }
 }
 
@@ -498,8 +612,9 @@ async function main() {
   const users = await seedUsersTable();
   const sectors = await seedSectorsTable();
   const metrics = await seedEsgMetricsTable();
-  await seedIssuingAgenciesTable();
-  await seedCompaniesTable(users, sectors, metrics);
+  const agencies = await seedIssuingAgenciesTable();
+  const companies = await seedCompaniesTable(users, sectors, metrics);
+  await seedLicensesAndConditionsTable(companies, agencies);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);
@@ -539,6 +654,11 @@ async function main() {
   );
   console.log(
     `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
+  );
+  console.log(
+    `Licenças seed: ${visible.length} · Condicionantes seed: ${
+      visible.length * seedLicenseConditions.length
+    }`,
   );
 }
 

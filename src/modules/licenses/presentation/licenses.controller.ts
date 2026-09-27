@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
@@ -19,6 +20,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
@@ -30,11 +32,16 @@ import { CurrentUser } from '../../auth/presentation/decorators/current-user.dec
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateLicenseUseCase } from '../application/create-license.use-case';
+import { ListLicensesByCustomerUseCase } from '../application/list-licenses-by-customer.use-case';
 import { CreateLicenseDto } from './dto/create-license.dto';
 import {
   LicenseCreatedResponseDto,
   toLicenseCreatedResponse,
 } from './dto/license-created-response.dto';
+import {
+  LicensePanelResponseDto,
+  toLicensePanelResponse,
+} from './dto/license-panel-response.dto';
 import { LicensesExceptionFilter } from './filters/licenses-exception.filter';
 import { LICENSES_MESSAGES } from './messages/licenses.messages.pt-br';
 import { PdfFileValidator } from './validators/pdf-file.validator';
@@ -81,7 +88,31 @@ export function fileValidationExceptionFactory(
 @UseFilters(LicensesExceptionFilter)
 @Controller('customers/:customerId/licenses')
 export class LicensesController {
-  constructor(private readonly createLicenseUseCase: CreateLicenseUseCase) {}
+  constructor(
+    private readonly createLicenseUseCase: CreateLicenseUseCase,
+    private readonly listLicensesByCustomerUseCase: ListLicensesByCustomerUseCase,
+  ) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiOperation({
+    summary:
+      'Lista as licenças ambientais da empresa com o resumo agregado de status.',
+  })
+  @ApiOkResponse({ type: LicensePanelResponseDto })
+  async listLicenses(
+    @Param('customerId', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicensePanelResponseDto> {
+    const result = await this.listLicensesByCustomerUseCase.execute(
+      customerId,
+      user.id,
+    );
+
+    return toLicensePanelResponse(result);
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard)

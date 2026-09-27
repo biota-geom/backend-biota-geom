@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
+import { ListLicensesByCustomerUseCase } from './application/list-licenses-by-customer.use-case';
 import { LicenseRepository } from './domain/licenses.repository';
 import { PrismaLicenseRepository } from './infra/prisma-license.repository';
 import { licenseDocumentStorageProvider } from './infra/storage/license-document-storage.provider';
@@ -17,6 +18,7 @@ import { LicensesController } from './presentation/licenses.controller';
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
     CreateLicenseUseCase,
+    ListLicensesByCustomerUseCase,
     StorageConfigService,
     LocalDiskLicenseDocumentStorage,
     S3LicenseDocumentStorage,

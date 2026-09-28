@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateCustomerData } from '../domain/create-customer.data';
 import { Customer } from '../domain/customer.entity';
-import { CustomerListItem } from '../domain/customer-list-item';
+import { CustomerListItem } from '../domain/customer-list-item.entity';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerAddressNotFoundError } from '../domain/errors/customer-address-not-found.error';
 import { CustomerAlreadyExistsError } from '../domain/errors/customer-already-exists.error';
@@ -36,6 +36,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
 
   async findAll(ownerUserId: string): Promise<CustomerListItem[]> {
     const customers = await this.prisma.customer.findMany({
+  // _count runs as a correlated subquery on licenses.customer_id, so each
+  // row only counts its own licenses — no N+1 and no cross-customer total.
       where: { ownerUserId, isDeleted: false },
       include: {
         address: true,

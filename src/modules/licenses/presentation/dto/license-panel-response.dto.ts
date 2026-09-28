@@ -38,6 +38,12 @@ export class LicensePanelItemDto {
 
   @ApiProperty({ example: 'Regular', enum: ['Regular', 'Atenção', 'Vencida'] })
   status!: string;
+
+  @ApiProperty({
+    example: 'https://bucket.aws.com/licenses/lo-118-2020.pdf',
+    nullable: true,
+  })
+  document_url!: string | null;
 }
 
 export class LicensePanelResponseDto {
@@ -57,6 +63,7 @@ function toLicensePanelItem(license: License): LicensePanelItemDto {
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: STATUS_LABELS[license.status],
+    document_url: license.documentUrl ?? null,
   };
 }
 

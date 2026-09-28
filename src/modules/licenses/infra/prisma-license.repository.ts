@@ -26,6 +26,16 @@ export class PrismaLicenseRepository implements LicenseRepository {
     });
   }
 
+  async findByIdForCustomer(
+    licenseId: string,
+    customerId: string,
+  ): Promise<License | null> {
+    return this.prisma.license.findFirst({
+      where: { id: licenseId, customerId },
+      include: { issuingAgency: true },
+    });
+  }
+
   async findAllByCustomerId(customerId: string): Promise<License[]> {
     return this.prisma.license.findMany({
       where: { customerId },

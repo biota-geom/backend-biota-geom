@@ -3,8 +3,10 @@ import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
+import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from './application/list-license-conditions-by-customer.use-case';
 import { ListLicensesByCustomerUseCase } from './application/list-licenses-by-customer.use-case';
+import { UpdateLicenseConditionUseCase } from './application/update-license-condition.use-case';
 import { LicenseConditionRepository } from './domain/license-conditions.repository';
 import { LicenseRepository } from './domain/licenses.repository';
 import { PrismaLicenseConditionRepository } from './infra/prisma-license-condition.repository';
@@ -28,6 +30,8 @@ import { LicensesController } from './presentation/licenses.controller';
     CreateLicenseUseCase,
     ListLicensesByCustomerUseCase,
     ListLicenseConditionsByCustomerUseCase,
+    UpdateLicenseConditionUseCase,
+    DeleteLicenseConditionUseCase,
     StorageConfigService,
     LocalDiskLicenseDocumentStorage,
     S3LicenseDocumentStorage,

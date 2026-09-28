@@ -54,4 +54,30 @@ describe('PrismaLicenseRepository', () => {
       orderBy: { expirationDate: 'asc' },
     });
   });
+
+  it('finds a single license only inside the owning customer', async () => {
+    const findFirst = jest.fn().mockResolvedValue({ id: 'license-1' });
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForCustomer('license-1', 'customer-1'),
+    ).resolves.toEqual({ id: 'license-1' });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'license-1', customerId: 'customer-1' },
+      include: { issuingAgency: true },
+    });
+  });
+
+  it('answers null for a license that belongs to another customer', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForCustomer('license-1', 'other-customer'),
+    ).resolves.toBeNull();
+  });
 });

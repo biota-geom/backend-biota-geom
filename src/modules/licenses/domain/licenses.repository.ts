@@ -12,4 +12,14 @@ export abstract class LicenseRepository {
    * primeiro" and "por data de validade mais próxima".
    */
   abstract findAllByCustomerId(customerId: string): Promise<License[]>;
+  /*
+   * Scoped by customer for the same reason as CustomerRepository: a license
+   * belonging to another company must read as "not found", never as
+   * "forbidden". Used to check that a condition is being linked to a license
+   * the caller actually owns.
+   */
+  abstract findByIdForCustomer(
+    licenseId: string,
+    customerId: string,
+  ): Promise<License | null>;
 }

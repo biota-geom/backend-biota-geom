@@ -3,6 +3,8 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
+import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
+import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 import { LicensesExceptionFilter } from './licenses-exception.filter';
 
@@ -43,6 +45,32 @@ describe('LicensesExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         message: LICENSES_MESSAGES.ISSUING_AGENCY_NOT_FOUND,
+      }),
+    );
+  });
+
+  it('maps LicenseConditionNotFoundError to 404', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new LicenseConditionNotFoundError('condition-1'), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: LICENSES_MESSAGES.LICENSE_CONDITION_NOT_FOUND,
+      }),
+    );
+  });
+
+  it('maps LicenseNotFoundError to 422', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new LicenseNotFoundError('license-1'), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: LICENSES_MESSAGES.LICENSE_NOT_FOUND,
       }),
     );
   });

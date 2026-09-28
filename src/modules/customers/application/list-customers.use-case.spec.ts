@@ -25,12 +25,14 @@ const LIST_RESPONSE_FIELDS = {
 };
 
 describe('ListCustomersUseCase', () => {
-  it('maps all customer data and exposes status as text', async () => {
+  it('maps all customer data, license count and last update', async () => {
     const repository: Pick<CustomerRepository, 'findAll'> = {
       findAll: jest.fn().mockResolvedValue([
         {
           ...LIST_AGGREGATES,
           id: 'customer-1',
+          totalLicenses: 6,
+          updatedAt: new Date('2026-09-17T14:30:00.000Z'),
           name: 'Unidade Industrial RS',
           isActive: true,
           address: { city: 'Porto Alegre', state: 'RS' },
@@ -39,6 +41,8 @@ describe('ListCustomersUseCase', () => {
         {
           ...LIST_AGGREGATES,
           id: 'customer-2',
+          totalLicenses: 0,
+          updatedAt: new Date('2026-09-10T08:00:00.000Z'),
           name: 'Filial SP',
           isActive: false,
           address: { city: 'São Paulo', state: 'SP' },
@@ -47,6 +51,8 @@ describe('ListCustomersUseCase', () => {
         {
           ...LIST_AGGREGATES,
           id: 'customer-3',
+          totalLicenses: 1,
+          updatedAt: new Date('2026-08-01T00:00:00.000Z'),
           name: 'Filial sem endereço',
           isActive: true,
           address: undefined,
@@ -55,6 +61,8 @@ describe('ListCustomersUseCase', () => {
         {
           ...LIST_AGGREGATES,
           id: 'customer-4',
+          totalLicenses: 3,
+          updatedAt: new Date('2026-07-15T12:00:00.000Z'),
           name: 'Filial sem cidade',
           isActive: true,
           address: { city: '', state: 'SC' },
@@ -63,6 +71,8 @@ describe('ListCustomersUseCase', () => {
         {
           ...LIST_AGGREGATES,
           id: 'customer-5',
+          totalLicenses: 2,
+          updatedAt: new Date('2026-06-30T23:59:59.000Z'),
           name: 'Filial sem estado',
           isActive: true,
           address: { city: 'Curitiba', state: '' },
@@ -79,6 +89,8 @@ describe('ListCustomersUseCase', () => {
       {
         ...LIST_RESPONSE_FIELDS,
         id: 'customer-1',
+        total_licenses: 6,
+        updated_at: '2026-09-17T14:30:00.000Z',
         name: 'Unidade Industrial RS',
         status: 'Ativo',
         segment: 'Siderurgia',
@@ -87,6 +99,8 @@ describe('ListCustomersUseCase', () => {
       {
         ...LIST_RESPONSE_FIELDS,
         id: 'customer-2',
+        total_licenses: 0,
+        updated_at: '2026-09-10T08:00:00.000Z',
         name: 'Filial SP',
         status: 'Inativo',
         segment: '',
@@ -95,6 +109,8 @@ describe('ListCustomersUseCase', () => {
       {
         ...LIST_RESPONSE_FIELDS,
         id: 'customer-3',
+        total_licenses: 1,
+        updated_at: '2026-08-01T00:00:00.000Z',
         name: 'Filial sem endereço',
         status: 'Ativo',
         segment: '',
@@ -103,6 +119,8 @@ describe('ListCustomersUseCase', () => {
       {
         ...LIST_RESPONSE_FIELDS,
         id: 'customer-4',
+        total_licenses: 3,
+        updated_at: '2026-07-15T12:00:00.000Z',
         name: 'Filial sem cidade',
         status: 'Ativo',
         segment: 'Metalurgia',
@@ -111,6 +129,8 @@ describe('ListCustomersUseCase', () => {
       {
         ...LIST_RESPONSE_FIELDS,
         id: 'customer-5',
+        total_licenses: 2,
+        updated_at: '2026-06-30T23:59:59.000Z',
         name: 'Filial sem estado',
         status: 'Ativo',
         segment: 'Serviços',

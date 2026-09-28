@@ -34,6 +34,8 @@ describe('CustomerController', () => {
       total_licenses: 10,
       updated_at: '2026-09-17T14:30:00.000Z',
       conformity_percentage: 70,
+      attention_count: 3,
+      expired_count: 0,
     };
     const service = {
       findAll: jest
@@ -91,6 +93,8 @@ describe('CustomerController', () => {
           total_licenses: 10,
           updated_at: '2026-09-17T14:30:00.000Z',
           conformity_percentage: 70,
+          attention_count: 3,
+          expired_count: 0,
         },
       ],
     );

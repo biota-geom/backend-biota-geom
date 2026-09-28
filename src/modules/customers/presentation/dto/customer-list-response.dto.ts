@@ -25,6 +25,12 @@ export class CustomerListResponseDTO {
   @ApiProperty({ example: '2026-09-17T14:30:00.000Z' })
   updated_at!: string;
 
+  @ApiProperty({ example: 2, minimum: 0 })
+  attention_count!: number;
+
+  @ApiProperty({ example: 1, minimum: 0 })
+  expired_count!: number;
+
   @ApiProperty({
     type: Number,
     example: 95,

@@ -22,6 +22,8 @@ const LIST_RESPONSE_FIELDS = {
   total_licenses: 10,
   updated_at: UPDATED_AT.toISOString(),
   conformity_percentage: 70,
+  attention_count: 3,
+  expired_count: 0,
 };
 
 describe('ListCustomersUseCase', () => {
@@ -122,6 +124,33 @@ describe('ListCustomersUseCase', () => {
     expect(repository.findAll).toHaveBeenCalledWith(OWNER);
   });
 
+  it('counts expired and attention licenses from their expiration dates', async () => {
+    const repository: Pick<CustomerRepository, 'findAll'> = {
+      findAll: jest.fn().mockResolvedValue([
+        {
+          ...LIST_AGGREGATES,
+          id: 'customer-1',
+          name: 'Empresa com licenças críticas',
+          isActive: true,
+          totalLicenses: 2,
+          licenseExpirationDates: [
+            new Date('2026-09-16T14:30:00.000Z'),
+            new Date('2026-10-02T14:30:00.000Z'),
+          ],
+          address: null,
+          sector: null,
+        },
+      ]),
+    };
+    const useCase = new ListCustomersUseCase(
+      repository as unknown as CustomerRepository,
+    );
+
+    const [customer] = await useCase.listCustomers(OWNER, NOW);
+
+    expect(customer.expired_count).toBe(1);
+    expect(customer.attention_count).toBe(1);
+  });
   it('returns null conformity for a customer without licenses', async () => {
     const repository: Pick<CustomerRepository, 'findAll'> = {
       findAll: jest.fn().mockResolvedValue([

@@ -25,6 +25,15 @@ export class ListCustomersUseCase {
         (expirationDate) =>
           calculateLicenseStatus(expirationDate, now) === LicenseStatus.REGULAR,
       ).length;
+      const attentionLicenses = customer.licenseExpirationDates.filter(
+        (expirationDate) =>
+          calculateLicenseStatus(expirationDate, now) ===
+          LicenseStatus.ATTENTION,
+      ).length;
+      const expiredLicenses = customer.licenseExpirationDates.filter(
+        (expirationDate) =>
+          calculateLicenseStatus(expirationDate, now) === LicenseStatus.EXPIRED,
+      ).length;
 
       return {
         id: customer.id,
@@ -39,6 +48,8 @@ export class ListCustomersUseCase {
           regularLicenses,
           customer.totalLicenses,
         ),
+        attention_count: attentionLicenses,
+        expired_count: expiredLicenses,
       };
     });
   }

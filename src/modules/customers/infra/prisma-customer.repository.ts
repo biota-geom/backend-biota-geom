@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LicenseStatus, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateCustomerData } from '../domain/create-customer.data';
 import { Customer } from '../domain/customer.entity';
@@ -46,11 +46,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
           },
         },
         licenses: {
-          where: {
-            status: LicenseStatus.REGULAR,
-          },
           select: {
-            id: true,
+            expirationDate: true,
           },
         },
       },
@@ -59,7 +56,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
     return customers.map(({ _count, licenses, ...customer }) => ({
       ...customer,
       totalLicenses: _count.licenses,
-      regularLicenses: licenses.length,
+      licenseExpirationDates: licenses.map((license) => license.expirationDate),
     }));
   }
 

@@ -1,4 +1,3 @@
-import { LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaCustomerRepository } from './prisma-customer.repository';
 
@@ -25,15 +24,17 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with license totals and regular license counts', async () => {
+  it('lists customers with license totals and expiration dates', async () => {
     const { repository, findMany } = buildRepository();
+    const expirationDates = Array.from(
+      { length: 10 },
+      (_, index) => new Date(`2027-01-${String(index + 1).padStart(2, '0')}`),
+    );
     const customers = [
       {
         id: 'customer-1',
         _count: { licenses: 10 },
-        licenses: Array.from({ length: 7 }, (_, index) => ({
-          id: `license-${index + 1}`,
-        })),
+        licenses: expirationDates.map((expirationDate) => ({ expirationDate })),
       },
     ];
     findMany.mockResolvedValue(customers);
@@ -42,7 +43,7 @@ describe('PrismaCustomerRepository', () => {
       {
         id: 'customer-1',
         totalLicenses: 10,
-        regularLicenses: 7,
+        licenseExpirationDates: expirationDates,
       },
     ]);
     // Scoped in the query itself: there is no unfiltered read to fall back to.
@@ -53,8 +54,7 @@ describe('PrismaCustomerRepository', () => {
         sector: true,
         _count: { select: { licenses: true } },
         licenses: {
-          where: { status: LicenseStatus.REGULAR },
-          select: { id: true },
+          select: { expirationDate: true },
         },
       },
     });

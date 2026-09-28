@@ -4,12 +4,18 @@ import { ListCustomersUseCase } from './list-customers.use-case';
 
 const OWNER = 'owner-1';
 const OTHER_OWNER = 'owner-2';
+const NOW = new Date('2026-09-17T14:30:00.000Z');
 const UPDATED_AT = new Date('2026-09-17T14:30:00.000Z');
+const REGULAR_EXPIRATION = new Date('2026-11-01T14:30:00.000Z');
+const ATTENTION_EXPIRATION = new Date('2026-10-01T14:30:00.000Z');
 const LIST_AGGREGATES = {
   document: '12345678000199',
   updatedAt: UPDATED_AT,
   totalLicenses: 10,
-  regularLicenses: 7,
+  licenseExpirationDates: [
+    ...Array<Date>(7).fill(REGULAR_EXPIRATION),
+    ...Array<Date>(3).fill(ATTENTION_EXPIRATION),
+  ],
 };
 const LIST_RESPONSE_FIELDS = {
   document: '12345678000199',
@@ -69,7 +75,7 @@ describe('ListCustomersUseCase', () => {
       repository as unknown as CustomerRepository,
     );
 
-    await expect(useCase.listCustomers(OWNER)).resolves.toEqual([
+    await expect(useCase.listCustomers(OWNER, NOW)).resolves.toEqual([
       {
         ...LIST_RESPONSE_FIELDS,
         id: 'customer-1',
@@ -125,7 +131,7 @@ describe('ListCustomersUseCase', () => {
           name: 'Empresa sem licenças',
           isActive: true,
           totalLicenses: 0,
-          regularLicenses: 0,
+          licenseExpirationDates: [],
           address: null,
           sector: null,
         },
@@ -135,10 +141,34 @@ describe('ListCustomersUseCase', () => {
       repository as unknown as CustomerRepository,
     );
 
-    const [customer] = await useCase.listCustomers(OWNER);
+    const [customer] = await useCase.listCustomers(OWNER, NOW);
 
     expect(customer.conformity_percentage).toBeNull();
     expect(customer.total_licenses).toBe(0);
+  });
+
+  it('does not count a license whose persisted status became stale after expiration', async () => {
+    const repository: Pick<CustomerRepository, 'findAll'> = {
+      findAll: jest.fn().mockResolvedValue([
+        {
+          ...LIST_AGGREGATES,
+          id: 'customer-1',
+          name: 'Empresa com licença vencida',
+          isActive: true,
+          totalLicenses: 1,
+          licenseExpirationDates: [new Date('2026-09-16T14:30:00.000Z')],
+          address: null,
+          sector: null,
+        },
+      ]),
+    };
+    const useCase = new ListCustomersUseCase(
+      repository as unknown as CustomerRepository,
+    );
+
+    const [customer] = await useCase.listCustomers(OWNER, NOW);
+
+    expect(customer.conformity_percentage).toBe(0);
   });
 
   // US03: the list shows the authenticated client's companies and nothing else.

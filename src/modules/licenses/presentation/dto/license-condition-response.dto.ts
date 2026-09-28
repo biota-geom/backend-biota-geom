@@ -18,6 +18,14 @@ export class LicenseConditionResponseDto {
   @ApiProperty({ example: 'Emissões' })
   category!: string;
 
+  /*
+   * The condition's own license, not the customer's: the edit form has to
+   * pre-select which license the condition hangs from, and the listing is the
+   * only place the client ever sees it.
+   */
+  @ApiProperty({ format: 'uuid' })
+  license_id!: string;
+
   @ApiProperty({ format: 'date-time' })
   due_date!: string;
 
@@ -33,6 +41,7 @@ export function toLicenseConditionResponse(
     title: condition.title,
     description: condition.description,
     category: condition.category,
+    license_id: condition.licenseId,
     due_date: condition.dueDate.toISOString(),
     risk_level: condition.riskLevel,
   };

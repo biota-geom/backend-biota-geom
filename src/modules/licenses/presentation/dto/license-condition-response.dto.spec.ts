@@ -20,6 +20,7 @@ describe('toLicenseConditionResponse', () => {
       title: 'Automonitoramento Atmosférico',
       description: 'Avaliação periódica de emissões.',
       category: 'Emissões',
+      license_id: 'license-1',
       due_date: '2026-02-11T00:00:00.000Z',
       risk_level: LicenseConditionRiskLevel.RISK,
     });

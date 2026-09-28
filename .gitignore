@@ -13,3 +13,4 @@ stryker-tmp
 # Default STORAGE_DRIVER=local write target (see .env.example) — runtime
 # uploads, not source.
 /storage
+.DS_Store

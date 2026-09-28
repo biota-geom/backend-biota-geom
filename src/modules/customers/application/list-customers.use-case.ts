@@ -22,6 +22,8 @@ export class ListCustomersUseCase {
         status: customer.isActive ? 'Ativo' : 'Inativo',
         segment: customer.sector?.name ?? '',
         location,
+        total_licenses: customer.totalLicenses,
+        updated_at: customer.updatedAt.toISOString(),
       };
     });
   }

@@ -271,6 +271,7 @@ describe('Licenses (e2e)', () => {
   describe('GET /customers/:customerId/licenses (panel)', () => {
     let panelCustomerId: string;
     let panelToken: string;
+    let sectorId: string;
 
     beforeAll(async () => {
       panelToken = await createUserAndLogin();
@@ -278,6 +279,7 @@ describe('Licenses (e2e)', () => {
       const sector = await prisma.sector.create({
         data: { name: `Setor Painel ${uniqueSuffix()}` },
       });
+      sectorId = sector.id;
       const customerResponse = await request(app.getHttpServer())
         .post('/api/customers')
         .set('Authorization', `Bearer ${panelToken}`)
@@ -370,6 +372,55 @@ describe('Licenses (e2e)', () => {
         body.summary.regular + body.summary.attention + body.summary.expired,
       ).toBe(body.summary.total);
       expect(body.licenses).toHaveLength(4);
+    });
+
+    it('lists each company with its own total_licenses and updated_at', async () => {
+      // Same owner, no licenses: proves the count is per company, not per owner.
+      const emptyResponse = await request(app.getHttpServer())
+        .post('/api/customers')
+        .set('Authorization', `Bearer ${panelToken}`)
+        .send({
+          name: 'Empresa sem Licenças',
+          document: '23456789000195',
+          document_type: DocumentType.CNPJ,
+          sector_id: sectorId,
+          owner_name: 'Responsável Vazio',
+          owner_email: 'responsavel-vazio@empresa.com.br',
+          address: {
+            type: AddressType.BILLING,
+            city: 'Canoas',
+            state: 'RS',
+            country_code: 'BR',
+          },
+        })
+        .expect(201);
+      const emptyCustomerId = (emptyResponse.body as { id: string }).id;
+
+      const response = await request(app.getHttpServer())
+        .get('/api/customers')
+        .set('Authorization', `Bearer ${panelToken}`)
+        .expect(200);
+
+      const body = response.body as {
+        id: string;
+        total_licenses: number;
+        updated_at: string;
+      }[];
+      const byId = new Map(body.map((customer) => [customer.id, customer]));
+
+      const stored = await prisma.license.count({
+        where: { customerId: panelCustomerId },
+      });
+      expect(byId.get(panelCustomerId)?.total_licenses).toBe(stored);
+      expect(byId.get(panelCustomerId)?.total_licenses).toBe(4);
+      expect(byId.get(emptyCustomerId)?.total_licenses).toBe(0);
+
+      const customer = await prisma.customer.findUniqueOrThrow({
+        where: { id: panelCustomerId },
+      });
+      expect(byId.get(panelCustomerId)?.updated_at).toBe(
+        customer.updatedAt.toISOString(),
+      );
     });
 
     it("never returns another owner's licenses in the panel (data isolation)", async () => {

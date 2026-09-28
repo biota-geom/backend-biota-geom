@@ -3,8 +3,13 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from '@node-rs/argon2';
 import {
   AddressType,
+  ConditionPeriodicity,
+  ConditionStatus,
+  ConditionType,
   DocumentType,
   EsgPillar,
+  LicenseStatus,
+  LicenseType,
   PrismaClient,
 } from '@prisma/client';
 
@@ -20,6 +25,7 @@ const seedIssuingAgencies = [
     name: 'Companhia Ambiental do Estado de São Paulo',
     acronym: 'CETESB',
   },
+  { name: 'Fundação Estadual do Meio Ambiente', acronym: 'FEAM' },
 ];
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -38,6 +44,21 @@ const SEED_PASSWORD = 'Senha@1234';
  */
 const SEED_EMAIL_DOMAIN =
   process.env.AUTH_ALLOWED_EMAIL_DOMAIN ?? 'biotageom.com.br';
+
+/*
+ * Base das URLs de PDF das licenças. A coluna `documentUrl` guarda a URL
+ * absoluta devolvida pelo driver de storage (local ou S3); no seed é só um
+ * endereço de exemplo — o arquivo em si não é criado.
+ */
+const SEED_DOCUMENT_BASE_URL =
+  process.env.SEED_DOCUMENT_BASE_URL ?? 'http://localhost:3000/uploads/seed';
+
+/*
+ * Janela (em dias) em que uma licença ainda válida passa a ser "ATTENTION".
+ * Deve espelhar a regra do CreateLicenseUseCase, que calcula o status a partir
+ * de `expirationDate` — ajuste aqui se o valor de lá for diferente.
+ */
+const LICENSE_ATTENTION_WINDOW_DAYS = 90;
 
 const seedUsers = [
   { name: 'Ana Administradora', local: 'admin', isAdmin: true, isActive: true },
@@ -97,6 +118,20 @@ const seedEsgMetrics = [
     unit: 'ocorrências',
     pillar: EsgPillar.GOVERNANCA,
   },
+];
+
+/*
+ * Categorias globais das condicionantes de licença. O model não tem índice
+ * único em `name`, então o seed procura por nome antes de criar (mesmo padrão
+ * das métricas ESG globais).
+ */
+const seedConditionCategories = [
+  'Monitoramento',
+  'Resíduos',
+  'Efluentes',
+  'Emissões Atmosféricas',
+  'Educação Ambiental',
+  'Relatórios e Documentação',
 ];
 
 /*
@@ -322,6 +357,317 @@ const seedCompanies = [
   },
 ];
 
+/*
+ * Datas relativas a "hoje" (em dias; negativo = passado). Datas fixas
+ * envelheceriam: uma licença semeada como "Regular" viraria "Vencida" meses
+ * depois sem ninguém mexer. Com offsets, cada execução do seed reposiciona as
+ * datas e recalcula o status, então a demonstração cobre sempre os três
+ * estados (Regular / Atenção / Vencida).
+ */
+interface SeedCondition {
+  itemNumber: string;
+  title: string;
+  description: string;
+  responsibleName: string;
+  category: string;
+  conditionType: ConditionType;
+  // Só faz sentido para PERIODIC.
+  periodicity?: ConditionPeriodicity;
+  // Prazo único (típico de INFORMATIVE).
+  deadlineInDays?: number;
+  // Próximo vencimento (típico de PERIODIC).
+  dueInDays?: number;
+  alertInDays?: number;
+  // Se informado, a condicionante está cumprida.
+  completedInDays?: number;
+}
+
+interface SeedLicense {
+  company: string; // nome da empresa em seedCompanies
+  type: LicenseType;
+  agency: string; // sigla em seedIssuingAgencies
+  processNumber: string;
+  issuedInDays: number;
+  expiresInDays: number;
+  conditions: SeedCondition[];
+}
+
+/*
+ * Cobertura pensada para a listagem/filtros de licenças:
+ * - os três tipos (LP, LI, LO) e os três status;
+ * - órgãos emissores diferentes;
+ * - licenças sem condicionantes, com condicionantes em andamento, vencidas
+ *   e cumpridas, informativas e periódicas em todas as periodicidades.
+ */
+const seedLicenses: SeedLicense[] = [
+  {
+    company: 'Unidade Industrial Ouro Preto',
+    type: LicenseType.LO,
+    agency: 'FEAM',
+    processNumber: '2023.05.01.003.0001234',
+    issuedInDays: -900,
+    expiresInDays: 400, // REGULAR
+    conditions: [
+      {
+        itemNumber: '1.1',
+        title: 'Monitoramento da qualidade da água',
+        description:
+          'Realizar análise trimestral da qualidade da água superficial a montante e a jusante do empreendimento, com laudo de laboratório acreditado.',
+        responsibleName: 'Roberto Andrade',
+        category: 'Monitoramento',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 30,
+        alertInDays: 15,
+      },
+      {
+        itemNumber: '1.2',
+        title: 'Destinação de resíduos sólidos',
+        description:
+          'Apresentar semestralmente os manifestos de transporte e certificados de destinação final dos resíduos gerados.',
+        responsibleName: 'Roberto Andrade',
+        category: 'Resíduos',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: -10, // OVERDUE
+        alertInDays: -25,
+      },
+      {
+        itemNumber: '2.1',
+        title: 'Apresentação do Plano de Controle Ambiental',
+        description:
+          'Protocolar o Plano de Controle Ambiental (PCA) atualizado junto ao órgão licenciador.',
+        responsibleName: 'Roberto Andrade',
+        category: 'Relatórios e Documentação',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: -60,
+        completedInDays: -75, // FULFILLED
+      },
+    ],
+  },
+  {
+    company: 'Unidade Industrial Ouro Preto',
+    type: LicenseType.LI,
+    agency: 'IBAMA',
+    processNumber: '02001.004512/2019-31',
+    issuedInDays: -1500,
+    expiresInDays: -200, // EXPIRED
+    conditions: [],
+  },
+  {
+    company: 'Complexo Minerário Carajás',
+    type: LicenseType.LO,
+    agency: 'IBAMA',
+    processNumber: '02001.009876/2021-17',
+    issuedInDays: -700,
+    expiresInDays: 45, // ATTENTION
+    conditions: [
+      {
+        itemNumber: '1.1',
+        title: 'Inventário de emissões atmosféricas',
+        description:
+          'Elaborar e enviar o inventário anual de emissões de gases de efeito estufa das operações.',
+        responsibleName: 'Fernanda Lopes',
+        category: 'Emissões Atmosféricas',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 40,
+        alertInDays: 10,
+      },
+      {
+        itemNumber: '1.2',
+        title: 'Programa de educação ambiental',
+        description:
+          'Implementar o programa de educação ambiental junto às comunidades do entorno.',
+        responsibleName: 'Fernanda Lopes',
+        category: 'Educação Ambiental',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 90,
+      },
+    ],
+  },
+  {
+    company: 'EcoVerde Agroindústria S.A.',
+    type: LicenseType.LO,
+    agency: 'FEPAM',
+    processNumber: '000123-05.67/23.4',
+    issuedInDays: -365,
+    expiresInDays: 700, // REGULAR
+    conditions: [
+      {
+        itemNumber: '1',
+        title: 'Monitoramento de efluentes',
+        description:
+          'Enviar mensalmente o relatório de automonitoramento dos efluentes tratados, com os parâmetros da licença.',
+        responsibleName: 'Mariana Souza',
+        category: 'Efluentes',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.MONTHLY,
+        dueInDays: 12,
+        alertInDays: 5,
+      },
+    ],
+  },
+  {
+    company: 'EcoVerde Agroindústria S.A.',
+    type: LicenseType.LP,
+    agency: 'FEPAM',
+    processNumber: '000987-05.67/18.2',
+    issuedInDays: -1200,
+    expiresInDays: -30, // EXPIRED
+    conditions: [],
+  },
+  {
+    company: 'MetalAço Brasil Ltda',
+    type: LicenseType.LO,
+    agency: 'FEAM',
+    processNumber: '2022.03.01.002.0004567',
+    issuedInDays: -1000,
+    expiresInDays: 60, // ATTENTION
+    conditions: [
+      {
+        itemNumber: '1.1',
+        title: 'Monitoramento de emissões de chaminé',
+        description:
+          'Realizar amostragem semestral das emissões das chaminés dos fornos e enviar o laudo ao órgão.',
+        responsibleName: 'Carlos Aço',
+        category: 'Emissões Atmosféricas',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 25,
+        alertInDays: 10,
+      },
+      {
+        itemNumber: '1.2',
+        title: 'Monitoramento da qualidade do ar',
+        description:
+          'Manter estação de monitoramento da qualidade do ar e apresentar relatório trimestral.',
+        responsibleName: 'Carlos Aço',
+        category: 'Monitoramento',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: -5, // OVERDUE
+        alertInDays: -20,
+      },
+    ],
+  },
+  {
+    company: 'Usina Siderúrgica Volta Redonda',
+    type: LicenseType.LO,
+    agency: 'INEA',
+    processNumber: 'E-07/002.1234/2016',
+    issuedInDays: -2000,
+    expiresInDays: -120, // EXPIRED
+    conditions: [],
+  },
+  {
+    company: 'Celulose Rio Branco',
+    type: LicenseType.LO,
+    agency: 'IBAMA',
+    processNumber: '02001.005555/2022-08',
+    issuedInDays: -800,
+    expiresInDays: 1000, // REGULAR
+    conditions: [],
+  },
+  {
+    company: 'SolBrilho Energia Limpa',
+    type: LicenseType.LI,
+    agency: 'CETESB',
+    processNumber: '55/00123/22',
+    issuedInDays: -300,
+    expiresInDays: 500, // REGULAR
+    conditions: [],
+  },
+  {
+    company: 'Parque Eólico Serra do Vento',
+    type: LicenseType.LP,
+    agency: 'IBAMA',
+    processNumber: '02001.001111/2024-44',
+    issuedInDays: -200,
+    expiresInDays: 900, // REGULAR
+    conditions: [],
+  },
+  {
+    company: 'Estação de Tratamento Vale Azul',
+    type: LicenseType.LO,
+    agency: 'IBAMA',
+    processNumber: '02001.007777/2020-62',
+    issuedInDays: -1100,
+    expiresInDays: 20, // ATTENTION
+    conditions: [
+      {
+        itemNumber: '1',
+        title: 'Monitoramento do efluente tratado',
+        description:
+          'Enviar mensalmente os resultados de DBO, DQO e sólidos suspensos do efluente lançado no corpo receptor.',
+        responsibleName: 'Beatriz Ramos',
+        category: 'Efluentes',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.MONTHLY,
+        dueInDays: 7,
+        alertInDays: 2,
+      },
+      {
+        itemNumber: '2',
+        title: 'Relatório de não conformidades',
+        description:
+          'Consolidar e protocolar o relatório de não conformidades ambientais do último ciclo.',
+        responsibleName: 'Beatriz Ramos',
+        category: 'Relatórios e Documentação',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: -20,
+        completedInDays: -30, // FULFILLED
+      },
+    ],
+  },
+];
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+function addDays(base: Date, days: number) {
+  return new Date(base.getTime() + days * DAY_IN_MS);
+}
+
+/*
+ * Mesma ideia do CreateLicenseUseCase: o status nunca é informado, é derivado
+ * da data de validade.
+ */
+function deriveLicenseStatus(expirationDate: Date, now: Date): LicenseStatus {
+  if (expirationDate.getTime() < now.getTime()) {
+    return LicenseStatus.EXPIRED;
+  }
+
+  if (
+    expirationDate.getTime() - now.getTime() <=
+    LICENSE_ATTENTION_WINDOW_DAYS * DAY_IN_MS
+  ) {
+    return LicenseStatus.ATTENTION;
+  }
+
+  return LicenseStatus.REGULAR;
+}
+
+function deriveConditionStatus(
+  condition: SeedCondition,
+  now: Date,
+): ConditionStatus {
+  if (condition.completedInDays !== undefined) {
+    return ConditionStatus.FULFILLED;
+  }
+
+  const referenceInDays = condition.dueInDays ?? condition.deadlineInDays;
+
+  if (referenceInDays !== undefined && addDays(now, referenceInDays) < now) {
+    return ConditionStatus.OVERDUE;
+  }
+
+  return ConditionStatus.IN_PROGRESS;
+}
+
+function optionalDate(base: Date, days?: number) {
+  return days === undefined ? null : addDays(base, days);
+}
+
 async function seedUsersTable() {
   const passwordHash = await hash(SEED_PASSWORD);
   // login (parte local do e-mail) -> id, para vincular as empresas ao dono.
@@ -367,13 +713,20 @@ async function seedSectorsTable() {
 }
 
 async function seedIssuingAgenciesTable() {
+  // sigla -> id, para vincular as licenças ao órgão emissor.
+  const agencies = new Map<string, string>();
+
   for (const agency of seedIssuingAgencies) {
-    await prisma.issuingAgency.upsert({
+    const created = await prisma.issuingAgency.upsert({
       where: { name: agency.name },
       update: { acronym: agency.acronym },
       create: agency,
     });
+
+    agencies.set(agency.acronym, created.id);
   }
+
+  return agencies;
 }
 
 async function seedEsgMetricsTable() {
@@ -396,11 +749,32 @@ async function seedEsgMetricsTable() {
   return metrics;
 }
 
+async function seedConditionCategoriesTable() {
+  const categories = new Map<string, string>();
+
+  for (const name of seedConditionCategories) {
+    const existing = await prisma.licenseConditionCategory.findFirst({
+      where: { name },
+    });
+
+    const created =
+      existing ??
+      (await prisma.licenseConditionCategory.create({ data: { name } }));
+
+    categories.set(created.name, created.id);
+  }
+
+  return categories;
+}
+
 async function seedCompaniesTable(
   users: Map<string, string>,
   sectors: Map<string, string>,
   metrics: Map<string, string>,
 ) {
+  // nome da empresa -> id, para vincular as licenças.
+  const companies = new Map<string, string>();
+
   for (const company of seedCompanies) {
     const ownerUserId = users.get(company.owner);
 
@@ -428,6 +802,7 @@ async function seedCompaniesTable(
     });
 
     if (existing) {
+      companies.set(company.name, existing.id);
       continue;
     }
 
@@ -458,6 +833,8 @@ async function seedCompaniesTable(
       },
     });
 
+    companies.set(company.name, created.id);
+
     // Vincula os indicadores ESG monitorados (join customer_esg_metrics), para
     // que GET /customers/:id/esg-metrics devolva dados já no primeiro boot.
     const links = company.metrics
@@ -467,6 +844,109 @@ async function seedCompaniesTable(
 
     if (links.length > 0) {
       await prisma.customerEsgMetric.createMany({ data: links });
+    }
+  }
+
+  return companies;
+}
+
+async function seedLicensesTable(
+  companies: Map<string, string>,
+  agencies: Map<string, string>,
+  categories: Map<string, string>,
+) {
+  const now = new Date();
+
+  for (const license of seedLicenses) {
+    const customerId = companies.get(license.company);
+
+    if (!customerId) {
+      throw new Error(
+        `Licença "${license.processNumber}" referencia a empresa "${license.company}", que não está em seedCompanies.`,
+      );
+    }
+
+    const issuingAgencyId = agencies.get(license.agency);
+
+    if (!issuingAgencyId) {
+      throw new Error(
+        `Licença "${license.processNumber}" referencia o órgão "${license.agency}", que não está em seedIssuingAgencies.`,
+      );
+    }
+
+    const issueDate = addDays(now, license.issuedInDays);
+    const expirationDate = addDays(now, license.expiresInDays);
+
+    const data = {
+      issueDate,
+      expirationDate,
+      status: deriveLicenseStatus(expirationDate, now),
+      documentUrl: `${SEED_DOCUMENT_BASE_URL}/licenca-${license.type.toLowerCase()}-${license.processNumber.replace(/\W/g, '')}.pdf`,
+      issuingAgencyId,
+    };
+
+    /*
+     * `License` não tem índice único; a identidade no seed é
+     * (empresa, tipo, nº do processo). Numa reexecução as datas e o status
+     * são reaplicados, para que os offsets relativos continuem coerentes com
+     * o dia em que o seed rodou.
+     */
+    const existing = await prisma.license.findFirst({
+      where: {
+        customerId,
+        type: license.type,
+        processNumber: license.processNumber,
+      },
+    });
+
+    const saved = existing
+      ? await prisma.license.update({ where: { id: existing.id }, data })
+      : await prisma.license.create({
+          data: {
+            ...data,
+            type: license.type,
+            processNumber: license.processNumber,
+            customerId,
+          },
+        });
+
+    for (const condition of license.conditions) {
+      const categoryId = categories.get(condition.category);
+
+      if (!categoryId) {
+        throw new Error(
+          `Condicionante "${condition.itemNumber}" da licença "${license.processNumber}" referencia a categoria "${condition.category}", que não está em seedConditionCategories.`,
+        );
+      }
+
+      const conditionData = {
+        title: condition.title,
+        description: condition.description,
+        responsibleName: condition.responsibleName,
+        conditionType: condition.conditionType,
+        periodicity: condition.periodicity ?? null,
+        deadline: optionalDate(now, condition.deadlineInDays),
+        dueDate: optionalDate(now, condition.dueInDays),
+        alertDate: optionalDate(now, condition.alertInDays),
+        completionDate: optionalDate(now, condition.completedInDays),
+        status: deriveConditionStatus(condition, now),
+        categoryId,
+      };
+
+      await prisma.licenseCondition.upsert({
+        where: {
+          licenseId_itemNumber: {
+            licenseId: saved.id,
+            itemNumber: condition.itemNumber,
+          },
+        },
+        update: conditionData,
+        create: {
+          ...conditionData,
+          itemNumber: condition.itemNumber,
+          licenseId: saved.id,
+        },
+      });
     }
   }
 }
@@ -492,17 +972,38 @@ async function countCompaniesByOwner(users: Map<string, string>) {
   return counts;
 }
 
+async function countLicensesByStatus() {
+  const grouped = await prisma.license.groupBy({
+    by: ['status'],
+    _count: { _all: true },
+  });
+
+  const byStatus = new Map(
+    grouped.map((row) => [row.status, row._count._all] as const),
+  );
+
+  return {
+    regular: byStatus.get(LicenseStatus.REGULAR) ?? 0,
+    attention: byStatus.get(LicenseStatus.ATTENTION) ?? 0,
+    expired: byStatus.get(LicenseStatus.EXPIRED) ?? 0,
+    conditions: await prisma.licenseCondition.count(),
+  };
+}
+
 async function main() {
   console.log('Iniciando o seed...');
 
   const users = await seedUsersTable();
   const sectors = await seedSectorsTable();
   const metrics = await seedEsgMetricsTable();
-  await seedIssuingAgenciesTable();
-  await seedCompaniesTable(users, sectors, metrics);
+  const agencies = await seedIssuingAgenciesTable();
+  const categories = await seedConditionCategoriesTable();
+  const companies = await seedCompaniesTable(users, sectors, metrics);
+  await seedLicensesTable(companies, agencies, categories);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);
+  const licenses = await countLicensesByStatus();
 
   console.log('Seed completo executado com sucesso!');
   console.log('');
@@ -538,7 +1039,10 @@ async function main() {
     } excluída logicamente.`,
   );
   console.log(
-    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
+    `Licenças: ${licenses.regular + licenses.attention + licenses.expired} (${licenses.regular} regulares, ${licenses.attention} em atenção, ${licenses.expired} vencidas) · Condicionantes: ${licenses.conditions}`,
+  );
+  console.log(
+    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length} · Categorias de condicionantes: ${seedConditionCategories.length}`,
   );
 }
 

@@ -7,7 +7,6 @@ import {
 
 export interface CreateConditionData {
   licenseId: string;
-  categoryId: string;
   itemNumber: string;
   title?: string;
   description: string;

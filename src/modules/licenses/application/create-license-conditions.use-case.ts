@@ -39,7 +39,6 @@ export class CreateLicenseConditionUseCase {
     const conditionsData: CreateConditionData[] = input.data.conditions.map(
       (condition) => ({
         licenseId: input.licenseId,
-        categoryId: '', // TODO: definir de onde vem o categoryId
         itemNumber: condition.item_number,
         description: condition.description,
         responsibleName: condition.responsible_name,

@@ -401,6 +401,29 @@ describe('Licenses (e2e)', () => {
       });
     });
 
+    it('refuses with 409 to unlink a GRI parameter still used by a condition', async () => {
+      function linkMetrics(metricIds: string[]) {
+        return request(app.getHttpServer())
+          .post(`/api/customers/${customerId}/esg-metrics`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ metric_ids: metricIds });
+      }
+
+      const response = await linkMetrics([]).expect(409);
+      expect((response.body as { message: string }).message).toBe(
+        'Não é possível desvincular parâmetros GRI usados como categoria de condicionantes desta empresa.',
+      );
+      await expect(
+        prisma.customerEsgMetric.count({
+          where: { customerId, esgMetricId: linkedMetric.id },
+        }),
+      ).resolves.toBe(1);
+
+      // Keeping the parameter in use while changing the others is allowed.
+      await linkMetrics([linkedMetric.id, unlinkedMetricId]).expect(204);
+      await linkMetrics([linkedMetric.id]).expect(204);
+    });
+
     it("hides another account's private GRI parameter behind the same 404 as an unknown one", async () => {
       // Even a (stray) link to the customer must not make it usable.
       await prisma.customerEsgMetric.create({

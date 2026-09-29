@@ -10,6 +10,11 @@ export interface LicenseConditionWithRisk extends LicenseCondition {
   riskLevel: LicenseConditionRiskLevel;
 }
 
+export interface LicenseConditionListWithRisk {
+  total: number;
+  data: LicenseConditionWithRisk[];
+}
+
 const RISK_ORDER: Record<LicenseConditionRiskLevel, number> = {
   [LicenseConditionRiskLevel.RISK]: 0,
   [LicenseConditionRiskLevel.ATTENTION]: 1,
@@ -26,7 +31,8 @@ export class ListLicenseConditionsByCustomerUseCase {
   async execute(
     customerId: string,
     ownerUserId: string,
-  ): Promise<LicenseConditionWithRisk[]> {
+    riskLevel?: LicenseConditionRiskLevel,
+  ): Promise<LicenseConditionListWithRisk> {
     const customer = await this.customerRepository.findOne(
       customerId,
       ownerUserId,
@@ -39,11 +45,12 @@ export class ListLicenseConditionsByCustomerUseCase {
     const conditions =
       await this.licenseConditionRepository.findAllByCustomerId(customerId);
 
-    return conditions
+    const conditionsWithRisk = conditions
       .map((condition) => ({
         ...condition,
         riskLevel: calculateLicenseConditionRiskLevel(condition.dueDate, now),
       }))
+      .filter((condition) => !riskLevel || condition.riskLevel === riskLevel)
       .sort((left, right) => {
         const riskDifference =
           RISK_ORDER[left.riskLevel] - RISK_ORDER[right.riskLevel];
@@ -54,5 +61,10 @@ export class ListLicenseConditionsByCustomerUseCase {
 
         return left.dueDate.getTime() - right.dueDate.getTime();
       });
+
+    return {
+      total: conditionsWithRisk.length,
+      data: conditionsWithRisk,
+    };
   }
 }

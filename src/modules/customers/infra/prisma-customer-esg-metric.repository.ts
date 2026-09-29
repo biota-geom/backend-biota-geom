@@ -60,6 +60,18 @@ export class PrismaCustomerEsgMetricRepository extends CustomerEsgMetricReposito
     return metrics.map((metric) => metric.id);
   }
 
+  async findLinkedMetricIds(
+    customerId: string,
+    metricIds: string[],
+  ): Promise<string[]> {
+    const links = await this.prisma.customerEsgMetric.findMany({
+      where: { customerId, esgMetricId: { in: metricIds } },
+      select: { esgMetricId: true },
+    });
+
+    return links.map((link) => link.esgMetricId);
+  }
+
   private toDomain(metric: PrismaEsgMetric): EsgMetricEntity {
     return new EsgMetricEntity(
       metric.id,

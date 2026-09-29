@@ -8,4 +8,8 @@ export abstract class CustomerEsgMetricRepository {
     customerId: string,
   ): Promise<EsgMetricEntity[]>;
   abstract findExistingMetricIds(metricIds: string[]): Promise<string[]>;
+  abstract findLinkedMetricIds(
+    customerId: string,
+    metricIds: string[],
+  ): Promise<string[]>;
 }

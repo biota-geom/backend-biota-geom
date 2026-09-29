@@ -60,6 +60,22 @@ export class PrismaCustomerEsgMetricRepository extends CustomerEsgMetricReposito
     return metrics.map((metric) => metric.id);
   }
 
+  async findMetricIdsInUseExcept(
+    customerId: string,
+    keptMetricIds: string[],
+  ): Promise<string[]> {
+    const conditions = await this.prisma.licenseCondition.findMany({
+      where: {
+        license: { customerId },
+        esgMetricId: { notIn: keptMetricIds },
+      },
+      select: { esgMetricId: true },
+      distinct: ['esgMetricId'],
+    });
+
+    return conditions.map((condition) => condition.esgMetricId);
+  }
+
   async findLinkedMetricIds(
     customerId: string,
     metricIds: string[],

@@ -34,6 +34,8 @@ function buildRepository() {
       }),
   );
 
+  const findConditions =
+    jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
   const findLinks =
     jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
 
@@ -41,6 +43,7 @@ function buildRepository() {
     $transaction,
     esgMetric: { findMany },
     customerEsgMetric: { findMany: findLinks },
+    licenseCondition: { findMany: findConditions },
   } as unknown as PrismaService);
 
   return {
@@ -49,6 +52,7 @@ function buildRepository() {
     createMany,
     findMany,
     findLinks,
+    findConditions,
     $transaction,
   };
 }
@@ -155,6 +159,23 @@ describe('PrismaCustomerEsgMetricRepository', () => {
         esgMetricId: { in: [METRIC_ID, 'unlinked'] },
       },
       select: { esgMetricId: true },
+    });
+  });
+
+  it('returns the distinct metrics used by the customer conditions outside the kept list', async () => {
+    const { repository, findConditions } = buildRepository();
+    findConditions.mockResolvedValue([{ esgMetricId: 'metric-in-use' }]);
+
+    await expect(
+      repository.findMetricIdsInUseExcept(CUSTOMER_ID, [METRIC_ID]),
+    ).resolves.toEqual(['metric-in-use']);
+    expect(findConditions).toHaveBeenCalledWith({
+      where: {
+        license: { customerId: CUSTOMER_ID },
+        esgMetricId: { notIn: [METRIC_ID] },
+      },
+      select: { esgMetricId: true },
+      distinct: ['esgMetricId'],
     });
   });
 });

@@ -8,6 +8,14 @@ export abstract class CustomerEsgMetricRepository {
     customerId: string,
   ): Promise<EsgMetricEntity[]>;
   abstract findExistingMetricIds(metricIds: string[]): Promise<string[]>;
+  /*
+   * Metric ids used as the category of any license condition of the customer,
+   * excluding the ones in keptMetricIds.
+   */
+  abstract findMetricIdsInUseExcept(
+    customerId: string,
+    keptMetricIds: string[],
+  ): Promise<string[]>;
   abstract findLinkedMetricIds(
     customerId: string,
     metricIds: string[],

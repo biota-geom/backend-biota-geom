@@ -440,6 +440,22 @@ describe('Licenses (e2e)', () => {
       expect(body.licenses).toHaveLength(4);
     });
 
+    it('returns each license with its conditions summary', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/customers/${panelCustomerId}/licenses`)
+        .set('Authorization', `Bearer ${panelToken}`)
+        .expect(200);
+
+      const body = response.body as {
+        licenses: { conditions_summary: { total: number; attended: number } }[];
+      };
+
+      // None of the panel licenses has conditions linked to it.
+      expect(body.licenses.map((l) => l.conditions_summary)).toEqual(
+        Array.from({ length: 4 }, () => ({ total: 0, attended: 0 })),
+      );
+    });
+
     it('lists each company with its own total_licenses and updated_at', async () => {
       // Same owner, no licenses: proves the count is per company, not per owner.
       const emptyResponse = await request(app.getHttpServer())

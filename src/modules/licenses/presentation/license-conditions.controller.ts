@@ -21,6 +21,7 @@ import {
 import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
+import { GetLicenseConditionsComplianceUseCase } from '../application/get-license-conditions-compliance.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
 import {
@@ -33,6 +34,10 @@ import {
 } from './dto/license-condition-created-response.dto';
 import { LicenseConditionListResponseDto } from './dto/license-condition-list-response.dto';
 import { toLicenseConditionResponse } from './dto/license-condition-response.dto';
+import {
+  LicenseConditionsComplianceResponseDto,
+  toLicenseConditionsComplianceResponse,
+} from './dto/license-conditions-compliance-response.dto';
 import {
   LicenseConditionStatusFilter,
   ListLicenseConditionsQueryDto,
@@ -51,7 +56,29 @@ export class LicenseConditionsController {
   constructor(
     private readonly listLicenseConditionsByCustomerUseCase: ListLicenseConditionsByCustomerUseCase,
     private readonly addLicenseConditionsUseCase: AddLicenseConditionsUseCase,
+    private readonly getLicenseConditionsComplianceUseCase: GetLicenseConditionsComplianceUseCase,
   ) {}
+
+  @Get('customers/:customerId/license-conditions/compliance')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiOperation({
+    summary:
+      'Retorna o percentual de conformidade geral das condicionantes da empresa.',
+  })
+  @ApiOkResponse({ type: LicenseConditionsComplianceResponseDto })
+  async getLicenseConditionsCompliance(
+    @Param('customerId', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseConditionsComplianceResponseDto> {
+    const compliance = await this.getLicenseConditionsComplianceUseCase.execute(
+      customerId,
+      user.id,
+    );
+
+    return toLicenseConditionsComplianceResponse(compliance);
+  }
 
   @Get('customers/:customerId/license-conditions')
   @UseGuards(JwtAuthGuard)

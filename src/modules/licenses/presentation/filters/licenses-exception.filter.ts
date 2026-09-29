@@ -10,6 +10,8 @@ import {
 import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
+import { ConditionCategoryNotFoundError } from '../../domain/errors/condition-category-not-found.error';
+import { ConditionCategoryNotLinkedError } from '../../domain/errors/condition-category-not-linked.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
@@ -21,7 +23,9 @@ type LicensesDomainError =
   | IssuingAgencyNotFoundError
   | InvalidLicenseDateRangeError
   | LicenseNotFoundError
-  | LicenseConditionLicenseMismatchError;
+  | LicenseConditionLicenseMismatchError
+  | ConditionCategoryNotFoundError
+  | ConditionCategoryNotLinkedError;
 
 @Catch(
   CustomerNotFoundError,
@@ -29,6 +33,8 @@ type LicensesDomainError =
   InvalidLicenseDateRangeError,
   LicenseNotFoundError,
   LicenseConditionLicenseMismatchError,
+  ConditionCategoryNotFoundError,
+  ConditionCategoryNotLinkedError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -63,6 +69,23 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof LicenseConditionLicenseMismatchError) {
       return new BadRequestException(
         LICENSES_MESSAGES.CONDITION_LICENSE_MISMATCH,
+      );
+    }
+
+    /*
+     * An unknown GRI parameter and another account's private one share this
+     * 404 on purpose, so the existence of other tenants' parameters is never
+     * revealed.
+     */
+    if (error instanceof ConditionCategoryNotFoundError) {
+      return new NotFoundException(
+        LICENSES_MESSAGES.CONDITION_CATEGORY_NOT_FOUND,
+      );
+    }
+
+    if (error instanceof ConditionCategoryNotLinkedError) {
+      return new UnprocessableEntityException(
+        LICENSES_MESSAGES.CONDITION_CATEGORY_NOT_LINKED,
       );
     }
 

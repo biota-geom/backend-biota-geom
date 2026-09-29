@@ -64,19 +64,22 @@ function buildRepository() {
 describe('PrismaCustomerRepository', () => {
   it('loads active customers with their nested address and sector', async () => {
     const customer = {
-      findMany: jest.fn().mockResolvedValue([{ id: 'customer-1' }]),
+      findMany: jest
+        .fn()
+        .mockResolvedValue([{ id: 'customer-1', _count: { licenses: 2 } }]),
     };
     const prisma = { customer } as unknown as PrismaService;
     const repository = new PrismaCustomerRepository(prisma);
 
     await expect(repository.findAll(OWNER)).resolves.toEqual([
-      { id: 'customer-1' },
+      { id: 'customer-1', totalLicenses: 2 },
     ]);
     expect(customer.findMany).toHaveBeenCalledWith({
       where: { ownerUserId: OWNER, isDeleted: false },
       include: {
         address: true,
         sector: true,
+        _count: { select: { licenses: true } },
       },
     });
   });

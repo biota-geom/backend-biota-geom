@@ -15,4 +15,10 @@ export class CustomerListResponseDTO {
 
   @ApiProperty({ example: 'Porto Alegre - RS' })
   location!: string;
+
+  @ApiProperty({ type: 'integer', example: 6 })
+  total_licenses!: number;
+
+  @ApiProperty({ format: 'date-time', example: '2026-09-17T14:30:00.000Z' })
+  updated_at!: string;
 }

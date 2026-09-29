@@ -24,16 +24,26 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with their address and sector', async () => {
+  it('lists customers with their address, sector and license count', async () => {
     const { repository, findMany } = buildRepository();
-    const customers = [{ id: 'customer-1' }];
-    findMany.mockResolvedValue(customers);
+    findMany.mockResolvedValue([
+      { id: 'customer-1', _count: { licenses: 6 } },
+      { id: 'customer-2', _count: { licenses: 0 } },
+    ]);
 
-    await expect(repository.findAll(OWNER)).resolves.toBe(customers);
+    // _count is flattened into totalLicenses, so Prisma's shape stays in infra.
+    await expect(repository.findAll(OWNER)).resolves.toEqual([
+      { id: 'customer-1', totalLicenses: 6 },
+      { id: 'customer-2', totalLicenses: 0 },
+    ]);
     // Scoped in the query itself: there is no unfiltered read to fall back to.
     expect(findMany).toHaveBeenCalledWith({
       where: { ownerUserId: OWNER, isDeleted: false },
-      include: { address: true, sector: true },
+      include: {
+        address: true,
+        sector: true,
+        _count: { select: { licenses: true } },
+      },
     });
   });
 

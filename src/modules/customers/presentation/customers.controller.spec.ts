@@ -30,6 +30,8 @@ describe('CustomerController', () => {
       status: 'Ativo',
       segment: 'Siderurgia',
       location: 'Porto Alegre - RS',
+      total_licenses: 6,
+      updated_at: '2026-09-17T14:30:00.000Z',
     };
     const service = {
       findAll: jest
@@ -83,6 +85,8 @@ describe('CustomerController', () => {
           status: 'Ativo',
           segment: 'Siderurgia',
           location: 'Porto Alegre - RS',
+          total_licenses: 6,
+          updated_at: '2026-09-17T14:30:00.000Z',
         },
       ],
     );

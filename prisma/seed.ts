@@ -124,6 +124,13 @@ const seedLicenseConditions = [
     esgMetric: 'Resíduos Sólidos Gerados',
     daysUntilDue: 45,
   },
+  {
+    name: 'Relatório Anual de Eficiência Energética',
+    description:
+      'Inventário do consumo de energia elétrica e das ações de eficiência energética da unidade.',
+    esgMetric: 'Consumo de Energia',
+    daysUntilDue: 90,
+  },
 ];
 
 /*
@@ -511,6 +518,12 @@ async function seedCompaniesTable(
   return companies;
 }
 
+function conditionsApplicableTo(companyMetrics: readonly string[]) {
+  return seedLicenseConditions.filter((condition) =>
+    companyMetrics.includes(condition.esgMetric),
+  );
+}
+
 function dateAtUtcMidnight(daysFromToday: number): Date {
   const date = new Date();
   date.setUTCHours(0, 0, 0, 0);
@@ -560,7 +573,15 @@ async function seedLicensesAndConditionsTable(
         },
       }));
 
-    for (const condition of seedLicenseConditions) {
+    /*
+     * A categoria da condicionante tem que ser um parâmetro GRI vinculado à
+     * empresa (US02/US23) — a API recusa qualquer outro. Por isso cada empresa
+     * só recebe as condicionantes cujo parâmetro ela já monitora, sem alterar
+     * a parametrização definida em seedCompanies.
+     */
+    const applicableConditions = conditionsApplicableTo(company.metrics);
+
+    for (const condition of applicableConditions) {
       const esgMetricId = metrics.get(condition.esgMetric);
 
       if (!esgMetricId) {
@@ -568,17 +589,6 @@ async function seedLicensesAndConditionsTable(
           `Condicionante "${condition.name}" referencia o parâmetro GRI "${condition.esgMetric}", que não está em seedEsgMetrics.`,
         );
       }
-
-      /*
-       * A categoria da condicionante tem que ser um parâmetro GRI vinculado à
-       * empresa (US02/US23) — a API recusa qualquer outro. O vínculo é
-       * garantido aqui para o seed respeitar a mesma regra.
-       */
-      await prisma.customerEsgMetric.upsert({
-        where: { customerId_esgMetricId: { customerId, esgMetricId } },
-        update: {},
-        create: { customerId, esgMetricId },
-      });
 
       const existingCondition = await prisma.licenseCondition.findFirst({
         where: { licenseId: license.id, name: condition.name },
@@ -679,9 +689,11 @@ async function main() {
     `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
   );
   console.log(
-    `Licenças seed: ${visible.length} · Condicionantes seed: ${
-      visible.length * seedLicenseConditions.length
-    }`,
+    `Licenças seed: ${visible.length} · Condicionantes seed: ${visible.reduce(
+      (total, company) =>
+        total + conditionsApplicableTo(company.metrics).length,
+      0,
+    )}`,
   );
 }
 

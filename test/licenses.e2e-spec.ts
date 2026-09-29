@@ -3,7 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { AddressType, DocumentType, LicenseType } from '@prisma/client';
+import {
+  AddressType,
+  DocumentType,
+  EsgPillar,
+  LicenseType,
+} from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
@@ -270,6 +275,33 @@ describe('Licenses (e2e)', () => {
 
   describe('POST /licenses/:licenseId/conditions', () => {
     let conditionLicenseId: string;
+    let linkedMetric: { id: string; name: string };
+    let unlinkedMetricId: string;
+    let foreignPrivateMetricId: string;
+
+    function dueDateInDays(days: number): string {
+      return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    function conditionBody(overrides: Record<string, unknown> = {}) {
+      return {
+        name: 'MTR - Manifesto de Transporte de Resíduos',
+        esg_metric_id: linkedMetric.id,
+        license_id: conditionLicenseId,
+        responsible_agency: 'FEPAM',
+        due_date: dueDateInDays(400),
+        status: 'Regular',
+        description: 'Manifesto para destinação final de resíduos.',
+        ...overrides,
+      };
+    }
+
+    function postCondition(body: Record<string, unknown>) {
+      return request(app.getHttpServer())
+        .post(`/api/licenses/${conditionLicenseId}/conditions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body);
+    }
 
     beforeAll(async () => {
       const response = await createLicenseRequest({
@@ -282,55 +314,154 @@ describe('Licenses (e2e)', () => {
         .expect(201);
 
       conditionLicenseId = (response.body as { id: string }).id;
+
+      const [linked, unlinked] = await Promise.all(
+        ['Resíduos', 'Emissões'].map((name) =>
+          prisma.esgMetric.create({
+            data: {
+              name: `${name} ${uniqueSuffix()}`,
+              unit: 't',
+              pillar: EsgPillar.AMBIENTAL,
+            },
+          }),
+        ),
+      );
+      linkedMetric = { id: linked.id, name: linked.name };
+      unlinkedMetricId = unlinked.id;
+
+      const otherOwner = await prisma.user.create({
+        data: {
+          name: 'Outra Consultoria',
+          email: `other-${uniqueSuffix()}@biotageom.com.br`,
+          passwordHash: 'not-a-real-hash',
+        },
+      });
+      const foreignPrivate = await prisma.esgMetric.create({
+        data: {
+          name: `Parâmetro privado ${uniqueSuffix()}`,
+          unit: 'un',
+          pillar: EsgPillar.AMBIENTAL,
+          customerId: otherOwner.id,
+        },
+      });
+      foreignPrivateMetricId = foreignPrivate.id;
+
+      await request(app.getHttpServer())
+        .post(`/api/customers/${customerId}/esg-metrics`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ metric_ids: [linkedMetric.id] })
+        .expect(204);
     });
 
-    it('persists a condition with the selected license foreign key', async () => {
-      const dueDate = new Date(
-        Date.now() + 400 * 24 * 60 * 60 * 1000,
-      ).toISOString();
-      const response = await request(app.getHttpServer())
-        .post(`/api/licenses/${conditionLicenseId}/conditions`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({
-          name: 'MTR - Manifesto de Transporte de Resíduos',
-          category: 'Resíduos',
-          license_id: conditionLicenseId,
-          responsible_agency: 'FEPAM',
-          due_date: dueDate,
-          status: 'Regular',
-          description: 'Manifesto para destinação final de resíduos.',
-        })
-        .expect(201);
+    it('persists a condition categorized by a GRI parameter linked to the customer', async () => {
+      const response = await postCondition(conditionBody()).expect(201);
+
+      expect(response.body).toMatchObject({
+        category: { id: linkedMetric.id, name: linkedMetric.name },
+      });
 
       const stored = await prisma.licenseCondition.findUniqueOrThrow({
         where: { id: (response.body as { id: string }).id },
       });
       expect(stored.licenseId).toBe(conditionLicenseId);
+      expect(stored.esgMetricId).toBe(linkedMetric.id);
       expect(stored.name).toBe('MTR - Manifesto de Transporte de Resíduos');
       expect(stored.status).toBe('REGULAR');
+    });
+
+    it('lists the condition with the GRI parameter name as its category', async () => {
+      const created = await postCondition(
+        conditionBody({ name: `Listagem ${uniqueSuffix()}` }),
+      ).expect(201);
+      const createdId = (created.body as { id: string }).id;
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/customers/${customerId}/license-conditions`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const listed = (
+        response.body as Array<{ id: string; due_date: string }>
+      ).find((condition) => condition.id === createdId);
+      expect(listed).toMatchObject({
+        category: { id: linkedMetric.id, name: linkedMetric.name },
+      });
+      expect(new Date(listed!.due_date).toISOString()).toBe(listed!.due_date);
+    });
+
+    it('answers 422 for a catalog GRI parameter not linked to the customer', async () => {
+      const response = await postCondition(
+        conditionBody({ esg_metric_id: unlinkedMetricId }),
+      ).expect(422);
+
+      expect(response.body).toEqual({
+        statusCode: 422,
+        message: 'O parâmetro GRI informado não está vinculado a esta empresa.',
+        error: 'Unprocessable Entity',
+      });
+    });
+
+    it("hides another account's private GRI parameter behind the same 404 as an unknown one", async () => {
+      // Even a (stray) link to the customer must not make it usable.
+      await prisma.customerEsgMetric.create({
+        data: { customerId, esgMetricId: foreignPrivateMetricId },
+      });
+
+      const foreign = await postCondition(
+        conditionBody({ esg_metric_id: foreignPrivateMetricId }),
+      ).expect(404);
+      const unknown = await postCondition(
+        conditionBody({
+          esg_metric_id: '00000000-0000-4000-8000-000000000000',
+        }),
+      ).expect(404);
+
+      expect(foreign.body).toEqual(unknown.body);
+    });
+
+    it('refuses to delete a GRI parameter in use by a condition', async () => {
+      const metric = await prisma.esgMetric.create({
+        data: {
+          name: `Em uso ${uniqueSuffix()}`,
+          unit: 't',
+          pillar: EsgPillar.AMBIENTAL,
+        },
+      });
+      await prisma.customerEsgMetric.create({
+        data: { customerId, esgMetricId: metric.id },
+      });
+      await postCondition(conditionBody({ esg_metric_id: metric.id })).expect(
+        201,
+      );
+      // Drop the customer link so only the condition still references it.
+      await prisma.customerEsgMetric.delete({
+        where: {
+          customerId_esgMetricId: { customerId, esgMetricId: metric.id },
+        },
+      });
+
+      await expect(
+        prisma.esgMetric.delete({ where: { id: metric.id } }),
+      ).rejects.toMatchObject({ code: 'P2003' });
+      await expect(
+        prisma.esgMetric.findUnique({ where: { id: metric.id } }),
+      ).resolves.not.toBeNull();
+    });
+
+    it('rejects the former free-text category field', async () => {
+      await postCondition(conditionBody({ category: 'Resíduos' })).expect(400);
     });
 
     it.each([
       ['name', ''],
       ['due_date', undefined],
+      ['esg_metric_id', 'not-a-uuid'],
+      ['esg_metric_id', undefined],
     ])('rejects an invalid required %s', async (field, value) => {
-      const body: Record<string, unknown> = {
-        name: 'MTR',
-        category: 'Resíduos',
-        license_id: conditionLicenseId,
-        responsible_agency: 'FEPAM',
-        due_date: new Date(
-          Date.now() + 400 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
-        status: 'Regular',
-      };
+      const body: Record<string, unknown> = conditionBody();
       body[field] = value;
 
-      await request(app.getHttpServer())
-        .post(`/api/licenses/${conditionLicenseId}/conditions`)
-        .set('Authorization', `Bearer ${token}`)
-        .send(body)
-        .expect(400);
+      await postCondition(body).expect(400);
     });
   });
 

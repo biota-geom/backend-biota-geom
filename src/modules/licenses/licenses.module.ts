@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
+import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
 import { AddLicenseConditionsUseCase } from './application/add-license-conditions.use-case';
@@ -18,7 +19,12 @@ import { LicenseConditionsController } from './presentation/license-conditions.c
 import { LicensesController } from './presentation/licenses.controller';
 
 @Module({
-  imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
+  imports: [
+    AuthModule,
+    CustomerModule,
+    EsgMetricsModule,
+    IssuingAgenciesModule,
+  ],
   controllers: [LicensesController, LicenseConditionsController],
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },

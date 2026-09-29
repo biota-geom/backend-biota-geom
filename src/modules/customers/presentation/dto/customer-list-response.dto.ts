@@ -26,13 +26,12 @@ export class CustomerListResponseDTO {
   updated_at!: string;
 
   @ApiProperty({
-    type: Number,
+    type: 'integer',
     example: 95,
     minimum: 0,
     maximum: 100,
-    nullable: true,
     description:
-      'Percentage of regular licenses. Null when the customer has no licenses.',
+      'Percentage of REGULAR conditions over active conditions (same value as GET /customers/:customerId/license-conditions/compliance). 100 when there are no active conditions.',
   })
-  conformity_percentage!: number | null;
+  conformity_percentage!: number;
 }

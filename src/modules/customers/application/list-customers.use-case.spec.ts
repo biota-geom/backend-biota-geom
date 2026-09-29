@@ -1,3 +1,6 @@
+import { LicenseConditionStatus } from '@prisma/client';
+import { GetLicenseConditionsComplianceUseCase } from '../../licenses/application/get-license-conditions-compliance.use-case';
+import { LicenseConditionRepository } from '../../licenses/domain/license-conditions.repository';
 import { CustomerRepository } from '../domain/customers.repository';
 import { InMemoryCustomerRepository } from './__tests__/in-memory-customer.repository';
 import { ListCustomersUseCase } from './list-customers.use-case';
@@ -6,15 +9,15 @@ const OWNER = 'owner-1';
 const OTHER_OWNER = 'owner-2';
 const NOW = new Date('2026-09-17T14:30:00.000Z');
 const UPDATED_AT = new Date('2026-09-17T14:30:00.000Z');
-const REGULAR_EXPIRATION = new Date('2026-11-01T14:30:00.000Z');
-const ATTENTION_EXPIRATION = new Date('2026-10-01T14:30:00.000Z');
+const REGULAR_DUE_DATE = new Date('2026-11-01T14:30:00.000Z');
+const ATTENTION_DUE_DATE = new Date('2026-10-01T14:30:00.000Z');
 const LIST_AGGREGATES = {
   document: '12345678000199',
   updatedAt: UPDATED_AT,
   totalLicenses: 10,
-  licenseExpirationDates: [
-    ...Array<Date>(7).fill(REGULAR_EXPIRATION),
-    ...Array<Date>(3).fill(ATTENTION_EXPIRATION),
+  licenseConditionDueDates: [
+    ...Array<Date>(7).fill(REGULAR_DUE_DATE),
+    ...Array<Date>(3).fill(ATTENTION_DUE_DATE),
   ],
 };
 const LIST_RESPONSE_FIELDS = {
@@ -41,7 +44,7 @@ describe('ListCustomersUseCase', () => {
           ...LIST_AGGREGATES,
           id: 'customer-2',
           totalLicenses: 0,
-          licenseExpirationDates: [],
+          licenseConditionDueDates: [],
           updatedAt: new Date('2026-09-10T08:00:00.000Z'),
           name: 'Filial SP',
           isActive: false,
@@ -52,7 +55,7 @@ describe('ListCustomersUseCase', () => {
           ...LIST_AGGREGATES,
           id: 'customer-3',
           totalLicenses: 1,
-          licenseExpirationDates: [REGULAR_EXPIRATION],
+          licenseConditionDueDates: [REGULAR_DUE_DATE],
           updatedAt: new Date('2026-08-01T00:00:00.000Z'),
           name: 'Filial sem endereço',
           isActive: true,
@@ -63,10 +66,10 @@ describe('ListCustomersUseCase', () => {
           ...LIST_AGGREGATES,
           id: 'customer-4',
           totalLicenses: 3,
-          licenseExpirationDates: [
-            REGULAR_EXPIRATION,
-            REGULAR_EXPIRATION,
-            ATTENTION_EXPIRATION,
+          licenseConditionDueDates: [
+            REGULAR_DUE_DATE,
+            REGULAR_DUE_DATE,
+            ATTENTION_DUE_DATE,
           ],
           updatedAt: new Date('2026-07-15T12:00:00.000Z'),
           name: 'Filial sem cidade',
@@ -78,7 +81,7 @@ describe('ListCustomersUseCase', () => {
           ...LIST_AGGREGATES,
           id: 'customer-5',
           totalLicenses: 2,
-          licenseExpirationDates: [REGULAR_EXPIRATION, ATTENTION_EXPIRATION],
+          licenseConditionDueDates: [REGULAR_DUE_DATE, ATTENTION_DUE_DATE],
           updatedAt: new Date('2026-06-30T23:59:59.000Z'),
           name: 'Filial sem estado',
           isActive: true,
@@ -107,7 +110,7 @@ describe('ListCustomersUseCase', () => {
         id: 'customer-2',
         total_licenses: 0,
         updated_at: '2026-09-10T08:00:00.000Z',
-        conformity_percentage: null,
+        conformity_percentage: 100,
         name: 'Filial SP',
         status: 'Inativo',
         segment: '',
@@ -152,16 +155,16 @@ describe('ListCustomersUseCase', () => {
     expect(repository.findAll).toHaveBeenCalledWith(OWNER);
   });
 
-  it('returns null conformity for a customer without licenses', async () => {
+  it('returns 100% conformity for a customer without conditions', async () => {
     const repository: Pick<CustomerRepository, 'findAll'> = {
       findAll: jest.fn().mockResolvedValue([
         {
           ...LIST_AGGREGATES,
           id: 'customer-1',
-          name: 'Empresa sem licenças',
+          name: 'Empresa sem condicionantes',
           isActive: true,
           totalLicenses: 0,
-          licenseExpirationDates: [],
+          licenseConditionDueDates: [],
           address: null,
           sector: null,
         },
@@ -173,20 +176,20 @@ describe('ListCustomersUseCase', () => {
 
     const [customer] = await useCase.listCustomers(OWNER, NOW);
 
-    expect(customer.conformity_percentage).toBeNull();
+    expect(customer.conformity_percentage).toBe(100);
     expect(customer.total_licenses).toBe(0);
   });
 
-  it('does not count a license whose persisted status became stale after expiration', async () => {
+  it('does not count an overdue condition as compliant', async () => {
     const repository: Pick<CustomerRepository, 'findAll'> = {
       findAll: jest.fn().mockResolvedValue([
         {
           ...LIST_AGGREGATES,
           id: 'customer-1',
-          name: 'Empresa com licença vencida',
+          name: 'Empresa com condicionante vencida',
           isActive: true,
           totalLicenses: 1,
-          licenseExpirationDates: [new Date('2026-09-16T14:30:00.000Z')],
+          licenseConditionDueDates: [new Date('2026-09-16T14:30:00.000Z')],
           address: null,
           sector: null,
         },
@@ -199,6 +202,61 @@ describe('ListCustomersUseCase', () => {
     const [customer] = await useCase.listCustomers(OWNER, NOW);
 
     expect(customer.conformity_percentage).toBe(0);
+  });
+
+  // US21: the company card and the monitor progress bar must never disagree.
+  it('matches the compliance percentage of the license conditions monitor', async () => {
+    const dueDates = [
+      ...Array<Date>(4).fill(REGULAR_DUE_DATE),
+      ...Array<Date>(2).fill(ATTENTION_DUE_DATE),
+      ...Array<Date>(2).fill(new Date('2026-09-16T14:30:00.000Z')),
+    ];
+    const customerRepository = {
+      findAll: jest.fn().mockResolvedValue([
+        {
+          ...LIST_AGGREGATES,
+          id: 'customer-1',
+          name: 'Empresa monitorada',
+          isActive: true,
+          totalLicenses: 2,
+          licenseConditionDueDates: dueDates,
+          address: null,
+          sector: null,
+        },
+      ]),
+      findOne: jest.fn().mockResolvedValue({ id: 'customer-1' }),
+    };
+    const licenseConditionRepository = {
+      findAllByCustomerId: jest.fn().mockResolvedValue(
+        dueDates.map((dueDate, index) => ({
+          id: `condition-${index}`,
+          licenseId: 'license-1',
+          name: `Condicionante ${index}`,
+          description: null,
+          category: 'Emissões',
+          responsibleAgency: null,
+          dueDate,
+          status: LicenseConditionStatus.REGULAR,
+          createdAt: NOW,
+          updatedAt: NOW,
+        })),
+      ),
+    };
+    const listCustomers = new ListCustomersUseCase(
+      customerRepository as unknown as CustomerRepository,
+    );
+    const getCompliance = new GetLicenseConditionsComplianceUseCase(
+      licenseConditionRepository as unknown as LicenseConditionRepository,
+      customerRepository as unknown as CustomerRepository,
+    );
+
+    const [customer] = await listCustomers.listCustomers(OWNER, NOW);
+    const compliance = await getCompliance.execute('customer-1', OWNER, NOW);
+
+    expect(compliance.compliancePercentage).toBe(50);
+    expect(customer.conformity_percentage).toBe(
+      compliance.compliancePercentage,
+    );
   });
 
   // US03: the list shows the authenticated client's companies and nothing else.

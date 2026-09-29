@@ -1,4 +1,5 @@
 import { CustomerRepository } from '../../customers/domain/customers.repository';
+import { LicenseConditionStatus } from '@prisma/client';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
 import { LicenseCondition } from '../domain/license-condition.entity';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
@@ -32,10 +33,12 @@ function buildCondition(
   return {
     id: 'condition-1',
     licenseId: 'license-1',
-    title: 'Automonitoramento Atmosférico',
+    name: 'Automonitoramento Atmosférico',
     description: 'Avaliação periódica de emissões.',
     category: 'Emissões',
+    responsibleAgency: 'FEPAM',
     dueDate: new Date('2026-02-15T00:00:00.000Z'),
+    status: LicenseConditionStatus.REGULAR,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,

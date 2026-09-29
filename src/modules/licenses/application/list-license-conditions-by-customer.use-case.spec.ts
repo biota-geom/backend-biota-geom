@@ -101,15 +101,50 @@ describe('ListLicenseConditionsByCustomerUseCase', () => {
     expect(licenseConditionRepository.findAllByCustomerId).toHaveBeenCalledWith(
       'customer-1',
     );
-    expect(result.map((condition) => condition.id)).toEqual([
+    expect(result.total).toBe(3);
+    expect(result.data.map((condition) => condition.id)).toEqual([
       'condition-risk',
       'condition-attention',
       'condition-regular',
     ]);
-    expect(result.map((condition) => condition.riskLevel)).toEqual([
+    expect(result.data.map((condition) => condition.riskLevel)).toEqual([
       LicenseConditionRiskLevel.RISK,
       LicenseConditionRiskLevel.ATTENTION,
       LicenseConditionRiskLevel.REGULAR,
     ]);
+  });
+
+  it.each([
+    [LicenseConditionRiskLevel.RISK, ['condition-risk']],
+    [LicenseConditionRiskLevel.ATTENTION, ['condition-attention']],
+    [LicenseConditionRiskLevel.REGULAR, ['condition-regular']],
+  ])('filters conditions by %s', async (riskLevel, expectedIds) => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    const { useCase } = buildUseCase({
+      licenseConditionRepository: {
+        findAllByCustomerId: jest.fn().mockResolvedValue([
+          buildCondition({
+            id: 'condition-regular',
+            dueDate: new Date('2026-02-15T00:00:00.000Z'),
+          }),
+          buildCondition({
+            id: 'condition-risk',
+            dueDate: new Date('2026-01-04T00:00:00.000Z'),
+          }),
+          buildCondition({
+            id: 'condition-attention',
+            dueDate: new Date('2026-01-16T00:00:00.000Z'),
+          }),
+        ]),
+      },
+    });
+
+    const result = await useCase.execute('customer-1', 'owner-1', riskLevel);
+
+    expect(result.total).toBe(expectedIds.length);
+    expect(result.data.map((condition) => condition.id)).toEqual(expectedIds);
+    expect(
+      result.data.every((condition) => condition.riskLevel === riskLevel),
+    ).toBe(true);
   });
 });

@@ -27,11 +27,13 @@ describe('CustomerController', () => {
     const listedCustomer: CustomerListResponseDTO = {
       id: 'customer-1',
       name: 'Unidade Industrial RS',
+      document: '12345678000199',
       status: 'Ativo',
       segment: 'Siderurgia',
       location: 'Porto Alegre - RS',
-      total_licenses: 6,
+      total_licenses: 10,
       updated_at: '2026-09-17T14:30:00.000Z',
+      conformity_percentage: 70,
     };
     const service = {
       findAll: jest
@@ -82,11 +84,13 @@ describe('CustomerController', () => {
         {
           id: 'customer-1',
           name: 'Unidade Industrial RS',
+          document: '12345678000199',
           status: 'Ativo',
           segment: 'Siderurgia',
           location: 'Porto Alegre - RS',
-          total_licenses: 6,
+          total_licenses: 10,
           updated_at: '2026-09-17T14:30:00.000Z',
+          conformity_percentage: 70,
         },
       ],
     );

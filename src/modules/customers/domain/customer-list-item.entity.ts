@@ -4,4 +4,5 @@ import { Customer } from './customer.entity';
 // computed by the query, so the list never needs one extra request per card.
 export interface CustomerListItem extends Customer {
   totalLicenses: number;
+  licenseExpirationDates: Date[];
 }

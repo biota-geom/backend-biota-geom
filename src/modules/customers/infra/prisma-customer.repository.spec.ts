@@ -24,17 +24,27 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with their address, sector and license count', async () => {
+  it('lists customers with license totals and expiration dates', async () => {
     const { repository, findMany } = buildRepository();
-    findMany.mockResolvedValue([
-      { id: 'customer-1', _count: { licenses: 6 } },
-      { id: 'customer-2', _count: { licenses: 0 } },
-    ]);
+    const expirationDates = Array.from(
+      { length: 10 },
+      (_, index) => new Date(`2027-01-${String(index + 1).padStart(2, '0')}`),
+    );
+    const customers = [
+      {
+        id: 'customer-1',
+        _count: { licenses: 10 },
+        licenses: expirationDates.map((expirationDate) => ({ expirationDate })),
+      },
+    ];
+    findMany.mockResolvedValue(customers);
 
-    // _count is flattened into totalLicenses, so Prisma's shape stays in infra.
     await expect(repository.findAll(OWNER)).resolves.toEqual([
-      { id: 'customer-1', totalLicenses: 6 },
-      { id: 'customer-2', totalLicenses: 0 },
+      {
+        id: 'customer-1',
+        totalLicenses: 10,
+        licenseExpirationDates: expirationDates,
+      },
     ]);
     // Scoped in the query itself: there is no unfiltered read to fall back to.
     expect(findMany).toHaveBeenCalledWith({
@@ -43,6 +53,9 @@ describe('PrismaCustomerRepository', () => {
         address: true,
         sector: true,
         _count: { select: { licenses: true } },
+        licenses: {
+          select: { expirationDate: true },
+        },
       },
     });
   });

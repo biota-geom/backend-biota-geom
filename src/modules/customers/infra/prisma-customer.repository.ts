@@ -42,13 +42,23 @@ export class PrismaCustomerRepository implements CustomerRepository {
       include: {
         address: true,
         sector: true,
-        _count: { select: { licenses: true } },
+        _count: {
+          select: {
+            licenses: true,
+          },
+        },
+        licenses: {
+          select: {
+            expirationDate: true,
+          },
+        },
       },
     });
 
-    return rows.map(({ _count, ...customer }) => ({
+    return rows.map(({ _count, licenses, ...customer }) => ({
       ...customer,
       totalLicenses: _count.licenses,
+      licenseExpirationDates: licenses.map((license) => license.expirationDate),
     }));
   }
 

@@ -48,7 +48,11 @@ export class InMemoryCustomerRepository extends CustomerRepository {
     return Promise.resolve(
       this.rows
         .filter((row) => row.ownerUserId === ownerUserId && !row.isDeleted)
-        .map((row) => ({ ...row, totalLicenses: 0 })),
+        .map((row) => ({
+          ...row,
+          totalLicenses: 0,
+          licenseExpirationDates: [],
+        })),
     );
   }
 

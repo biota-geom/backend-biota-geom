@@ -54,4 +54,19 @@ describe('PrismaLicenseRepository', () => {
       orderBy: { expirationDate: 'asc' },
     });
   });
+
+  it('finds a license by id with its issuing agency', async () => {
+    const findUnique = jest.fn().mockResolvedValue({ id: 'license-1' });
+    const repository = new PrismaLicenseRepository({
+      license: { findUnique },
+    } as unknown as PrismaService);
+
+    await expect(repository.findById('license-1')).resolves.toEqual({
+      id: 'license-1',
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: 'license-1' },
+      include: { issuingAgency: true },
+    });
+  });
 });

@@ -176,6 +176,14 @@ enum LicenseStatus {
   @@map("license_status")
 }
 
+enum LicenseConditionStatus {
+  REGULAR
+  ATTENTION
+  RISK
+
+  @@map("license_condition_status")
+}
+
 model IssuingAgency {
   id        String   @id @default(uuid(7)) @db.Uuid
   name      String   @unique @db.VarChar(150)
@@ -215,13 +223,15 @@ model License {
 }
 
 model LicenseCondition {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  title       String   @db.VarChar(160)
-  description String   @db.VarChar(500)
-  category    String   @db.VarChar(120)
-  dueDate     DateTime @map("due_date") @db.Timestamptz(3)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  name              String                 @map("title") @db.VarChar(160)
+  description       String?                @db.VarChar(500)
+  category          String                 @db.VarChar(120)
+  responsibleAgency String?                @map("responsible_agency") @db.VarChar(150)
+  dueDate           DateTime               @map("due_date") @db.Timestamptz(3)
+  status            LicenseConditionStatus @default(REGULAR)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   licenseId String  @map("license_id") @db.Uuid
   license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)

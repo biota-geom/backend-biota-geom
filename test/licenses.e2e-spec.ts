@@ -268,6 +268,72 @@ describe('Licenses (e2e)', () => {
       .expect(400);
   });
 
+  describe('POST /licenses/:licenseId/conditions', () => {
+    let conditionLicenseId: string;
+
+    beforeAll(async () => {
+      const response = await createLicenseRequest({
+        process_number: `LO condição-${uniqueSuffix()}`,
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'licenca.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      conditionLicenseId = (response.body as { id: string }).id;
+    });
+
+    it('persists a condition with the selected license foreign key', async () => {
+      const dueDate = new Date(
+        Date.now() + 400 * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const response = await request(app.getHttpServer())
+        .post(`/api/licenses/${conditionLicenseId}/conditions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          name: 'MTR - Manifesto de Transporte de Resíduos',
+          category: 'Resíduos',
+          license_id: conditionLicenseId,
+          responsible_agency: 'FEPAM',
+          due_date: dueDate,
+          status: 'Regular',
+          description: 'Manifesto para destinação final de resíduos.',
+        })
+        .expect(201);
+
+      const stored = await prisma.licenseCondition.findUniqueOrThrow({
+        where: { id: (response.body as { id: string }).id },
+      });
+      expect(stored.licenseId).toBe(conditionLicenseId);
+      expect(stored.name).toBe('MTR - Manifesto de Transporte de Resíduos');
+      expect(stored.status).toBe('REGULAR');
+    });
+
+    it.each([
+      ['name', ''],
+      ['due_date', undefined],
+    ])('rejects an invalid required %s', async (field, value) => {
+      const body: Record<string, unknown> = {
+        name: 'MTR',
+        category: 'Resíduos',
+        license_id: conditionLicenseId,
+        responsible_agency: 'FEPAM',
+        due_date: new Date(
+          Date.now() + 400 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+        status: 'Regular',
+      };
+      body[field] = value;
+
+      await request(app.getHttpServer())
+        .post(`/api/licenses/${conditionLicenseId}/conditions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body)
+        .expect(400);
+    });
+  });
+
   describe('GET /customers/:customerId/licenses (panel)', () => {
     let panelCustomerId: string;
     let panelToken: string;

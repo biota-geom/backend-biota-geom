@@ -10,4 +10,9 @@ export const LICENSES_MESSAGES = {
   ISSUING_AGENCY_NOT_FOUND: 'Órgão emissor inexistente.',
   INVALID_DATE_RANGE:
     'A data de validade deve ser posterior à data de emissão.',
+  LICENSE_NOT_FOUND: 'Licença não encontrada.',
+  CONDITION_LICENSE_MISMATCH:
+    'A licença informada não corresponde à licença da rota.',
+  CONDITION_DUE_DATE_MUST_BE_FUTURE:
+    'A data de vencimento deve ser uma data futura.',
 } as const;

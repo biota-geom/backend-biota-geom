@@ -107,21 +107,21 @@ const seedLicenseConditions = [
     name: 'Automonitoramento Atmosférico',
     description:
       'Avaliação periódica de emissões em chaminés e qualidade do ar no entorno industrial.',
-    category: 'Emissões',
+    esgMetric: 'Emissão de CO2 Equivalente',
     daysUntilDue: 3,
   },
   {
     name: 'Relatório Semestral de Efluentes Líquidos',
     description:
       'Laudos de análises físico-químicas de efluentes tratados e lançados nos corpos hídricos.',
-    category: 'Recursos Hídricos',
+    esgMetric: 'Consumo de Água',
     daysUntilDue: 15,
   },
   {
     name: 'MTR - Manifesto de Transporte de Resíduos',
     description:
       'Emissão de manifesto obrigatório para movimentação e destinação final de resíduos industriais.',
-    category: 'Resíduos',
+    esgMetric: 'Resíduos Sólidos Gerados',
     daysUntilDue: 45,
   },
 ];
@@ -521,6 +521,7 @@ function dateAtUtcMidnight(daysFromToday: number): Date {
 async function seedLicensesAndConditionsTable(
   companies: Map<string, string>,
   agencies: Map<string, string>,
+  metrics: Map<string, string>,
 ) {
   const firstAgencyId = Array.from(agencies.values())[0];
   const agencyId =
@@ -560,6 +561,25 @@ async function seedLicensesAndConditionsTable(
       }));
 
     for (const condition of seedLicenseConditions) {
+      const esgMetricId = metrics.get(condition.esgMetric);
+
+      if (!esgMetricId) {
+        throw new Error(
+          `Condicionante "${condition.name}" referencia o parâmetro GRI "${condition.esgMetric}", que não está em seedEsgMetrics.`,
+        );
+      }
+
+      /*
+       * A categoria da condicionante tem que ser um parâmetro GRI vinculado à
+       * empresa (US02/US23) — a API recusa qualquer outro. O vínculo é
+       * garantido aqui para o seed respeitar a mesma regra.
+       */
+      await prisma.customerEsgMetric.upsert({
+        where: { customerId_esgMetricId: { customerId, esgMetricId } },
+        update: {},
+        create: { customerId, esgMetricId },
+      });
+
       const existingCondition = await prisma.licenseCondition.findFirst({
         where: { licenseId: license.id, name: condition.name },
       });
@@ -567,7 +587,7 @@ async function seedLicensesAndConditionsTable(
       const data = {
         name: condition.name,
         description: condition.description,
-        category: condition.category,
+        esgMetricId,
         responsibleAgency: 'FEPAM',
         dueDate: dateAtUtcMidnight(condition.daysUntilDue),
         status: LicenseConditionStatus.REGULAR,
@@ -617,7 +637,7 @@ async function main() {
   const metrics = await seedEsgMetricsTable();
   const agencies = await seedIssuingAgenciesTable();
   const companies = await seedCompaniesTable(users, sectors, metrics);
-  await seedLicensesAndConditionsTable(companies, agencies);
+  await seedLicensesAndConditionsTable(companies, agencies, metrics);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);

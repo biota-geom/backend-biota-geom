@@ -11,18 +11,24 @@ import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
+import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
+import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
 type LicensesDomainError =
   | CustomerNotFoundError
   | IssuingAgencyNotFoundError
-  | InvalidLicenseDateRangeError;
+  | InvalidLicenseDateRangeError
+  | LicenseNotFoundError
+  | LicenseConditionNotFoundError;
 
 @Catch(
   CustomerNotFoundError,
   IssuingAgencyNotFoundError,
   InvalidLicenseDateRangeError,
+  LicenseNotFoundError,
+  LicenseConditionNotFoundError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -48,6 +54,14 @@ export class LicensesExceptionFilter implements ExceptionFilter {
       return new UnprocessableEntityException(
         LICENSES_MESSAGES.ISSUING_AGENCY_NOT_FOUND,
       );
+    }
+
+    if (error instanceof LicenseNotFoundError) {
+      return new NotFoundException(LICENSES_MESSAGES.LICENSE_NOT_FOUND);
+    }
+
+    if (error instanceof LicenseConditionNotFoundError) {
+      return new NotFoundException(LICENSES_MESSAGES.CONDITION_NOT_FOUND);
     }
 
     return new BadRequestException(LICENSES_MESSAGES.INVALID_DATE_RANGE);

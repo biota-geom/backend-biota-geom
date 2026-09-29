@@ -5,15 +5,15 @@ import {
   ConditionStatus,
 } from '@prisma/client';
 
-export interface CreateConditionData {
+export interface ConditionData {
   licenseId: string;
   itemNumber: string;
   title?: string;
   description: string;
   responsibleName: string;
   conditionType: ConditionType;
-  periodicity?: ConditionPeriodicity;
-  deadline?: Date;
+  periodicity?: ConditionPeriodicity | null;
+  deadline?: Date | null;
   dueDate?: Date;
   alertDate?: Date;
   completionDate?: Date;

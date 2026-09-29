@@ -10,4 +10,6 @@ export const LICENSES_MESSAGES = {
   ISSUING_AGENCY_NOT_FOUND: 'Órgão emissor inexistente.',
   INVALID_DATE_RANGE:
     'A data de validade deve ser posterior à data de emissão.',
+  LICENSE_NOT_FOUND: 'Licença não encontrada.',
+  CONDITION_NOT_FOUND: 'Condicionante não encontrada.',
 } as const;

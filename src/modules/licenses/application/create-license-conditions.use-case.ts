@@ -8,7 +8,7 @@ import {
   ConditionPeriodicity,
   ConditionStatus,
 } from '@prisma/client';
-import { CreateConditionData } from '../domain/license-condition.data';
+import { ConditionData } from '../domain/license-condition.data';
 import { CreateLicenseConditionsResponseDto } from '../presentation/dto/create-license-conditions-response.dto';
 
 interface CreateLicenseConditionInput {
@@ -36,7 +36,7 @@ export class CreateLicenseConditionUseCase {
       throw new CustomerNotFoundError(input.customerId);
     }
 
-    const conditionsData: CreateConditionData[] = input.data.conditions.map(
+    const conditionsData: ConditionData[] = input.data.conditions.map(
       (condition) => ({
         licenseId: input.licenseId,
         itemNumber: condition.item_number,

@@ -11,6 +11,9 @@ import { S3LicenseDocumentStorage } from './infra/storage/s3-license-document-st
 import { StorageConfigService } from './infra/storage/storage-config.service';
 import { LicensesController } from './presentation/licenses.controller';
 import { CreateLicenseConditionUseCase } from './application/create-license-conditions.use-case';
+import { GetLicenseDetailsUseCase } from './application/get-license-details.use-case';
+import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
+import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 
 @Module({
   imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
@@ -19,6 +22,9 @@ import { CreateLicenseConditionUseCase } from './application/create-license-cond
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
     CreateLicenseUseCase,
     CreateLicenseConditionUseCase,
+    GetLicenseDetailsUseCase,
+    UpdateLicenseConditionUseCase,
+    DeleteLicenseConditionUseCase,
     StorageConfigService,
     LocalDiskLicenseDocumentStorage,
     S3LicenseDocumentStorage,

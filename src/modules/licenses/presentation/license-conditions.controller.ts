@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -22,6 +24,7 @@ import { CurrentUser } from '../../auth/presentation/decorators/current-user.dec
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
+import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
 import {
   AddLicenseConditionDto,
   toLicenseConditionStatus,
@@ -30,10 +33,12 @@ import {
   LicenseConditionCreatedResponseDto,
   toLicenseConditionCreatedResponse,
 } from './dto/license-condition-created-response.dto';
+import { LicenseConditionListResponseDto } from './dto/license-condition-list-response.dto';
+import { toLicenseConditionResponse } from './dto/license-condition-response.dto';
 import {
-  LicenseConditionResponseDto,
-  toLicenseConditionResponse,
-} from './dto/license-condition-response.dto';
+  LicenseConditionStatusFilter,
+  ListLicenseConditionsQueryDto,
+} from './dto/list-license-conditions-query.dto';
 import { LicensesExceptionFilter } from './filters/licenses-exception.filter';
 import { invalidCustomerIdException } from './licenses.controller';
 
@@ -58,18 +63,28 @@ export class LicenseConditionsController {
     summary:
       'Lista as condicionantes ambientais da empresa ordenadas por nível de risco.',
   })
-  @ApiOkResponse({ type: LicenseConditionResponseDto, isArray: true })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: LicenseConditionStatusFilter,
+  })
+  @ApiOkResponse({ type: LicenseConditionListResponseDto })
   async listLicenseConditions(
     @Param('customerId', uuidPipe) customerId: string,
     @CurrentUser() user: { id: string },
-  ): Promise<LicenseConditionResponseDto[]> {
+    @Query() query: ListLicenseConditionsQueryDto,
+  ): Promise<LicenseConditionListResponseDto> {
     const conditions =
       await this.listLicenseConditionsByCustomerUseCase.execute(
         customerId,
         user.id,
+        toRiskLevel(query.status),
       );
 
-    return conditions.map(toLicenseConditionResponse);
+    return {
+      total: conditions.total,
+      data: conditions.data.map(toLicenseConditionResponse),
+    };
   }
 
   @Post('licenses/:licenseId/conditions')
@@ -108,5 +123,18 @@ export class LicenseConditionsController {
     });
 
     return toLicenseConditionCreatedResponse(condition);
+  }
+}
+
+function toRiskLevel(status?: LicenseConditionStatusFilter) {
+  switch (status) {
+    case LicenseConditionStatusFilter.REGULAR:
+      return LicenseConditionRiskLevel.REGULAR;
+    case LicenseConditionStatusFilter.ATTENTION:
+      return LicenseConditionRiskLevel.ATTENTION;
+    case LicenseConditionStatusFilter.RISK:
+      return LicenseConditionRiskLevel.RISK;
+    default:
+      return undefined;
   }
 }

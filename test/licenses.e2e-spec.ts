@@ -381,8 +381,8 @@ describe('Licenses (e2e)', () => {
         .expect(200);
 
       const listed = (
-        response.body as Array<{ id: string; due_date: string }>
-      ).find((condition) => condition.id === createdId);
+        response.body as { data: Array<{ id: string; due_date: string }> }
+      ).data.find((condition) => condition.id === createdId);
       expect(listed).toMatchObject({
         category: { id: linkedMetric.id, name: linkedMetric.name },
       });

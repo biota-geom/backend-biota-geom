@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCustomerData } from './create-customer.data';
 import { Customer } from './customer.entity';
-import { CustomerListItem } from './customer-list-item';
+import { CustomerListItem } from './customer-list-item.entity';
 import type { UpdateCustomerData } from './update-customer.data';
 
 /*

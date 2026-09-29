@@ -1,8 +1,10 @@
+import { LicenseConditionStatus } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
 import {
   AddLicenseConditionDto,
   LicenseConditionStatusDto,
+  toLicenseConditionStatus,
 } from './add-license-condition.dto';
 
 function payload(overrides: Record<string, unknown> = {}) {
@@ -48,6 +50,20 @@ describe('AddLicenseConditionDto', () => {
     delete value.description;
 
     expect(validate(value).errors).toHaveLength(0);
+  });
+
+  it('keeps non-string values unchanged so string validation can reject them', () => {
+    const { dto, errors } = validate(payload({ name: 123 }));
+
+    expect(dto.name).toBe(123);
+    expect(errors.map((error) => error.property)).toContain('name');
+  });
+
+  it('maps an explicit status and preserves an omitted status', () => {
+    expect(toLicenseConditionStatus(undefined)).toBeUndefined();
+    expect(toLicenseConditionStatus(LicenseConditionStatusDto.ATTENTION)).toBe(
+      LicenseConditionStatus.ATTENTION,
+    );
   });
 
   it.each(['name', 'category', 'responsible_agency'])(

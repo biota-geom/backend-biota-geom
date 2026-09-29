@@ -2,6 +2,7 @@ import { LicenseConditionStatus } from '@prisma/client';
 import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
+import { LicenseConditionStatusFilter } from './dto/list-license-conditions-query.dto';
 import { LicenseConditionsController } from './license-conditions.controller';
 
 function buildController(overrides?: {
@@ -19,44 +20,71 @@ function buildController(overrides?: {
 }
 
 describe('LicenseConditionsController', () => {
-  it('forwards the customer and authenticated user to the use case and maps the response', async () => {
-    const execute = jest.fn().mockResolvedValue([
-      {
-        id: 'condition-1',
-        licenseId: 'license-1',
-        name: 'Automonitoramento Atmosférico',
-        description: 'Avaliação periódica de emissões.',
-        category: 'Emissões',
-        responsibleAgency: 'FEPAM',
-        dueDate: new Date('2026-02-11T00:00:00.000Z'),
-        status: LicenseConditionStatus.REGULAR,
-        riskLevel: LicenseConditionRiskLevel.RISK,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
+  it('forwards the filter and maps the response', async () => {
+    const execute = jest.fn().mockResolvedValue({
+      total: 1,
+      data: [
+        {
+          id: 'condition-1',
+          licenseId: 'license-1',
+          name: 'Automonitoramento Atmosférico',
+          description: 'Avaliação periódica de emissões.',
+          category: 'Emissões',
+          responsibleAgency: 'FEPAM',
+          dueDate: new Date('2026-02-11T00:00:00.000Z'),
+          status: LicenseConditionStatus.REGULAR,
+          riskLevel: LicenseConditionRiskLevel.RISK,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    });
     const controller = buildController({
       listLicenseConditionsByCustomerUseCase: { execute },
     });
 
-    const response = await controller.listLicenseConditions('customer-1', {
-      id: 'owner-1',
+    const response = await controller.listLicenseConditions(
+      'customer-1',
+      { id: 'owner-1' },
+      { status: LicenseConditionStatusFilter.RISK },
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      'customer-1',
+      'owner-1',
+      LicenseConditionRiskLevel.RISK,
+    );
+    expect(response).toEqual({
+      total: 1,
+      data: [
+        {
+          id: 'condition-1',
+          license_id: 'license-1',
+          name: 'Automonitoramento Atmosférico',
+          description: 'Avaliação periódica de emissões.',
+          category: 'Emissões',
+          responsible_agency: 'FEPAM',
+          due_date: '2026-02-11T00:00:00.000Z',
+          status: 'Regular',
+          risk_level: LicenseConditionRiskLevel.RISK,
+        },
+      ],
+    });
+  });
+
+  it('treats all status as an unfiltered request', async () => {
+    const execute = jest.fn().mockResolvedValue({ total: 0, data: [] });
+    const controller = buildController({
+      listLicenseConditionsByCustomerUseCase: { execute },
     });
 
-    expect(execute).toHaveBeenCalledWith('customer-1', 'owner-1');
-    expect(response).toEqual([
-      {
-        id: 'condition-1',
-        license_id: 'license-1',
-        name: 'Automonitoramento Atmosférico',
-        description: 'Avaliação periódica de emissões.',
-        category: 'Emissões',
-        responsible_agency: 'FEPAM',
-        due_date: '2026-02-11T00:00:00.000Z',
-        status: 'Regular',
-        risk_level: LicenseConditionRiskLevel.RISK,
-      },
-    ]);
+    await controller.listLicenseConditions(
+      'customer-1',
+      { id: 'owner-1' },
+      { status: LicenseConditionStatusFilter.ALL },
+    );
+
+    expect(execute).toHaveBeenCalledWith('customer-1', 'owner-1', undefined);
   });
 
   it('wraps one condition in the shared batch use case and maps the created response', async () => {

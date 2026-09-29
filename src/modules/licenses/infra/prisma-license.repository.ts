@@ -123,6 +123,14 @@ export class PrismaLicenseRepository implements LicenseRepository {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+  }
+
+  async findById(id: string): Promise<License | null> {
+    return this.prisma.license.findUnique({
+      where: { id },
+      include: { issuingAgency: true },
+    });
   }
 
   async findAllByCustomerId(customerId: string): Promise<License[]> {

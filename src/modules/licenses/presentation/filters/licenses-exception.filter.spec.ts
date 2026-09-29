@@ -3,6 +3,8 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
+import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
+import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 import { LicensesExceptionFilter } from './licenses-exception.filter';
 
@@ -56,6 +58,30 @@ describe('LicensesExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         message: LICENSES_MESSAGES.INVALID_DATE_RANGE,
+      }),
+    );
+  });
+
+  it('maps LicenseNotFoundError to 404', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new LicenseNotFoundError('license-1'), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: LICENSES_MESSAGES.LICENSE_NOT_FOUND }),
+    );
+  });
+
+  it('maps a route/body license mismatch to 400', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new LicenseConditionLicenseMismatchError(), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: LICENSES_MESSAGES.CONDITION_LICENSE_MISMATCH,
       }),
     );
   });

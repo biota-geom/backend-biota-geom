@@ -1,15 +1,20 @@
+import { LicenseConditionStatus } from '@prisma/client';
+import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
 import { LicenseConditionsController } from './license-conditions.controller';
 
 function buildController(overrides?: {
   listLicenseConditionsByCustomerUseCase?: unknown;
+  addLicenseConditionsUseCase?: unknown;
 }): LicenseConditionsController {
   return new LicenseConditionsController(
     (overrides?.listLicenseConditionsByCustomerUseCase ??
       ({
         execute: jest.fn(),
       } as unknown)) as ListLicenseConditionsByCustomerUseCase,
+    (overrides?.addLicenseConditionsUseCase ??
+      ({ execute: jest.fn() } as unknown)) as AddLicenseConditionsUseCase,
   );
 }
 
@@ -19,10 +24,12 @@ describe('LicenseConditionsController', () => {
       {
         id: 'condition-1',
         licenseId: 'license-1',
-        title: 'Automonitoramento Atmosférico',
+        name: 'Automonitoramento Atmosférico',
         description: 'Avaliação periódica de emissões.',
         category: 'Emissões',
+        responsibleAgency: 'FEPAM',
         dueDate: new Date('2026-02-11T00:00:00.000Z'),
+        status: LicenseConditionStatus.REGULAR,
         riskLevel: LicenseConditionRiskLevel.RISK,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -40,12 +47,77 @@ describe('LicenseConditionsController', () => {
     expect(response).toEqual([
       {
         id: 'condition-1',
-        title: 'Automonitoramento Atmosférico',
+        license_id: 'license-1',
+        name: 'Automonitoramento Atmosférico',
         description: 'Avaliação periódica de emissões.',
         category: 'Emissões',
+        responsible_agency: 'FEPAM',
         due_date: '2026-02-11T00:00:00.000Z',
+        status: 'Regular',
         risk_level: LicenseConditionRiskLevel.RISK,
       },
     ]);
+  });
+
+  it('wraps one condition in the shared batch use case and maps the created response', async () => {
+    const createdAt = new Date('2026-01-01T00:00:00.000Z');
+    const execute = jest.fn().mockResolvedValue([
+      {
+        id: 'condition-1',
+        licenseId: 'license-1',
+        name: 'MTR',
+        category: 'Resíduos',
+        responsibleAgency: 'FEPAM',
+        dueDate: new Date('2027-05-20T00:00:00.000Z'),
+        status: LicenseConditionStatus.REGULAR,
+        description: null,
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ]);
+    const controller = buildController({
+      addLicenseConditionsUseCase: { execute },
+    });
+
+    const response = await controller.addLicenseCondition(
+      'license-1',
+      {
+        name: 'MTR',
+        category: 'Resíduos',
+        license_id: 'license-1',
+        responsible_agency: 'FEPAM',
+        due_date: '2027-05-20T00:00:00.000Z',
+        status: undefined,
+        description: '',
+      },
+      { id: 'owner-1' },
+    );
+
+    expect(execute).toHaveBeenCalledWith({
+      licenseId: 'license-1',
+      ownerUserId: 'owner-1',
+      conditions: [
+        {
+          licenseId: 'license-1',
+          name: 'MTR',
+          category: 'Resíduos',
+          responsibleAgency: 'FEPAM',
+          dueDate: new Date('2027-05-20T00:00:00.000Z'),
+          status: undefined,
+          description: undefined,
+        },
+      ],
+    });
+    expect(response).toEqual({
+      id: 'condition-1',
+      license_id: 'license-1',
+      name: 'MTR',
+      category: 'Resíduos',
+      responsible_agency: 'FEPAM',
+      due_date: '2027-05-20T00:00:00.000Z',
+      status: 'Regular',
+      description: null,
+      created_at: '2026-01-01T00:00:00.000Z',
+    });
   });
 });

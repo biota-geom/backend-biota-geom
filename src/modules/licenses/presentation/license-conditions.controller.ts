@@ -1,13 +1,16 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Post,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -15,7 +18,16 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
+import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
+import {
+  AddLicenseConditionDto,
+  toLicenseConditionStatus,
+} from './dto/add-license-condition.dto';
+import {
+  LicenseConditionCreatedResponseDto,
+  toLicenseConditionCreatedResponse,
+} from './dto/license-condition-created-response.dto';
 import {
   LicenseConditionResponseDto,
   toLicenseConditionResponse,
@@ -29,13 +41,14 @@ const uuidPipe = new ParseUUIDPipe({
 
 @ApiTags('license-conditions')
 @UseFilters(LicensesExceptionFilter)
-@Controller('customers/:customerId/license-conditions')
+@Controller()
 export class LicenseConditionsController {
   constructor(
     private readonly listLicenseConditionsByCustomerUseCase: ListLicenseConditionsByCustomerUseCase,
+    private readonly addLicenseConditionsUseCase: AddLicenseConditionsUseCase,
   ) {}
 
-  @Get()
+  @Get('customers/:customerId/license-conditions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiParam({ name: 'customerId', format: 'uuid' })
@@ -55,5 +68,37 @@ export class LicenseConditionsController {
       );
 
     return conditions.map(toLicenseConditionResponse);
+  }
+
+  @Post('licenses/:licenseId/conditions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @ApiOperation({
+    summary: 'Cadastra uma condicionante ambiental vinculada à licença.',
+  })
+  @ApiCreatedResponse({ type: LicenseConditionCreatedResponseDto })
+  async addLicenseCondition(
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @Body() dto: AddLicenseConditionDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseConditionCreatedResponseDto> {
+    const [condition] = await this.addLicenseConditionsUseCase.execute({
+      licenseId,
+      ownerUserId: user.id,
+      conditions: [
+        {
+          licenseId: dto.license_id,
+          name: dto.name,
+          category: dto.category,
+          responsibleAgency: dto.responsible_agency,
+          dueDate: new Date(dto.due_date),
+          status: toLicenseConditionStatus(dto.status),
+          description: dto.description || undefined,
+        },
+      ],
+    });
+
+    return toLicenseConditionCreatedResponse(condition);
   }
 }

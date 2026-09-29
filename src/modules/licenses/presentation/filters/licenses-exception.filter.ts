@@ -12,8 +12,9 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
-import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
+import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
+import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
 type LicensesDomainError =
@@ -21,7 +22,8 @@ type LicensesDomainError =
   | IssuingAgencyNotFoundError
   | InvalidLicenseDateRangeError
   | LicenseNotFoundError
-  | LicenseConditionNotFoundError;
+  | LicenseConditionNotFoundError
+  | LicenseConditionLicenseMismatchError;
 
 @Catch(
   CustomerNotFoundError,
@@ -29,6 +31,7 @@ type LicensesDomainError =
   InvalidLicenseDateRangeError,
   LicenseNotFoundError,
   LicenseConditionNotFoundError,
+  LicenseConditionLicenseMismatchError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -62,6 +65,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
 
     if (error instanceof LicenseConditionNotFoundError) {
       return new NotFoundException(LICENSES_MESSAGES.CONDITION_NOT_FOUND);
+  }
+
+    if (error instanceof LicenseConditionLicenseMismatchError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_LICENSE_MISMATCH,
+      );
     }
 
     return new BadRequestException(LICENSES_MESSAGES.INVALID_DATE_RANGE);

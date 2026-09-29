@@ -8,6 +8,7 @@ import {
   ConditionType,
   DocumentType,
   EsgPillar,
+  LicenseConditionStatus,
   LicenseStatus,
   LicenseType,
   PrismaClient,
@@ -122,21 +123,21 @@ const seedEsgMetrics = [
 
 const seedLicenseConditions = [
   {
-    title: 'Automonitoramento Atmosférico',
+    name: 'Automonitoramento Atmosférico',
     description:
       'Avaliação periódica de emissões em chaminés e qualidade do ar no entorno industrial.',
     category: 'Emissões',
     daysUntilDue: 3,
   },
   {
-    title: 'Relatório Semestral de Efluentes Líquidos',
+    name: 'Relatório Semestral de Efluentes Líquidos',
     description:
       'Laudos de análises físico-químicas de efluentes tratados e lançados nos corpos hídricos.',
     category: 'Recursos Hídricos',
     daysUntilDue: 15,
   },
   {
-    title: 'MTR - Manifesto de Transporte de Resíduos',
+    name: 'MTR - Manifesto de Transporte de Resíduos',
     description:
       'Emissão de manifesto obrigatório para movimentação e destinação final de resíduos industriais.',
     category: 'Resíduos',
@@ -926,14 +927,17 @@ async function seedLicensesAndConditionsTable(
 
     for (const condition of seedLicenseConditions) {
       const existingCondition = await prisma.licenseCondition.findFirst({
-        where: { licenseId: license.id, title: condition.title },
+        where: { licenseId: license.id, name: condition.name },
       });
 
       const data = {
-        title: condition.title,
+        name: condition.name,
         description: condition.description,
         category: condition.category,
+        responsibleAgency: 'FEPAM',
         dueDate: dateAtUtcMidnight(condition.daysUntilDue),
+        riskStatus: LicenseConditionStatus.REGULAR,
+        conditionStatus: ConditionStatus.IN_PROGRESS,
       };
 
       if (existingCondition) {

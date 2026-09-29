@@ -195,6 +195,14 @@ enum LicenseStatus {
   @@map("license_status")
 }
 
+enum LicenseConditionStatus {
+  REGULAR
+  ATTENTION
+  RISK
+
+  @@map("license_condition_status")
+}
+
 model IssuingAgency {
   id        String   @id @default(uuid(7)) @db.Uuid
   name      String   @unique @db.VarChar(150)
@@ -244,27 +252,30 @@ model LicenseConditionCategory {
 }
 
 model LicenseCondition {
-  id              String                    @id @default(uuid(7)) @db.Uuid
-  itemNumber      String                    @map("item_number") @db.VarChar(20)    
-  title           String?                   @map("title") @db.VarChar(255)
-  description     String                    @map("description") @db.VarChar(4095)
-  responsibleName String                    @map("responsible_name") @db.VarChar(255)
-  conditionType   ConditionType             @map("condition_type")
-  periodicity     ConditionPeriodicity?     @map("periodicity")                     
-  deadline        DateTime?                 @map("deadline") @db.Timestamptz(3)      
-  dueDate         DateTime?                 @map("due_date") @db.Timestamptz(3)   
-  alertDate       DateTime?                 @map("alert_date") @db.Timestamptz(3)
-  completionDate  DateTime?                 @map("completion_date") @db.Timestamptz(3) 
-  status          ConditionStatus           @default(IN_PROGRESS) @map("status")
-  isViolated      Boolean                   @default(false) @map("is_violated")
-  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  itemNumber        String?                @map("item_number") @db.VarChar(20)
+  name              String?                @map("title") @db.VarChar(255)
+  description       String?                @db.VarChar(4095)
+  category          String?                @db.VarChar(120)
+  responsibleAgency String?                @map("responsible_agency") @db.VarChar(150)
+  responsibleName   String?                @map("responsible_name") @db.VarChar(255)
+  conditionType     ConditionType?         @map("condition_type")
+  periodicity       ConditionPeriodicity?  @map("periodicity")
+  deadline          DateTime?              @map("deadline") @db.Timestamptz(3)
+  dueDate           DateTime?              @map("due_date") @db.Timestamptz(3)
+  alertDate         DateTime?              @map("alert_date") @db.Timestamptz(3)
+  completionDate    DateTime?              @map("completion_date") @db.Timestamptz(3)
+  riskStatus        LicenseConditionStatus @default(REGULAR) @map("license_condition_status")
+  conditionStatus   ConditionStatus        @default(IN_PROGRESS) @map("status")
+  isViolated        Boolean                @default(false) @map("is_violated")
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   licenseId       String                    @map("license_id") @db.Uuid
   license         License                   @relation(fields: [licenseId], references: [id], onDelete: Restrict)
 
   categoryId      String?                    @map("category_id") @db.Uuid
-  category        LicenseConditionCategory?  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryRef     LicenseConditionCategory?  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   @@unique([licenseId, itemNumber])
   @@index([licenseId])

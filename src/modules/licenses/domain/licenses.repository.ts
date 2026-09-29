@@ -26,6 +26,7 @@ export abstract class LicenseRepository {
     licenseId: string,
     customerId: string,
   ): Promise<LicenseCondition>;
+  abstract findById(id: string): Promise<License | null>;
   /*
    * Ordered by expiration date ascending so already-expired licenses (the
    * furthest-past dates) surface first, followed by the ones closest to

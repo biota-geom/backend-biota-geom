@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
+import {
+  ATTENDED_LICENSE_CONDITION_STATUSES,
+  LicenseWithConditionsSummary,
+} from '../domain/license-conditions-summary';
 import { LicenseRepository } from '../domain/licenses.repository';
 
 @Injectable()
@@ -33,11 +37,30 @@ export class PrismaLicenseRepository implements LicenseRepository {
     });
   }
 
-  async findAllByCustomerId(customerId: string): Promise<License[]> {
-    return this.prisma.license.findMany({
+  async findAllByCustomerId(
+    customerId: string,
+  ): Promise<LicenseWithConditionsSummary[]> {
+    const licenses = await this.prisma.license.findMany({
       where: { customerId },
-      include: { issuingAgency: true },
+      include: {
+        issuingAgency: true,
+        _count: { select: { conditions: true } },
+        // Only the attended ones are loaded, and only their ids: the list
+        // itself is discarded, its length is the attended count.
+        conditions: {
+          where: { status: { in: [...ATTENDED_LICENSE_CONDITION_STATUSES] } },
+          select: { id: true },
+        },
+      },
       orderBy: { expirationDate: 'asc' },
     });
+
+    return licenses.map(({ _count, conditions, ...license }) => ({
+      ...license,
+      conditionsSummary: {
+        total: _count.conditions,
+        attended: conditions.length,
+      },
+    }));
   }
 }

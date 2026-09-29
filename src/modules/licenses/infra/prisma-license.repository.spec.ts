@@ -1,6 +1,7 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
+import { ATTENDED_LICENSE_CONDITION_STATUSES } from '../domain/license-conditions-summary';
 import { PrismaLicenseRepository } from './prisma-license.repository';
 
 describe('PrismaLicenseRepository', () => {
@@ -39,18 +40,35 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
-  it('finds all licenses for a customer ordered by soonest expiration first', async () => {
-    const findMany = jest.fn().mockResolvedValue([{ id: 'license-1' }]);
+  it('finds all licenses for a customer ordered by soonest expiration first, with their conditions summary', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'license-1',
+        _count: { conditions: 8 },
+        conditions: [{ id: 'condition-1' }, { id: 'condition-2' }],
+      },
+      { id: 'license-2', _count: { conditions: 0 }, conditions: [] },
+    ]);
     const repository = new PrismaLicenseRepository({
       license: { findMany },
     } as unknown as PrismaService);
 
     await expect(repository.findAllByCustomerId('customer-1')).resolves.toEqual(
-      [{ id: 'license-1' }],
+      [
+        { id: 'license-1', conditionsSummary: { total: 8, attended: 2 } },
+        { id: 'license-2', conditionsSummary: { total: 0, attended: 0 } },
+      ],
     );
     expect(findMany).toHaveBeenCalledWith({
       where: { customerId: 'customer-1' },
-      include: { issuingAgency: true },
+      include: {
+        issuingAgency: true,
+        _count: { select: { conditions: true } },
+        conditions: {
+          where: { status: { in: ATTENDED_LICENSE_CONDITION_STATUSES } },
+          select: { id: true },
+        },
+      },
       orderBy: { expirationDate: 'asc' },
     });
   });

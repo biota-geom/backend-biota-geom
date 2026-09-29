@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ListLicensesByCustomerResult } from '../../application/list-licenses-by-customer.use-case';
-import { License } from '../../domain/license.entity';
+import { LicenseWithConditionsSummary } from '../../domain/license-conditions-summary';
 import { LICENSE_TYPE_LABELS, STATUS_LABELS } from './license-labels';
 
 export class LicenseSummaryDto {
@@ -15,6 +15,14 @@ export class LicenseSummaryDto {
 
   @ApiProperty({ example: 1 })
   expired!: number;
+}
+
+export class LicenseConditionsSummaryDto {
+  @ApiProperty({ example: 8 })
+  total!: number;
+
+  @ApiProperty({ example: 6 })
+  attended!: number;
 }
 
 export class LicensePanelItemDto {
@@ -38,6 +46,9 @@ export class LicensePanelItemDto {
 
   @ApiProperty({ example: 'Regular', enum: ['Regular', 'Atenção', 'Vencida'] })
   status!: string;
+
+  @ApiProperty({ type: LicenseConditionsSummaryDto })
+  conditions_summary!: LicenseConditionsSummaryDto;
 }
 
 export class LicensePanelResponseDto {
@@ -48,7 +59,9 @@ export class LicensePanelResponseDto {
   licenses!: LicensePanelItemDto[];
 }
 
-function toLicensePanelItem(license: License): LicensePanelItemDto {
+function toLicensePanelItem(
+  license: LicenseWithConditionsSummary,
+): LicensePanelItemDto {
   return {
     id: license.id,
     type: LICENSE_TYPE_LABELS[license.type],
@@ -57,6 +70,7 @@ function toLicensePanelItem(license: License): LicensePanelItemDto {
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: STATUS_LABELS[license.status],
+    conditions_summary: license.conditionsSummary,
   };
 }
 

@@ -1,7 +1,7 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
-import { License } from '../domain/license.entity';
+import { LicenseWithConditionsSummary } from '../domain/license-conditions-summary';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { ListLicensesByCustomerUseCase } from './list-licenses-by-customer.use-case';
 
@@ -26,7 +26,9 @@ function buildUseCase(overrides?: {
   return { useCase, customerRepository, licenseRepository };
 }
 
-function buildLicense(overrides: Partial<License>): License {
+function buildLicense(
+  overrides: Partial<LicenseWithConditionsSummary>,
+): LicenseWithConditionsSummary {
   return {
     id: 'license-1',
     customerId: 'customer-1',
@@ -39,6 +41,7 @@ function buildLicense(overrides: Partial<License>): License {
     documentUrl: 'https://storage.example.com/license.pdf',
     createdAt: new Date('2020-01-10T00:00:00.000Z'),
     updatedAt: new Date('2020-01-10T00:00:00.000Z'),
+    conditionsSummary: { total: 0, attended: 0 },
     ...overrides,
   };
 }
@@ -124,5 +127,24 @@ describe('ListLicensesByCustomerUseCase', () => {
     ]);
 
     jest.useRealTimers();
+  });
+
+  it('passes each license conditions summary through untouched', async () => {
+    const { useCase } = buildUseCase({
+      licenseRepository: {
+        findAllByCustomerId: jest
+          .fn()
+          .mockResolvedValue([
+            buildLicense({ conditionsSummary: { total: 8, attended: 6 } }),
+          ]),
+      },
+    });
+
+    const result = await useCase.execute('customer-1', 'owner-1');
+
+    expect(result.licenses[0].conditionsSummary).toEqual({
+      total: 8,
+      attended: 6,
+    });
   });
 });

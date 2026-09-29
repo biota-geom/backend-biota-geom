@@ -1,8 +1,10 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
-import { License } from '../../domain/license.entity';
+import { LicenseWithConditionsSummary } from '../../domain/license-conditions-summary';
 import { toLicensePanelResponse } from './license-panel-response.dto';
 
-function buildLicense(overrides: Partial<License> = {}): License {
+function buildLicense(
+  overrides: Partial<LicenseWithConditionsSummary> = {},
+): LicenseWithConditionsSummary {
   return {
     id: 'license-1',
     customerId: 'customer-1',
@@ -21,6 +23,7 @@ function buildLicense(overrides: Partial<License> = {}): License {
     documentUrl: 'https://bucket.aws.com/licenses/lp-482-2024.pdf',
     createdAt: new Date('2024-03-12T00:00:00.000Z'),
     updatedAt: new Date('2024-03-12T00:00:00.000Z'),
+    conditionsSummary: { total: 8, attended: 6 },
     ...overrides,
   };
 }
@@ -43,6 +46,7 @@ describe('toLicensePanelResponse', () => {
           issue_date: '2024-03-12T00:00:00.000Z',
           expiration_date: '2026-03-12T00:00:00.000Z',
           status: 'Regular',
+          conditions_summary: { total: 8, attended: 6 },
         },
       ],
     });

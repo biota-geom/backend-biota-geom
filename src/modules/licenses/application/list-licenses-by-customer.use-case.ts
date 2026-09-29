@@ -3,7 +3,7 @@ import { LicenseStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
 import { calculateLicenseStatus } from '../domain/license-status.calculator';
-import { License } from '../domain/license.entity';
+import { LicenseWithConditionsSummary } from '../domain/license-conditions-summary';
 import { LicenseRepository } from '../domain/licenses.repository';
 
 export interface LicenseStatusSummary {
@@ -15,7 +15,7 @@ export interface LicenseStatusSummary {
 
 export interface ListLicensesByCustomerResult {
   summary: LicenseStatusSummary;
-  licenses: License[];
+  licenses: LicenseWithConditionsSummary[];
 }
 
 @Injectable()

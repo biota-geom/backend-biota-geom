@@ -4,7 +4,9 @@ import {
   IsDateString,
   IsIn,
   IsNotEmpty,
+  IsOptional,
   IsString,
+  IsUUID,
   ValidateNested,
 } from 'class-validator';
 
@@ -31,6 +33,10 @@ export class ConditionDto {
   @IsString()
   @IsNotEmpty()
   responsible_name: string;
+
+  @IsOptional()
+  @IsUUID()
+  category_id?: string;
 }
 
 export class CreateLicenseConditionsDto {

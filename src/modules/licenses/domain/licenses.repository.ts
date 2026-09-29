@@ -5,11 +5,15 @@ import { ConditionResponse } from './create-condition-response.entity';
 import { ConditionData } from './license-condition.data';
 import { LicenseCondition } from './condition.entity';
 import { UpdateLicenseConditionData } from './update-license-condition.data';
+import { LicenseConditionCategory } from './license-condition-category.entity';
 
 @Injectable()
 export abstract class LicenseRepository {
   abstract create(data: CreateLicenseData): Promise<License>;
   abstract createConditions(data: ConditionData[]): Promise<ConditionResponse>;
+  abstract createConditionCategory(
+    name: string,
+  ): Promise<LicenseConditionCategory>;
   abstract findByIdForCustomer(
     id: string,
     customerId: string,

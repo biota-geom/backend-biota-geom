@@ -7,6 +7,7 @@ import {
 
 export interface ConditionData {
   licenseId: string;
+  categoryId?: string | null;
   itemNumber: string;
   title?: string;
   description: string;

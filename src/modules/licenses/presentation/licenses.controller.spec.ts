@@ -79,6 +79,7 @@ describe('LicensesController', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
 
     const response = await controller.createLicense(
@@ -140,6 +141,7 @@ describe('LicensesController', () => {
       { execute } as never,
       {} as never,
       {} as never,
+      {} as never,
     );
 
     await expect(
@@ -178,6 +180,7 @@ describe('LicensesController', () => {
       {} as never,
       {} as never,
       { execute } as never,
+      {} as never,
     );
 
     await expect(
@@ -225,6 +228,7 @@ describe('LicensesController', () => {
       {} as never,
       {} as never,
       { execute } as never,
+      {} as never,
       {} as never,
     );
 

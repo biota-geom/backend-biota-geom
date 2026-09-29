@@ -39,6 +39,7 @@ export class CreateLicenseConditionUseCase {
     const conditionsData: ConditionData[] = input.data.conditions.map(
       (condition) => ({
         licenseId: input.licenseId,
+        categoryId: condition.category_id,
         itemNumber: condition.item_number,
         description: condition.description,
         responsibleName: condition.responsible_name,

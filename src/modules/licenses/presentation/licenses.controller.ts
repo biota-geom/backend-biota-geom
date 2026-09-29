@@ -63,6 +63,12 @@ import {
   toNullableIsoDate,
 } from './dto/license-details-response.dto';
 import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
+import { CreateLicenseConditionCategoryUseCase } from '../application/create-license-condition-category.use-case';
+import { CreateLicenseConditionCategoryDto } from './dto/create-license-condition-category.dto';
+import {
+  LicenseConditionCategoryResponseDto,
+  toLicenseConditionCategoryResponse,
+} from './dto/license-condition-category-response.dto';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -112,6 +118,7 @@ export class LicensesController {
     private readonly getLicenseDetailsUseCase: GetLicenseDetailsUseCase,
     private readonly updateLicenseConditionUseCase: UpdateLicenseConditionUseCase,
     private readonly deleteLicenseConditionUseCase: DeleteLicenseConditionUseCase,
+    private readonly createCategoryUseCase: CreateLicenseConditionCategoryUseCase,
   ) {}
 
   @Get(':licenseId')
@@ -286,5 +293,16 @@ export class LicensesController {
       conditionId,
       user.id,
     );
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create a license condition category.' })
+  @ApiCreatedResponse({ type: LicenseConditionCategoryResponseDto })
+  async createCategory(
+    @Body() dto: CreateLicenseConditionCategoryDto,
+  ): Promise<LicenseConditionCategoryResponseDto> {
+    const category = await this.createCategoryUseCase.execute(dto.name);
+    return toLicenseConditionCategoryResponse(category);
   }
 }

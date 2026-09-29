@@ -74,6 +74,24 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
+  it('creates a license condition category', async () => {
+    const category = {
+      id: 'category-1',
+      name: 'Documental',
+      createdAt: new Date('2026-09-29T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-29T00:00:00.000Z'),
+    };
+    const create = jest.fn().mockResolvedValue(category);
+    const repository = new PrismaLicenseRepository({
+      licenseConditionCategory: { create },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.createConditionCategory('Documental'),
+    ).resolves.toEqual(category);
+    expect(create).toHaveBeenCalledWith({ data: { name: 'Documental' } });
+  });
+
   it('updates only the supplied fields after confirming the condition scope', async () => {
     const condition = { id: 'condition-1' };
     const findFirst = jest.fn().mockResolvedValue(condition);

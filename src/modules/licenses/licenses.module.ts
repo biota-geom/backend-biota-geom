@@ -14,7 +14,7 @@ import { CreateLicenseConditionUseCase } from './application/create-license-cond
 import { GetLicenseDetailsUseCase } from './application/get-license-details.use-case';
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
-
+import { CreateLicenseConditionCategoryUseCase } from './application/create-license-condition-category.use-case';
 @Module({
   imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
   controllers: [LicensesController],
@@ -25,6 +25,7 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
     GetLicenseDetailsUseCase,
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
+    CreateLicenseConditionCategoryUseCase,
     StorageConfigService,
     LocalDiskLicenseDocumentStorage,
     S3LicenseDocumentStorage,

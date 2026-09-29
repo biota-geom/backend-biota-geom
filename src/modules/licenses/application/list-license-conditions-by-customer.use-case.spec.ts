@@ -35,7 +35,7 @@ function buildCondition(
     licenseId: 'license-1',
     name: 'Automonitoramento Atmosférico',
     description: 'Avaliação periódica de emissões.',
-    category: 'Emissões',
+    category: { id: 'metric-emissoes', name: 'Emissões' },
     responsibleAgency: 'FEPAM',
     dueDate: new Date('2026-02-15T00:00:00.000Z'),
     status: LicenseConditionStatus.REGULAR,

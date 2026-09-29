@@ -10,6 +10,14 @@ const STATUS_LABELS: Record<LicenseConditionStatus, LicenseConditionStatusDto> =
     [LicenseConditionStatus.RISK]: LicenseConditionStatusDto.RISK,
   };
 
+export class LicenseConditionCategoryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Resíduos' })
+  name!: string;
+}
+
 export class LicenseConditionCreatedResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -20,8 +28,8 @@ export class LicenseConditionCreatedResponseDto {
   @ApiProperty({ example: 'MTR - Manifesto de Transporte de Resíduos' })
   name!: string;
 
-  @ApiProperty({ example: 'Resíduos' })
-  category!: string;
+  @ApiProperty({ type: LicenseConditionCategoryResponseDto })
+  category!: LicenseConditionCategoryResponseDto;
 
   @ApiProperty({ example: 'FEPAM', nullable: true })
   responsible_agency!: string | null;
@@ -46,7 +54,7 @@ export function toLicenseConditionCreatedResponse(
     id: condition.id,
     license_id: condition.licenseId,
     name: condition.name,
-    category: condition.category,
+    category: { id: condition.category.id, name: condition.category.name },
     responsible_agency: condition.responsibleAgency,
     due_date: condition.dueDate.toISOString(),
     status: STATUS_LABELS[condition.status],

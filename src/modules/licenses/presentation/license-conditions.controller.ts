@@ -11,10 +11,12 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
@@ -78,6 +80,12 @@ export class LicenseConditionsController {
     summary: 'Cadastra uma condicionante ambiental vinculada à licença.',
   })
   @ApiCreatedResponse({ type: LicenseConditionCreatedResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Licença ou parâmetro GRI inexistente.',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Parâmetro GRI não vinculado à empresa da licença.',
+  })
   async addLicenseCondition(
     @Param('licenseId', uuidPipe) licenseId: string,
     @Body() dto: AddLicenseConditionDto,
@@ -90,7 +98,7 @@ export class LicenseConditionsController {
         {
           licenseId: dto.license_id,
           name: dto.name,
-          category: dto.category,
+          esgMetricId: dto.esg_metric_id,
           responsibleAgency: dto.responsible_agency,
           dueDate: new Date(dto.due_date),
           status: toLicenseConditionStatus(dto.status),

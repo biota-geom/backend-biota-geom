@@ -147,4 +147,35 @@ describe('ListLicenseConditionsByCustomerUseCase', () => {
       result.data.every((condition) => condition.riskLevel === riskLevel),
     ).toBe(true);
   });
+
+  it('treats missing due dates as regular and sorts them last', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    const { useCase } = buildUseCase({
+      licenseConditionRepository: {
+        findAllByCustomerId: jest.fn().mockResolvedValue([
+          buildCondition({
+            id: 'condition-without-date',
+            dueDate: null,
+          }),
+          buildCondition({
+            id: 'condition-risk',
+            dueDate: new Date('2026-01-04T00:00:00.000Z'),
+          }),
+          buildCondition({
+            id: 'condition-regular',
+            dueDate: new Date('2026-02-15T00:00:00.000Z'),
+          }),
+        ]),
+      },
+    });
+
+    const result = await useCase.execute('customer-1', 'owner-1');
+
+    expect(result.data.map((condition) => condition.id)).toEqual([
+      'condition-risk',
+      'condition-regular',
+      'condition-without-date',
+    ]);
+    expect(result.data[2].riskLevel).toBe(LicenseConditionRiskLevel.REGULAR);
+  });
 });

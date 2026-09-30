@@ -307,7 +307,7 @@ describe('Licenses (e2e)', () => {
       });
       expect(stored.licenseId).toBe(conditionLicenseId);
       expect(stored.name).toBe('MTR - Manifesto de Transporte de Resíduos');
-      expect(stored.status).toBe('REGULAR');
+      expect(stored.riskStatus).toBe('REGULAR');
     });
 
     it.each([

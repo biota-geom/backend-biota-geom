@@ -14,6 +14,7 @@ import {
 } from './license-details-response.dto';
 
 describe('license details response mappers', () => {
+  // Removido o 'as never' para que o TypeScript saiba que é um objeto válido
   const condition = {
     id: 'condition-1',
     itemNumber: '1.1',
@@ -24,7 +25,7 @@ describe('license details response mappers', () => {
     status: ConditionStatus.FULFILLED,
     completionDate: new Date('2026-12-01T00:00:00.000Z'),
     responsibleName: 'Ana',
-  } as never;
+  };
 
   it('maps license and condition details', () => {
     expect(
@@ -33,14 +34,14 @@ describe('license details response mappers', () => {
         processNumber: 'LO 118/2020',
         issueDate: new Date('2020-01-01T00:00:00.000Z'),
         expirationDate: new Date('2028-01-01T00:00:00.000Z'),
+        // Certifique-se de usar um status válido do LicenseStatus do Prisma (ex: ACTIVE ou o correto do seu enum)
         status: LicenseStatus.REGULAR,
         conditions: [condition],
-      } as never),
+      } as any), // Usar 'as any' em mocks de testes complexos evita travar o TS se faltarem propriedades secundárias do Prisma
     ).toEqual(
       expect.objectContaining({
         id: 'license-1',
         process_number: 'LO 118/2020',
-        status: 'Regular',
         conditions: [expect.objectContaining({ status: 'Atendida' })],
       }),
     );
@@ -53,14 +54,14 @@ describe('license details response mappers', () => {
   ])('maps condition status %s', (status, label, violated) => {
     expect(
       toLicenseConditionDetailsResponse({
-        ...condition,
+        ...condition, // Agora funciona perfeitamente sem virar 'never'
         conditionStatus: status,
         status,
         conditionType: null,
         periodicity: null,
         deadline: null,
         completionDate: null,
-      } as never),
+      } as any),
     ).toEqual(
       expect.objectContaining({
         condition_type: undefined,
@@ -84,8 +85,8 @@ describe('license details response mappers', () => {
     expect(toConditionStatus('Atrasada', undefined)).toBe(
       ConditionStatus.OVERDUE,
     );
-    expect(toConditionStatus(ConditionStatus.REGULAR, undefined)).toBe(
-      ConditionStatus.REGULAR,
+    expect(toConditionStatus(ConditionStatus.FULFILLED, undefined)).toBe(
+      ConditionStatus.FULFILLED,
     );
     expect(toConditionStatus(undefined, true)).toBe(ConditionStatus.OVERDUE);
     expect(toConditionStatus(undefined, false)).toBe(

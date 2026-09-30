@@ -39,7 +39,7 @@ const input = {
         description: 'Relatório',
         responsible_name: 'Ana',
         condition_type: ConditionType.INFORMATIVE,
-        periodicity: null,
+        periodicity: 'MONTHLY',
         deadline: '2027-01-01T00:00:00.000Z',
       },
     ],

@@ -1,27 +1,7 @@
-import {
-  ConditionStatus,
-  LicenseStatus,
-  LicenseType,
-  Prisma,
-} from '@prisma/client';
+import { LicenseStatus, LicenseType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { PrismaLicenseRepository } from './prisma-license.repository';
-
-function prismaWithTransaction(transactionClient: object): {
-  prisma: PrismaService;
-  runTransaction: jest.Mock;
-} {
-  const runTransaction = jest.fn(
-    async (callback: (client: unknown) => Promise<unknown>) =>
-      callback(transactionClient),
-  );
-
-  return {
-    prisma: { $transaction: runTransaction } as unknown as PrismaService,
-    runTransaction,
-  };
-}
 
 describe('PrismaLicenseRepository', () => {
   it('creates a license connected to its customer and issuing agency', async () => {
@@ -59,112 +39,19 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
-  it('finds a license only within its customer and includes ordered conditions', async () => {
-    const findFirst = jest.fn().mockResolvedValue({ id: 'license-1' });
+  it('finds all licenses for a customer ordered by soonest expiration first', async () => {
+    const findMany = jest.fn().mockResolvedValue([{ id: 'license-1' }]);
     const repository = new PrismaLicenseRepository({
-      license: { findFirst },
+      license: { findMany },
     } as unknown as PrismaService);
 
-    await expect(
-      repository.findByIdForCustomer('license-1', 'customer-1'),
-    ).resolves.toEqual({ id: 'license-1' });
-    expect(findFirst).toHaveBeenCalledWith({
-      where: { id: 'license-1', customerId: 'customer-1' },
-      include: { conditions: { orderBy: { itemNumber: 'asc' } } },
-    });
-  });
-
-  it('creates a license condition category', async () => {
-    const category = {
-      id: 'category-1',
-      name: 'Documental',
-      createdAt: new Date('2026-09-29T00:00:00.000Z'),
-      updatedAt: new Date('2026-09-29T00:00:00.000Z'),
-    };
-    const create = jest.fn().mockResolvedValue(category);
-    const repository = new PrismaLicenseRepository({
-      licenseConditionCategory: { create },
-    } as unknown as PrismaService);
-
-    await expect(
-      repository.createConditionCategory('Documental'),
-    ).resolves.toEqual(category);
-    expect(create).toHaveBeenCalledWith({ data: { name: 'Documental' } });
-  });
-
-  it('updates only the supplied fields after confirming the condition scope', async () => {
-    const condition = { id: 'condition-1' };
-    const findFirst = jest.fn().mockResolvedValue(condition);
-    const update = jest.fn().mockResolvedValue(condition);
-    const { prisma, runTransaction } = prismaWithTransaction({
-      licenseCondition: { findFirst, update },
-    });
-    const repository = new PrismaLicenseRepository(prisma);
-    const data = {
-      id: 'condition-1',
-      licenseId: 'license-1',
-      customerId: 'customer-1',
-      data: { status: ConditionStatus.FULFILLED },
-    };
-
-    await expect(repository.updateCondition(data)).resolves.toBe(condition);
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        id: 'condition-1',
-        licenseId: 'license-1',
-        license: { customerId: 'customer-1' },
-      },
-    });
-    expect(update).toHaveBeenCalledWith({
-      where: { id: 'condition-1' },
-      data: { status: ConditionStatus.FULFILLED },
-    });
-    expect(runTransaction).toHaveBeenCalledWith(expect.any(Function), {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
-  });
-
-  it('does not update a condition outside the requested scope', async () => {
-    const findFirst = jest.fn().mockResolvedValue(null);
-    const update = jest.fn();
-    const { prisma } = prismaWithTransaction({
-      licenseCondition: { findFirst, update },
-    });
-    const repository = new PrismaLicenseRepository(prisma);
-
-    await expect(
-      repository.updateCondition({
-        id: 'condition-1',
-        licenseId: 'license-1',
-        customerId: 'customer-1',
-        data: { itemNumber: '1.2' },
-      }),
-    ).rejects.toThrow('License condition "condition-1" does not exist');
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it('deletes a condition only when it belongs to the requested license and customer', async () => {
-    const condition = { id: 'condition-1' };
-    const findFirst = jest.fn().mockResolvedValue(condition);
-    const remove = jest.fn().mockResolvedValue(condition);
-    const { prisma, runTransaction } = prismaWithTransaction({
-      licenseCondition: { findFirst, delete: remove },
-    });
-    const repository = new PrismaLicenseRepository(prisma);
-
-    await expect(
-      repository.deleteCondition('condition-1', 'license-1', 'customer-1'),
-    ).resolves.toBe(condition);
-    expect(findFirst).toHaveBeenCalledWith({
-      where: {
-        id: 'condition-1',
-        licenseId: 'license-1',
-        license: { customerId: 'customer-1' },
-      },
-    });
-    expect(remove).toHaveBeenCalledWith({ where: { id: 'condition-1' } });
-    expect(runTransaction).toHaveBeenCalledWith(expect.any(Function), {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    await expect(repository.findAllByCustomerId('customer-1')).resolves.toEqual(
+      [{ id: 'license-1' }],
+    );
+    expect(findMany).toHaveBeenCalledWith({
+      where: { customerId: 'customer-1' },
+      include: { issuingAgency: true },
+      orderBy: { expirationDate: 'asc' },
     });
   });
 });

@@ -11,6 +11,18 @@ import { UpdateLicenseConditionData } from '../domain/update-license-condition.d
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
 import { LicenseConditionCategory } from '../domain/license-condition-category.entity';
 
+function toDomainCondition(
+  condition: Prisma.LicenseConditionGetPayload<{
+    include: { license: false };
+  }>,
+) {
+  return {
+    ...condition,
+    title: condition.name,
+    status: condition.conditionStatus,
+  } as LicenseCondition;
+}
+
 @Injectable()
 export class PrismaLicenseRepository implements LicenseRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -34,29 +46,28 @@ export class PrismaLicenseRepository implements LicenseRepository {
   }
 
   async createConditions(data: ConditionData[]): Promise<ConditionResponse> {
-    return this.prisma.licenseCondition.createMany({
-      data: data,
-    });
+    const result = await this.prisma.licenseCondition.createMany({ data });
+    return { count: result.count };
   }
 
   async createConditionCategory(
     name: string,
   ): Promise<LicenseConditionCategory> {
-    return this.prisma.licenseConditionCategory.create({
-      data: { name },
-    });
+    return this.prisma.licenseConditionCategory.create({ data: { name } });
   }
 
   async findByIdForCustomer(
     id: string,
     customerId: string,
   ): Promise<(License & { conditions: LicenseCondition[] }) | null> {
-    return this.prisma.license.findFirst({
+    const license = await this.prisma.license.findFirst({
       where: { id, customerId },
-      include: {
-        conditions: { orderBy: { itemNumber: 'asc' } },
-      },
+      include: { conditions: { orderBy: { itemNumber: 'asc' } } },
     });
+
+    return license
+      ? { ...license, conditions: license.conditions.map(toDomainCondition) }
+      : null;
   }
 
   async updateCondition(
@@ -74,10 +85,18 @@ export class PrismaLicenseRepository implements LicenseRepository {
 
         if (!condition) throw new LicenseConditionNotFoundError(data.id);
 
-        return transaction.licenseCondition.update({
+        const { title, status, isViolated, ...fields } = data.data;
+        const updated = await transaction.licenseCondition.update({
           where: { id: data.id },
-          data: data.data,
+          data: {
+            ...fields,
+            ...(title !== undefined ? { name: title } : {}),
+            ...(status !== undefined ? { conditionStatus: status } : {}),
+            ...(isViolated !== undefined ? { isViolated } : {}),
+          },
         });
+
+        return toDomainCondition(updated);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -96,9 +115,21 @@ export class PrismaLicenseRepository implements LicenseRepository {
 
         if (!condition) throw new LicenseConditionNotFoundError(id);
 
-        return transaction.licenseCondition.delete({ where: { id } });
+        const deleted = await transaction.licenseCondition.delete({
+          where: { id },
+        });
+
+        return toDomainCondition(deleted);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+  }
+
+  async findAllByCustomerId(customerId: string): Promise<License[]> {
+    return this.prisma.license.findMany({
+      where: { customerId },
+      include: { issuingAgency: true },
+      orderBy: { expirationDate: 'asc' },
+    });
   }
 }

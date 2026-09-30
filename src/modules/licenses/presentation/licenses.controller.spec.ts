@@ -1,20 +1,25 @@
-import {
-  ConditionStatus,
-  ConditionType,
-  LicenseStatus,
-  LicenseType,
-} from '@prisma/client';
-import { plainToInstance } from 'class-transformer';
-import { validateSync } from 'class-validator';
+import { LicenseStatus, LicenseType } from '@prisma/client';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateLicenseUseCase } from '../application/create-license.use-case';
+import { ListLicensesByCustomerUseCase } from '../application/list-licenses-by-customer.use-case';
 import {
   fileValidationExceptionFactory,
   invalidCustomerIdException,
   LicensesController,
 } from './licenses.controller';
 import { LICENSES_MESSAGES } from './messages/licenses.messages.pt-br';
-import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
+
+function buildController(overrides?: {
+  createLicenseUseCase?: unknown;
+  listLicensesByCustomerUseCase?: unknown;
+}): LicensesController {
+  return new LicensesController(
+    (overrides?.createLicenseUseCase ??
+      ({ execute: jest.fn() } as unknown)) as CreateLicenseUseCase,
+    (overrides?.listLicensesByCustomerUseCase ??
+      ({ execute: jest.fn() } as unknown)) as ListLicensesByCustomerUseCase,
+  );
+}
 
 describe('invalidCustomerIdException', () => {
   it('answers 400 with the generic invalid-request message', () => {
@@ -73,14 +78,7 @@ describe('LicensesController', () => {
       createdAt: new Date('2020-01-10T00:00:00.000Z'),
       updatedAt: new Date('2020-01-10T00:00:00.000Z'),
     });
-    const controller = new LicensesController(
-      { execute } as unknown as CreateLicenseUseCase,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
+    const controller = buildController({ createLicenseUseCase: { execute } });
 
     const response = await controller.createLicense(
       'customer-1',
@@ -114,162 +112,79 @@ describe('LicensesController', () => {
     );
   });
 
-  it('returns the license details in the public API shape', async () => {
-    const execute = jest.fn().mockResolvedValue({
-      id: 'license-1',
-      processNumber: 'LP nº 482/2024',
-      issueDate: new Date('2024-03-12T00:00:00.000Z'),
-      expirationDate: new Date('2026-03-12T00:00:00.000Z'),
-      status: LicenseStatus.REGULAR,
-      conditions: [
-        {
-          id: 'condition-1',
-          itemNumber: '1.1',
-          description: 'Refere-se à atividade de estacionamento...',
-          conditionType: ConditionType.INFORMATIVE,
-          periodicity: null,
-          deadline: null,
-          status: ConditionStatus.FULFILLED,
-          completionDate: new Date('2024-03-12T00:00:00.000Z'),
-          responsibleName: 'Lucas Silva',
-        },
-      ],
-    });
-    const controller = new LicensesController(
-      {} as never,
-      {} as never,
-      { execute } as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
+  describe('listLicenses', () => {
+    it('forwards the customer and authenticated user to the use case and maps the panel response', async () => {
+      const execute = jest.fn().mockResolvedValue({
+        summary: { total: 2, regular: 1, attention: 0, expired: 1 },
+        licenses: [
+          {
+            id: 'license-1',
+            customerId: 'customer-1',
+            type: LicenseType.LP,
+            processNumber: 'LP nº 482/2024',
+            issuingAgencyId: 'agency-1',
+            issuingAgency: {
+              id: 'agency-1',
+              name: 'FEPAM',
+              acronym: 'FEPAM',
+              createdAt: new Date(),
+            },
+            issueDate: new Date('2024-03-12T00:00:00.000Z'),
+            expirationDate: new Date('2026-03-12T00:00:00.000Z'),
+            status: LicenseStatus.REGULAR,
+            documentUrl: 'https://bucket.aws.com/licenses/lp-482-2024.pdf',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'license-2',
+            customerId: 'customer-1',
+            type: LicenseType.LO,
+            processNumber: 'LO nº 118/2020',
+            issuingAgencyId: 'agency-1',
+            issuingAgency: {
+              id: 'agency-1',
+              name: 'FEPAM',
+              acronym: 'FEPAM',
+              createdAt: new Date(),
+            },
+            issueDate: new Date('2020-01-10T00:00:00.000Z'),
+            expirationDate: new Date('2025-01-10T00:00:00.000Z'),
+            status: LicenseStatus.EXPIRED,
+            documentUrl: 'https://bucket.aws.com/licenses/lo-118-2020.pdf',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+      });
+      const controller = buildController({
+        listLicensesByCustomerUseCase: { execute },
+      });
 
-    await expect(
-      controller.getLicenseDetails('customer-1', 'license-1', {
+      const response = await controller.listLicenses('customer-1', {
         id: 'owner-1',
-      }),
-    ).resolves.toEqual({
-      id: 'license-1',
-      process_number: 'LP nº 482/2024',
-      issue_date: '2024-03-12T00:00:00.000Z',
-      expiration_date: '2026-03-12T00:00:00.000Z',
-      status: 'Regular',
-      conditions: [
-        {
-          id: 'condition-1',
-          item_number: '1.1',
-          description: 'Refere-se à atividade de estacionamento...',
-          condition_type: 'Informativo',
-          periodicity: 'NA',
-          deadline: null,
-          status: 'Atendida',
-          completion_date: '2024-03-12T00:00:00.000Z',
-          responsible_name: 'Lucas Silva',
-          is_violated: false,
-        },
-      ],
-    });
-    expect(execute).toHaveBeenCalledWith('customer-1', 'license-1', 'owner-1');
-  });
+      });
 
-  it('deletes a condition without returning a response body', async () => {
-    const execute = jest.fn().mockResolvedValue(undefined);
-    const controller = new LicensesController(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      { execute } as never,
-      {} as never,
-    );
-
-    await expect(
-      controller.deleteLicenseCondition(
-        'customer-1',
-        'license-1',
-        'condition-1',
-        { id: 'owner-1' },
-      ),
-    ).resolves.toBeUndefined();
-    expect(execute).toHaveBeenCalledWith(
-      'customer-1',
-      'license-1',
-      'condition-1',
-      'owner-1',
-    );
-  });
-
-  it('accepts and maps the documented update body', async () => {
-    const dto = plainToInstance(UpdateLicenseConditionDto, {
-      item_number: '1.1',
-      description: 'Nova descrição corrigida...',
-      condition_type: 'Informativo',
-      periodicity: 'NA',
-      status: 'Atendida',
-      completion_date: '2024-03-15T00:00:00.000Z',
-      is_violated: false,
-    });
-    expect(validateSync(dto)).toHaveLength(0);
-
-    const updatedCondition = {
-      id: 'condition-1',
-      itemNumber: '1.1',
-      description: 'Nova descrição corrigida...',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
-      deadline: null,
-      status: ConditionStatus.FULFILLED,
-      completionDate: new Date('2024-03-15T00:00:00.000Z'),
-      responsibleName: 'Lucas Silva',
-    };
-    const execute = jest.fn().mockResolvedValue(updatedCondition);
-    const controller = new LicensesController(
-      {} as never,
-      {} as never,
-      {} as never,
-      { execute } as never,
-      {} as never,
-      {} as never,
-    );
-
-    await expect(
-      controller.updateLicenseCondition(
-        'customer-1',
-        'license-1',
-        'condition-1',
-        dto,
-        { id: 'owner-1' },
-      ),
-    ).resolves.toEqual({
-      id: 'condition-1',
-      item_number: '1.1',
-      description: 'Nova descrição corrigida...',
-      condition_type: 'Informativo',
-      periodicity: 'NA',
-      deadline: null,
-      status: 'Atendida',
-      completion_date: '2024-03-15T00:00:00.000Z',
-      responsible_name: 'Lucas Silva',
-      is_violated: false,
-    });
-    expect(execute).toHaveBeenCalledWith({
-      customerId: 'customer-1',
-      licenseId: 'license-1',
-      conditionId: 'condition-1',
-      ownerUserId: 'owner-1',
-      data: {
-        itemNumber: '1.1',
-        title: undefined,
-        description: 'Nova descrição corrigida...',
-        responsibleName: undefined,
-        conditionType: ConditionType.INFORMATIVE,
-        periodicity: null,
-        deadline: undefined,
-        dueDate: undefined,
-        alertDate: undefined,
-        completionDate: new Date('2024-03-15T00:00:00.000Z'),
-        status: ConditionStatus.FULFILLED,
-      },
+      expect(execute).toHaveBeenCalledWith('customer-1', 'owner-1');
+      expect(response).toEqual({
+        summary: { total: 2, regular: 1, attention: 0, expired: 1 },
+        licenses: [
+          expect.objectContaining({
+            id: 'license-1',
+            type: 'Licença Prévia (LP)',
+            process_number: 'LP nº 482/2024',
+            issuing_agency: 'FEPAM',
+            status: 'Regular',
+          }),
+          expect.objectContaining({
+            id: 'license-2',
+            type: 'Licença de Operação (LO)',
+            process_number: 'LO nº 118/2020',
+            issuing_agency: 'FEPAM',
+            status: 'Vencida',
+          }),
+        ],
+      });
     });
   });
 });

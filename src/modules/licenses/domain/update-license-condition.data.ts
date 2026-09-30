@@ -16,6 +16,7 @@ export interface UpdateLicenseCondition {
   alertDate?: Date | null;
   completionDate?: Date | null;
   status?: ConditionStatus;
+  isViolated?: boolean;
 }
 
 export interface UpdateLicenseConditionData {

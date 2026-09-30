@@ -120,6 +120,30 @@ const seedEsgMetrics = [
   },
 ];
 
+const seedLicenseConditions = [
+  {
+    name: 'Automonitoramento Atmosférico',
+    description:
+      'Avaliação periódica de emissões em chaminés e qualidade do ar no entorno industrial.',
+    category: 'Emissões',
+    daysUntilDue: 3,
+  },
+  {
+    name: 'Relatório Semestral de Efluentes Líquidos',
+    description:
+      'Laudos de análises físico-químicas de efluentes tratados e lançados nos corpos hídricos.',
+    category: 'Recursos Hídricos',
+    daysUntilDue: 15,
+  },
+  {
+    name: 'MTR - Manifesto de Transporte de Resíduos',
+    description:
+      'Emissão de manifesto obrigatório para movimentação e destinação final de resíduos industriais.',
+    category: 'Resíduos',
+    daysUntilDue: 45,
+  },
+];
+
 /*
  * Categorias globais das condicionantes de licença. O model não tem índice
  * único em `name`, então o seed procura por nome antes de criar (mesmo padrão
@@ -1048,6 +1072,11 @@ async function main() {
   );
   console.log(
     `Licenças seed: ${visible.length} · Condicionantes seed: ${licenses.conditions}`,
+  );
+  console.log(
+    `Licenças seed: ${visible.length} · Condicionantes seed: ${
+      visible.length * seedLicenseConditions.length
+    }`,
   );
 }
 

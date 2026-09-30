@@ -225,9 +225,9 @@ model License {
   status         LicenseStatus
   // Absolute URL of the uploaded PDF. Local storage or S3 depending on
   // STORAGE_DRIVER — the column just holds whatever URL that driver returns.
-  documentUrl     String        @map("document_url") @db.VarChar(2048)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  documentUrl    String        @map("document_url") @db.VarChar(2048)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   customerId String   @map("customer_id") @db.Uuid
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)

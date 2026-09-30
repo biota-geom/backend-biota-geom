@@ -65,7 +65,7 @@ export class LicensesExceptionFilter implements ExceptionFilter {
 
     if (error instanceof LicenseConditionNotFoundError) {
       return new NotFoundException(LICENSES_MESSAGES.CONDITION_NOT_FOUND);
-  }
+    }
 
     if (error instanceof LicenseConditionLicenseMismatchError) {
       return new BadRequestException(

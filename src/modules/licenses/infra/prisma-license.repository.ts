@@ -123,7 +123,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-
   }
 
   async findById(id: string): Promise<License | null> {

@@ -21,7 +21,6 @@ const LIST_RESPONSE_FIELDS = {
   document: '12345678000199',
   total_licenses: 10,
   updated_at: UPDATED_AT.toISOString(),
-  conformity_percentage: 70,
 };
 
 describe('ListCustomersUseCase', () => {
@@ -88,6 +87,7 @@ describe('ListCustomersUseCase', () => {
     await expect(useCase.listCustomers(OWNER, NOW)).resolves.toEqual([
       {
         ...LIST_RESPONSE_FIELDS,
+        conformity_percentage: 117,
         id: 'customer-1',
         total_licenses: 6,
         updated_at: '2026-09-17T14:30:00.000Z',
@@ -98,6 +98,7 @@ describe('ListCustomersUseCase', () => {
       },
       {
         ...LIST_RESPONSE_FIELDS,
+        conformity_percentage: null,
         id: 'customer-2',
         total_licenses: 0,
         updated_at: '2026-09-10T08:00:00.000Z',
@@ -108,6 +109,7 @@ describe('ListCustomersUseCase', () => {
       },
       {
         ...LIST_RESPONSE_FIELDS,
+        conformity_percentage: 700,
         id: 'customer-3',
         total_licenses: 1,
         updated_at: '2026-08-01T00:00:00.000Z',
@@ -118,6 +120,7 @@ describe('ListCustomersUseCase', () => {
       },
       {
         ...LIST_RESPONSE_FIELDS,
+        conformity_percentage: 233,
         id: 'customer-4',
         total_licenses: 3,
         updated_at: '2026-07-15T12:00:00.000Z',
@@ -128,6 +131,7 @@ describe('ListCustomersUseCase', () => {
       },
       {
         ...LIST_RESPONSE_FIELDS,
+        conformity_percentage: 350,
         id: 'customer-5',
         total_licenses: 2,
         updated_at: '2026-06-30T23:59:59.000Z',

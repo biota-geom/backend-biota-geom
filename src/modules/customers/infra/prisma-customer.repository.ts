@@ -36,8 +36,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
 
   async findAll(ownerUserId: string): Promise<CustomerListItem[]> {
     const customers = await this.prisma.customer.findMany({
-  // _count runs as a correlated subquery on licenses.customer_id, so each
-  // row only counts its own licenses — no N+1 and no cross-customer total.
+      // _count runs as a correlated subquery on licenses.customer_id, so each
+      // row only counts its own licenses — no N+1 and no cross-customer total.
       where: { ownerUserId, isDeleted: false },
       include: {
         address: true,

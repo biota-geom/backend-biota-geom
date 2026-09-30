@@ -23,7 +23,10 @@ describe('PrismaLicenseConditionRepository', () => {
     ];
 
     await expect(repository.addMany(conditions)).resolves.toEqual(created);
-    expect(create).toHaveBeenCalledWith({ data: conditions[0] });
+    const { status, ...conditionData } = conditions[0];
+    expect(create).toHaveBeenCalledWith({
+      data: { ...conditionData, riskStatus: status },
+    });
     expect(transaction).toHaveBeenCalledWith([{ operation: 'create' }]);
   });
 

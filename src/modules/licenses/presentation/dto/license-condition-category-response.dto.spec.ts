@@ -6,8 +6,8 @@ describe('toLicenseConditionCategoryResponse', () => {
       toLicenseConditionCategoryResponse({
         id: 'category-1',
         name: 'Emissões',
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       }),
     ).toEqual({
       id: 'category-1',

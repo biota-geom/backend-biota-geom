@@ -7,6 +7,9 @@ CREATE TYPE "ConditionPeriodicity" AS ENUM ('MONTHLY', 'QUARTERLY', 'SEMIANNUAL'
 -- CreateEnum
 CREATE TYPE "ConditionStatus" AS ENUM ('FULFILLED', 'IN_PROGRESS', 'OVERDUE');
 
+-- CreateEnum
+CREATE TYPE "license_condition_status" AS ENUM ('REGULAR', 'ATTENTION', 'RISK');
+
 -- CreateTable
 CREATE TABLE "license_condition_category" (
     "id" UUID NOT NULL,
@@ -20,21 +23,25 @@ CREATE TABLE "license_condition_category" (
 -- CreateTable
 CREATE TABLE "license_condition" (
     "id" UUID NOT NULL,
-    "item_number" VARCHAR(20) NOT NULL,
+    "item_number" VARCHAR(20),
     "title" VARCHAR(255),
-    "description" VARCHAR(4095) NOT NULL,
-    "responsible_name" VARCHAR(255) NOT NULL,
-    "condition_type" "ConditionType" NOT NULL,
+    "description" VARCHAR(4095),
+    "category" VARCHAR(120),
+    "responsible_agency" VARCHAR(150),
+    "responsible_name" VARCHAR(255),
+    "condition_type" "ConditionType",
     "periodicity" "ConditionPeriodicity",
     "deadline" TIMESTAMPTZ(3),
     "due_date" TIMESTAMPTZ(3),
     "alert_date" TIMESTAMPTZ(3),
     "completion_date" TIMESTAMPTZ(3),
+    "license_condition_status" "license_condition_status" NOT NULL DEFAULT 'REGULAR',
     "status" "ConditionStatus" NOT NULL DEFAULT 'IN_PROGRESS',
+    "is_violated" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
     "license_id" UUID NOT NULL,
-    "category_id" UUID NOT NULL,
+    "category_id" UUID,
 
     CONSTRAINT "license_condition_pkey" PRIMARY KEY ("id")
 );

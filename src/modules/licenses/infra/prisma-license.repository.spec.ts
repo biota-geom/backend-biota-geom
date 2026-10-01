@@ -39,24 +39,34 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
-  it('finds all licenses for a customer ordered by criticality (EXPIRED → ATTENTION → REGULAR) then by soonest expiration', async () => {
-    const expiredLicense = { id: 'license-expired', status: 'EXPIRED' };
-    const attentionLicense = { id: 'license-attention', status: 'ATTENTION' };
-    const regularLicense = { id: 'license-regular', status: 'REGULAR' };
-
-    // $queryRaw returns the rows in the order the DB would, so we simulate
-    // the DB already applying the CASE sort.
-    const queryRaw = jest
-      .fn()
-      .mockResolvedValue([expiredLicense, attentionLicense, regularLicense]);
-
+  it('finds all licenses for a customer ordered by soonest expiration first', async () => {
+    const findMany = jest.fn().mockResolvedValue([{ id: 'license-1' }]);
     const repository = new PrismaLicenseRepository({
-      $queryRaw: queryRaw,
+      license: { findMany },
     } as unknown as PrismaService);
 
-    const result = await repository.findAllByCustomerId('customer-1');
+    await expect(repository.findAllByCustomerId('customer-1')).resolves.toEqual(
+      [{ id: 'license-1' }],
+    );
+    expect(findMany).toHaveBeenCalledWith({
+      where: { customerId: 'customer-1' },
+      include: { issuingAgency: true },
+      orderBy: { expirationDate: 'asc' },
+    });
+  });
 
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-    expect(result).toEqual([expiredLicense, attentionLicense, regularLicense]);
+  it('finds a license by id with its issuing agency', async () => {
+    const findUnique = jest.fn().mockResolvedValue({ id: 'license-1' });
+    const repository = new PrismaLicenseRepository({
+      license: { findUnique },
+    } as unknown as PrismaService);
+
+    await expect(repository.findById('license-1')).resolves.toEqual({
+      id: 'license-1',
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: 'license-1' },
+      include: { issuingAgency: true },
+    });
   });
 });

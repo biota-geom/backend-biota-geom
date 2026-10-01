@@ -11,6 +11,7 @@ export const LICENSES_MESSAGES = {
   INVALID_DATE_RANGE:
     'A data de validade deve ser posterior à data de emissão.',
   LICENSE_NOT_FOUND: 'Licença não encontrada.',
+  CONDITION_NOT_FOUND: 'Condicionante não encontrada.',
   CONDITION_LICENSE_MISMATCH:
     'A licença informada não corresponde à licença da rota.',
   CONDITION_DUE_DATE_MUST_BE_FUTURE:

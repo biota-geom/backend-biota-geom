@@ -1,7 +1,11 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateLicenseUseCase } from '../application/create-license.use-case';
+import { CreateLicenseConditionUseCase } from '../application/create-license-conditions.use-case';
+import { DeleteLicenseConditionUseCase } from '../application/delete-license-condition.use-case';
+import { GetLicenseDetailsUseCase } from '../application/get-license-details.use-case';
 import { ListLicensesByCustomerUseCase } from '../application/list-licenses-by-customer.use-case';
+import { UpdateLicenseConditionUseCase } from '../application/update-license-conditions.use-case';
 import {
   fileValidationExceptionFactory,
   invalidCustomerIdException,
@@ -12,12 +16,28 @@ import { LICENSES_MESSAGES } from './messages/licenses.messages.pt-br';
 function buildController(overrides?: {
   createLicenseUseCase?: unknown;
   listLicensesByCustomerUseCase?: unknown;
+  createLicenseConditionUseCase?: unknown;
+  getLicenseDetailsUseCase?: unknown;
+  updateLicenseConditionUseCase?: unknown;
+  deleteLicenseConditionUseCase?: unknown;
 }): LicensesController {
   return new LicensesController(
     (overrides?.createLicenseUseCase ??
       ({ execute: jest.fn() } as unknown)) as CreateLicenseUseCase,
     (overrides?.listLicensesByCustomerUseCase ??
       ({ execute: jest.fn() } as unknown)) as ListLicensesByCustomerUseCase,
+    (overrides?.createLicenseConditionUseCase ?? {
+      execute: jest.fn(),
+    }) as CreateLicenseConditionUseCase,
+    (overrides?.getLicenseDetailsUseCase ?? {
+      execute: jest.fn(),
+    }) as GetLicenseDetailsUseCase,
+    (overrides?.updateLicenseConditionUseCase ?? {
+      execute: jest.fn(),
+    }) as UpdateLicenseConditionUseCase,
+    (overrides?.deleteLicenseConditionUseCase ?? {
+      execute: jest.fn(),
+    }) as DeleteLicenseConditionUseCase,
   );
 }
 
@@ -186,5 +206,60 @@ describe('LicensesController', () => {
         ],
       });
     });
+  });
+
+  it('delegates condition creation, details and deletion', async () => {
+    const createConditions = jest.fn().mockResolvedValue({
+      count: 1,
+      message: 'ok',
+    });
+    const getDetails = jest.fn().mockResolvedValue({
+      id: 'license-1',
+      processNumber: 'LO 1/2026',
+      issueDate: new Date('2026-01-01T00:00:00.000Z'),
+      expirationDate: new Date('2027-01-01T00:00:00.000Z'),
+      status: LicenseStatus.REGULAR,
+      conditions: [],
+    });
+    const deleteCondition = jest.fn().mockResolvedValue(undefined);
+    const controller = buildController({
+      createLicenseConditionUseCase: { execute: createConditions },
+      getLicenseDetailsUseCase: { execute: getDetails },
+      deleteLicenseConditionUseCase: { execute: deleteCondition },
+    });
+
+    await expect(
+      controller.createLicenseConditions(
+        'customer-1',
+        'license-1',
+        { conditions: [] },
+        { id: 'owner-1' },
+      ),
+    ).resolves.toEqual({ count: 1, message: 'ok' });
+    await expect(
+      controller.getLicenseDetails('customer-1', 'license-1', {
+        id: 'owner-1',
+      }),
+    ).resolves.toEqual(expect.objectContaining({ id: 'license-1' }));
+    await expect(
+      controller.deleteLicenseCondition(
+        'customer-1',
+        'license-1',
+        'condition-1',
+        { id: 'owner-1' },
+      ),
+    ).resolves.toBeUndefined();
+    expect(createConditions).toHaveBeenCalled();
+    expect(getDetails).toHaveBeenCalledWith(
+      'customer-1',
+      'license-1',
+      'owner-1',
+    );
+    expect(deleteCondition).toHaveBeenCalledWith(
+      'customer-1',
+      'license-1',
+      'condition-1',
+      'owner-1',
+    );
   });
 });

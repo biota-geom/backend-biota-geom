@@ -15,6 +15,7 @@ import { ConditionCategoryNotLinkedError } from '../../domain/errors/condition-c
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { InvalidConditionTargetError } from '../../domain/errors/invalid-condition-target.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
+import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
@@ -25,6 +26,7 @@ type LicensesDomainError =
   | IssuingAgencyNotFoundError
   | InvalidLicenseDateRangeError
   | LicenseNotFoundError
+  | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
   | ConditionCategoryNotFoundError
   | ConditionCategoryNotLinkedError
@@ -36,6 +38,7 @@ type LicensesDomainError =
   IssuingAgencyNotFoundError,
   InvalidLicenseDateRangeError,
   LicenseNotFoundError,
+  LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
   ConditionCategoryNotFoundError,
   ConditionCategoryNotLinkedError,
@@ -70,6 +73,10 @@ export class LicensesExceptionFilter implements ExceptionFilter {
 
     if (error instanceof LicenseNotFoundError) {
       return new NotFoundException(LICENSES_MESSAGES.LICENSE_NOT_FOUND);
+    }
+
+    if (error instanceof LicenseConditionNotFoundError) {
+      return new NotFoundException(LICENSES_MESSAGES.CONDITION_NOT_FOUND);
     }
 
     if (error instanceof LicenseConditionLicenseMismatchError) {

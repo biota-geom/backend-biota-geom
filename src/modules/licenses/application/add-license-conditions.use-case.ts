@@ -6,8 +6,6 @@ import {
 import { CustomerEsgMetricRepository } from '../../customers/domain/customer-esg-metric.repository';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { EsgMetricRepository } from '../../esg-metrics/domain/repositories/esg-metric.repository';
-import { ConditionCategoryNotFoundError } from '../domain/errors/condition-category-not-found.error';
-import { ConditionCategoryNotLinkedError } from '../domain/errors/condition-category-not-linked.error';
 import { InvalidConditionDueDateError } from '../domain/errors/invalid-condition-due-date.error';
 import { InvalidConditionTargetError } from '../domain/errors/invalid-condition-target.error';
 import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
@@ -15,6 +13,7 @@ import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { LicenseCondition } from '../domain/license-condition.entity';
 import { LicenseConditionRepository } from '../domain/license-conditions.repository';
 import { LicenseRepository } from '../domain/licenses.repository';
+import { assertConditionCategoriesLinked } from './assert-condition-categories-linked';
 
 export interface LicenseConditionToAdd {
   licenseId: string;
@@ -119,43 +118,19 @@ export class AddLicenseConditionsUseCase {
     }
   }
 
-  /*
-   * A condition's category must be one of the GRI parameters linked to the
-   * license's customer (US02). A parameter that does not exist and a custom
-   * parameter owned by another account are indistinguishable (not found), so
-   * other tenants' private parameters are never revealed; a visible parameter
-   * that is simply not linked to this customer is a distinct, reportable case.
-   */
-  private async assertCategoriesLinkedToCustomer(
+  private assertCategoriesLinkedToCustomer(
     esgMetricIds: string[],
     customerId: string,
     ownerUserId: string,
   ): Promise<void> {
-    const uniqueIds = [...new Set(esgMetricIds)];
-
-    const metrics = await this.esgMetricRepository.findByIds(uniqueIds);
-    const visibleIds = new Set(
-      metrics
-        .filter(
-          (metric) =>
-            metric.customerId === null || metric.customerId === ownerUserId,
-        )
-        .map((metric) => metric.id),
+    return assertConditionCategoriesLinked(
+      {
+        esgMetricRepository: this.esgMetricRepository,
+        customerEsgMetricRepository: this.customerEsgMetricRepository,
+      },
+      esgMetricIds,
+      customerId,
+      ownerUserId,
     );
-    const notFoundId = uniqueIds.find((id) => !visibleIds.has(id));
-    if (notFoundId !== undefined) {
-      throw new ConditionCategoryNotFoundError(notFoundId);
-    }
-
-    const linkedIds = new Set(
-      await this.customerEsgMetricRepository.findLinkedMetricIds(
-        customerId,
-        uniqueIds,
-      ),
-    );
-    const notLinkedId = uniqueIds.find((id) => !linkedIds.has(id));
-    if (notLinkedId !== undefined) {
-      throw new ConditionCategoryNotLinkedError(notLinkedId);
-    }
   }
 }

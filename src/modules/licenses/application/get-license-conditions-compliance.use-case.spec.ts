@@ -14,11 +14,14 @@ function buildCondition(dueInDays: number, index: number): LicenseCondition {
     licenseId: 'license-1',
     name: `Condicionante ${index}`,
     description: null,
-    category: 'Emissões',
+    category: { id: 'metric-emissoes', name: 'Emissões' },
     responsibleAgency: null,
     dueDate: new Date(NOW.getTime() + dueInDays * DAY_IN_MS),
     // Persisted status is ignored: compliance follows the due date.
     status: LicenseConditionStatus.REGULAR,
+    targetMetricId: null,
+    targetOperator: null,
+    targetValue: null,
     createdAt: NOW,
     updatedAt: NOW,
   };

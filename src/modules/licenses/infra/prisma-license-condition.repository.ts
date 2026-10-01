@@ -57,6 +57,9 @@ export class PrismaLicenseConditionRepository implements LicenseConditionReposit
       responsibleAgency: condition.responsibleAgency,
       dueDate: condition.dueDate,
       status: condition.status,
+      targetMetricId: condition.targetMetricId,
+      targetOperator: condition.targetOperator,
+      targetValue: condition.targetValue,
       createdAt: condition.createdAt,
       updatedAt: condition.updatedAt,
     };

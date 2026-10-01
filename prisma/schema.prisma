@@ -137,8 +137,9 @@ model EsgMetric {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerLinks     CustomerEsgMetric[]
-  licenseConditions LicenseCondition[]
+  customerLinks        CustomerEsgMetric[]
+  licenseConditions    LicenseCondition[]  @relation("LicenseConditionCategory")
+  targetedByConditions LicenseCondition[]  @relation("LicenseConditionTargetMetric")
 
   @@unique([customerId, name])
   @@index([griStandardId])
@@ -183,6 +184,15 @@ enum LicenseConditionStatus {
   RISK
 
   @@map("license_condition_status")
+}
+
+enum LicenseConditionTargetOperator {
+  LTE
+  GTE
+  EQ
+  BETWEEN
+
+  @@map("license_condition_target_operator")
 }
 
 model IssuingAgency {
@@ -240,10 +250,18 @@ model LicenseCondition {
   // license's customer. onDelete: Restrict — a GRI parameter in use by any
   // condition cannot be removed.
   esgMetricId String    @map("esg_metric_id") @db.Uuid
-  esgMetric   EsgMetric @relation(fields: [esgMetricId], references: [id], onDelete: Restrict)
+  esgMetric   EsgMetric @relation("LicenseConditionCategory", fields: [esgMetricId], references: [id], onDelete: Restrict)
+
+  // Compliance target (US17): the ESG metric to track, how to compare it and
+  // the expected value. All three are set together or all left null.
+  targetMetricId String?                         @map("target_metric_id") @db.Uuid
+  targetMetric   EsgMetric?                      @relation("LicenseConditionTargetMetric", fields: [targetMetricId], references: [id], onDelete: Restrict)
+  targetOperator LicenseConditionTargetOperator? @map("target_operator")
+  targetValue    Float?                          @map("target_value")
 
   @@index([licenseId])
   @@index([dueDate])
   @@index([esgMetricId])
+  @@index([targetMetricId])
   @@map("license_condition")
 }

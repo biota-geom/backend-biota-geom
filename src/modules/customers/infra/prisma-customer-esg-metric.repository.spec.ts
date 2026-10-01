@@ -34,12 +34,27 @@ function buildRepository() {
       }),
   );
 
+  const findConditions =
+    jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
+  const findLinks =
+    jest.fn<(args: Record<string, unknown>) => Promise<unknown>>();
+
   const repository = new PrismaCustomerEsgMetricRepository({
     $transaction,
     esgMetric: { findMany },
+    customerEsgMetric: { findMany: findLinks },
+    licenseCondition: { findMany: findConditions },
   } as unknown as PrismaService);
 
-  return { repository, deleteMany, createMany, findMany, $transaction };
+  return {
+    repository,
+    deleteMany,
+    createMany,
+    findMany,
+    findLinks,
+    findConditions,
+    $transaction,
+  };
 }
 
 describe('PrismaCustomerEsgMetricRepository', () => {
@@ -128,6 +143,39 @@ describe('PrismaCustomerEsgMetricRepository', () => {
     expect(findMany).toHaveBeenCalledWith({
       where: { id: { in: [METRIC_ID, 'missing'] } },
       select: { id: true },
+    });
+  });
+
+  it('returns only the given metric ids linked to the customer', async () => {
+    const { repository, findLinks } = buildRepository();
+    findLinks.mockResolvedValue([{ esgMetricId: METRIC_ID }]);
+
+    await expect(
+      repository.findLinkedMetricIds(CUSTOMER_ID, [METRIC_ID, 'unlinked']),
+    ).resolves.toEqual([METRIC_ID]);
+    expect(findLinks).toHaveBeenCalledWith({
+      where: {
+        customerId: CUSTOMER_ID,
+        esgMetricId: { in: [METRIC_ID, 'unlinked'] },
+      },
+      select: { esgMetricId: true },
+    });
+  });
+
+  it('returns the distinct metrics used by the customer conditions outside the kept list', async () => {
+    const { repository, findConditions } = buildRepository();
+    findConditions.mockResolvedValue([{ esgMetricId: 'metric-in-use' }]);
+
+    await expect(
+      repository.findMetricIdsInUseExcept(CUSTOMER_ID, [METRIC_ID]),
+    ).resolves.toEqual(['metric-in-use']);
+    expect(findConditions).toHaveBeenCalledWith({
+      where: {
+        license: { customerId: CUSTOMER_ID },
+        esgMetricId: { notIn: [METRIC_ID] },
+      },
+      select: { esgMetricId: true },
+      distinct: ['esgMetricId'],
     });
   });
 });

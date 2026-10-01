@@ -137,7 +137,8 @@ model EsgMetric {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerLinks CustomerEsgMetric[]
+  customerLinks     CustomerEsgMetric[]
+  licenseConditions LicenseCondition[]
 
   @@unique([customerId, name])
   @@index([griStandardId])
@@ -226,7 +227,6 @@ model LicenseCondition {
   id                String                 @id @default(uuid(7)) @db.Uuid
   name              String                 @map("title") @db.VarChar(160)
   description       String?                @db.VarChar(500)
-  category          String                 @db.VarChar(120)
   responsibleAgency String?                @map("responsible_agency") @db.VarChar(150)
   dueDate           DateTime               @map("due_date") @db.Timestamptz(3)
   status            LicenseConditionStatus @default(REGULAR)
@@ -236,7 +236,14 @@ model LicenseCondition {
   licenseId String  @map("license_id") @db.Uuid
   license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 
+  // Category of the condition: one of the GRI parameters (US02) linked to the
+  // license's customer. onDelete: Restrict — a GRI parameter in use by any
+  // condition cannot be removed.
+  esgMetricId String    @map("esg_metric_id") @db.Uuid
+  esgMetric   EsgMetric @relation(fields: [esgMetricId], references: [id], onDelete: Restrict)
+
   @@index([licenseId])
   @@index([dueDate])
+  @@index([esgMetricId])
   @@map("license_condition")
 }

@@ -4,6 +4,8 @@ import { Customer } from './customer.entity';
 // computed by the query, so the list never needs one extra request per card.
 export interface CustomerListItem extends Customer {
   totalLicenses: number;
+  // Expiration dates support the attention and expired license counters.
+  licenseExpirationDates: Date[];
   // Due dates of every condition across the customer's licenses, used for
   // the canonical compliance percentage (same formula as US21).
   licenseConditionDueDates: Date[];

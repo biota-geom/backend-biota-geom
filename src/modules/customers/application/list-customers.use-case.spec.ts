@@ -9,12 +9,18 @@ const OWNER = 'owner-1';
 const OTHER_OWNER = 'owner-2';
 const NOW = new Date('2026-09-17T14:30:00.000Z');
 const UPDATED_AT = new Date('2026-09-17T14:30:00.000Z');
+const REGULAR_EXPIRATION = new Date('2026-11-01T14:30:00.000Z');
+const ATTENTION_EXPIRATION = new Date('2026-10-01T14:30:00.000Z');
 const REGULAR_DUE_DATE = new Date('2026-11-01T14:30:00.000Z');
 const ATTENTION_DUE_DATE = new Date('2026-10-01T14:30:00.000Z');
 const LIST_AGGREGATES = {
   document: '12345678000199',
   updatedAt: UPDATED_AT,
   totalLicenses: 10,
+  licenseExpirationDates: [
+    ...Array<Date>(7).fill(REGULAR_EXPIRATION),
+    ...Array<Date>(3).fill(ATTENTION_EXPIRATION),
+  ],
   licenseConditionDueDates: [
     ...Array<Date>(7).fill(REGULAR_DUE_DATE),
     ...Array<Date>(3).fill(ATTENTION_DUE_DATE),
@@ -25,6 +31,8 @@ const LIST_RESPONSE_FIELDS = {
   total_licenses: 10,
   updated_at: UPDATED_AT.toISOString(),
   conformity_percentage: 70,
+  attention_count: 3,
+  expired_count: 0,
 };
 
 describe('ListCustomersUseCase', () => {
@@ -155,6 +163,34 @@ describe('ListCustomersUseCase', () => {
     expect(repository.findAll).toHaveBeenCalledWith(OWNER);
   });
 
+  it('counts expired and attention licenses from their expiration dates', async () => {
+    const repository: Pick<CustomerRepository, 'findAll'> = {
+      findAll: jest.fn().mockResolvedValue([
+        {
+          ...LIST_AGGREGATES,
+          id: 'customer-1',
+          name: 'Empresa com licenças críticas',
+          isActive: true,
+          totalLicenses: 2,
+          licenseExpirationDates: [
+            new Date('2026-09-16T14:30:00.000Z'),
+            new Date('2026-10-02T14:30:00.000Z'),
+          ],
+          address: null,
+          sector: null,
+        },
+      ]),
+    };
+    const useCase = new ListCustomersUseCase(
+      repository as unknown as CustomerRepository,
+    );
+
+    const [customer] = await useCase.listCustomers(OWNER, NOW);
+
+    expect(customer.expired_count).toBe(1);
+    expect(customer.attention_count).toBe(1);
+  });
+
   it('returns 100% conformity for a customer without conditions', async () => {
     const repository: Pick<CustomerRepository, 'findAll'> = {
       findAll: jest.fn().mockResolvedValue([
@@ -233,10 +269,13 @@ describe('ListCustomersUseCase', () => {
           licenseId: 'license-1',
           name: `Condicionante ${index}`,
           description: null,
-          category: 'Emissões',
+          category: { id: 'metric-emissoes', name: 'Emissões' },
           responsibleAgency: null,
           dueDate,
           status: LicenseConditionStatus.REGULAR,
+          targetMetricId: null,
+          targetOperator: null,
+          targetValue: null,
           createdAt: NOW,
           updatedAt: NOW,
         })),

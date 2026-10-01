@@ -11,4 +11,3 @@ CREATE INDEX "license_condition_target_metric_id_idx" ON "license_condition"("ta
 
 -- AddForeignKey
 ALTER TABLE "license_condition" ADD CONSTRAINT "license_condition_target_metric_id_fkey" FOREIGN KEY ("target_metric_id") REFERENCES "esg_metric"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

@@ -24,8 +24,12 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with license totals and condition due dates', async () => {
+  it('lists customers with license totals, expiration dates and condition due dates', async () => {
     const { repository, findMany } = buildRepository();
+    const expirationDates = Array.from(
+      { length: 2 },
+      (_, index) => new Date(`2027-02-${String(index + 1).padStart(2, '0')}`),
+    );
     const dueDates = Array.from(
       { length: 3 },
       (_, index) => new Date(`2027-01-${String(index + 1).padStart(2, '0')}`),
@@ -36,8 +40,14 @@ describe('PrismaCustomerRepository', () => {
         _count: { licenses: 2 },
         // Conditions of every license are flattened into one list.
         licenses: [
-          { conditions: [{ dueDate: dueDates[0] }, { dueDate: dueDates[1] }] },
-          { conditions: [{ dueDate: dueDates[2] }] },
+          {
+            expirationDate: expirationDates[0],
+            conditions: [{ dueDate: dueDates[0] }, { dueDate: dueDates[1] }],
+          },
+          {
+            expirationDate: expirationDates[1],
+            conditions: [{ dueDate: dueDates[2] }],
+          },
         ],
       },
     ];
@@ -47,6 +57,7 @@ describe('PrismaCustomerRepository', () => {
       {
         id: 'customer-1',
         totalLicenses: 2,
+        licenseExpirationDates: expirationDates,
         licenseConditionDueDates: dueDates,
       },
     ]);
@@ -58,7 +69,10 @@ describe('PrismaCustomerRepository', () => {
         sector: true,
         _count: { select: { licenses: true } },
         licenses: {
-          select: { conditions: { select: { dueDate: true } } },
+          select: {
+            expirationDate: true,
+            conditions: { select: { dueDate: true } },
+          },
         },
       },
     });

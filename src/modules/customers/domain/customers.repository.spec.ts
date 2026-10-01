@@ -63,6 +63,11 @@ function buildRepository() {
 
 describe('PrismaCustomerRepository', () => {
   it('loads active customers with their nested address and sector', async () => {
+    const expirationDates = [
+      new Date('2027-02-01T00:00:00.000Z'),
+      new Date('2026-02-01T00:00:00.000Z'),
+      new Date('2025-02-01T00:00:00.000Z'),
+    ];
     const dueDates = [
       new Date('2027-01-01T00:00:00.000Z'),
       new Date('2026-01-01T00:00:00.000Z'),
@@ -73,8 +78,9 @@ describe('PrismaCustomerRepository', () => {
         {
           id: 'customer-1',
           _count: { licenses: 3 },
-          licenses: dueDates.map((dueDate) => ({
-            conditions: [{ dueDate }],
+          licenses: expirationDates.map((expirationDate, index) => ({
+            expirationDate,
+            conditions: [{ dueDate: dueDates[index] }],
           })),
         },
       ]),
@@ -86,6 +92,7 @@ describe('PrismaCustomerRepository', () => {
       {
         id: 'customer-1',
         totalLicenses: 3,
+        licenseExpirationDates: expirationDates,
         licenseConditionDueDates: dueDates,
       },
     ]);
@@ -96,7 +103,10 @@ describe('PrismaCustomerRepository', () => {
         sector: true,
         _count: { select: { licenses: true } },
         licenses: {
-          select: { conditions: { select: { dueDate: true } } },
+          select: {
+            expirationDate: true,
+            conditions: { select: { dueDate: true } },
+          },
         },
       },
     });

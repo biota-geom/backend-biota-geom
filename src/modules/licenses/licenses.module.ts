@@ -5,6 +5,7 @@ import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
 import { AddLicenseConditionsUseCase } from './application/add-license-conditions.use-case';
+import { GetLicenseConditionsComplianceUseCase } from './application/get-license-conditions-compliance.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from './application/list-license-conditions-by-customer.use-case';
 import { ListLicensesByCustomerUseCase } from './application/list-licenses-by-customer.use-case';
 import { LicenseConditionRepository } from './domain/license-conditions.repository';
@@ -36,6 +37,7 @@ import { LicensesController } from './presentation/licenses.controller';
     AddLicenseConditionsUseCase,
     ListLicensesByCustomerUseCase,
     ListLicenseConditionsByCustomerUseCase,
+    GetLicenseConditionsComplianceUseCase,
     StorageConfigService,
     LocalDiskLicenseDocumentStorage,
     S3LicenseDocumentStorage,

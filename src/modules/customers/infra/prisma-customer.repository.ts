@@ -49,7 +49,11 @@ export class PrismaCustomerRepository implements CustomerRepository {
         },
         licenses: {
           select: {
-            expirationDate: true,
+            conditions: {
+              select: {
+                dueDate: true,
+              },
+            },
           },
         },
       },
@@ -58,7 +62,9 @@ export class PrismaCustomerRepository implements CustomerRepository {
     return rows.map(({ _count, licenses, ...customer }) => ({
       ...customer,
       totalLicenses: _count.licenses,
-      licenseExpirationDates: licenses.map((license) => license.expirationDate),
+      licenseConditionDueDates: licenses.flatMap((license) =>
+        license.conditions.map((condition) => condition.dueDate),
+      ),
     }));
   }
 

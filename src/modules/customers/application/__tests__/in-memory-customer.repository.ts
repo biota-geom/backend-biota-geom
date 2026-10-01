@@ -51,7 +51,7 @@ export class InMemoryCustomerRepository extends CustomerRepository {
         .map((row) => ({
           ...row,
           totalLicenses: 0,
-          licenseExpirationDates: [],
+          licenseConditionDueDates: [],
         })),
     );
   }

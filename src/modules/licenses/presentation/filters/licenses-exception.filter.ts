@@ -12,6 +12,8 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { ConditionCategoryNotFoundError } from '../../domain/errors/condition-category-not-found.error';
 import { ConditionCategoryNotLinkedError } from '../../domain/errors/condition-category-not-linked.error';
+import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
+import { InvalidConditionTargetError } from '../../domain/errors/invalid-condition-target.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
@@ -25,7 +27,9 @@ type LicensesDomainError =
   | LicenseNotFoundError
   | LicenseConditionLicenseMismatchError
   | ConditionCategoryNotFoundError
-  | ConditionCategoryNotLinkedError;
+  | ConditionCategoryNotLinkedError
+  | InvalidConditionDueDateError
+  | InvalidConditionTargetError;
 
 @Catch(
   CustomerNotFoundError,
@@ -35,6 +39,8 @@ type LicensesDomainError =
   LicenseConditionLicenseMismatchError,
   ConditionCategoryNotFoundError,
   ConditionCategoryNotLinkedError,
+  InvalidConditionDueDateError,
+  InvalidConditionTargetError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -86,6 +92,18 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof ConditionCategoryNotLinkedError) {
       return new UnprocessableEntityException(
         LICENSES_MESSAGES.CONDITION_CATEGORY_NOT_LINKED,
+      );
+    }
+
+    if (error instanceof InvalidConditionDueDateError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
+      );
+    }
+
+    if (error instanceof InvalidConditionTargetError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_TARGET_INCOMPLETE,
       );
     }
 

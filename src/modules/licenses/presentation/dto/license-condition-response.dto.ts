@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { LicenseConditionTargetOperator } from '@prisma/client';
 import { LicenseConditionWithRisk } from '../../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../../domain/license-condition-risk-level';
 import { LicenseConditionStatusDto } from './add-license-condition.dto';
@@ -36,6 +37,15 @@ export class LicenseConditionResponseDto {
   @ApiProperty({ enum: LicenseConditionStatusDto })
   status!: LicenseConditionStatusDto;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
+  target_metric_id!: string | null;
+
+  @ApiProperty({ enum: LicenseConditionTargetOperator, nullable: true })
+  target_operator!: LicenseConditionTargetOperator | null;
+
+  @ApiProperty({ example: 150, nullable: true })
+  target_value!: number | null;
+
   @ApiProperty({ enum: LicenseConditionRiskLevel, example: 'RISK' })
   risk_level!: LicenseConditionRiskLevel;
 }
@@ -54,6 +64,9 @@ export function toLicenseConditionResponse(
     responsible_agency: created.responsible_agency,
     due_date: created.due_date,
     status: created.status,
+    target_metric_id: created.target_metric_id,
+    target_operator: created.target_operator,
+    target_value: created.target_value,
     risk_level: condition.riskLevel,
   };
 }

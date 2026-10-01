@@ -19,6 +19,9 @@ function buildCondition(dueInDays: number, index: number): LicenseCondition {
     dueDate: new Date(NOW.getTime() + dueInDays * DAY_IN_MS),
     // Persisted status is ignored: compliance follows the due date.
     status: LicenseConditionStatus.REGULAR,
+    targetMetricId: null,
+    targetOperator: null,
+    targetValue: null,
     createdAt: NOW,
     updatedAt: NOW,
   };

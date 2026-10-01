@@ -1,5 +1,6 @@
 import {
   LicenseConditionStatus,
+  LicenseConditionTargetOperator,
   LicenseStatus,
   LicenseType,
 } from '@prisma/client';
@@ -10,6 +11,8 @@ import { EsgMetricRepository } from '../../esg-metrics/domain/repositories/esg-m
 import { ConditionCategoryNotFoundError } from '../domain/errors/condition-category-not-found.error';
 import { ConditionCategoryNotLinkedError } from '../domain/errors/condition-category-not-linked.error';
 import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
+import { InvalidConditionDueDateError } from '../domain/errors/invalid-condition-due-date.error';
+import { InvalidConditionTargetError } from '../domain/errors/invalid-condition-target.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { LicenseConditionRepository } from '../domain/license-conditions.repository';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -103,6 +106,93 @@ function input(status?: LicenseConditionStatus) {
 }
 
 describe('AddLicenseConditionsUseCase', () => {
+  it.each([undefined, new Date('invalid')])(
+    'rejects a missing or invalid due date (%s) before touching repositories',
+    async (dueDate) => {
+      const { useCase, licenseRepository } = buildUseCase();
+      const invalid = input();
+      Object.assign(invalid.conditions[0], { dueDate });
+
+      await expect(useCase.execute(invalid)).rejects.toThrow(
+        InvalidConditionDueDateError,
+      );
+      expect(licenseRepository.findById).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a partially informed target', async () => {
+    const { useCase, licenseConditionRepository } = buildUseCase();
+    const invalid = input();
+    Object.assign(invalid.conditions[0], { targetMetricId: 'metric-1' });
+
+    await expect(useCase.execute(invalid)).rejects.toThrow(
+      InvalidConditionTargetError,
+    );
+    expect(licenseConditionRepository.addMany).not.toHaveBeenCalled();
+  });
+
+  it('persists a complete target and validates the target metric', async () => {
+    const { useCase, esgMetricRepository, licenseConditionRepository } =
+      buildUseCase({
+        esgMetricRepository: {
+          findByIds: jest
+            .fn()
+            .mockResolvedValue([
+              metric('metric-1', null),
+              metric('metric-2', null),
+            ]),
+        },
+        customerEsgMetricRepository: {
+          findLinkedMetricIds: jest
+            .fn()
+            .mockResolvedValue(['metric-1', 'metric-2']),
+        },
+      });
+    const withTarget = input();
+    Object.assign(withTarget.conditions[0], {
+      targetMetricId: 'metric-2',
+      targetOperator: LicenseConditionTargetOperator.LTE,
+      targetValue: 8.5,
+    });
+
+    await useCase.execute(withTarget);
+
+    expect(esgMetricRepository.findByIds).toHaveBeenCalledWith([
+      'metric-1',
+      'metric-2',
+    ]);
+    expect(licenseConditionRepository.addMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        targetMetricId: 'metric-2',
+        targetOperator: 'LTE',
+        targetValue: 8.5,
+      }),
+    ]);
+  });
+
+  it('rejects a target metric not linked to the customer', async () => {
+    const { useCase } = buildUseCase({
+      esgMetricRepository: {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue([
+            metric('metric-1', null),
+            metric('metric-2', null),
+          ]),
+      },
+    });
+    const withTarget = input();
+    Object.assign(withTarget.conditions[0], {
+      targetMetricId: 'metric-2',
+      targetOperator: LicenseConditionTargetOperator.GTE,
+      targetValue: 1,
+    });
+
+    await expect(useCase.execute(withTarget)).rejects.toThrow(
+      ConditionCategoryNotLinkedError,
+    );
+  });
+
   it('validates every condition belongs to the route license before querying', async () => {
     const { useCase, licenseRepository } = buildUseCase();
     const invalid = input();

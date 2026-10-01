@@ -14,6 +14,9 @@ describe('toLicenseConditionResponse', () => {
         responsibleAgency: 'FEPAM',
         dueDate: new Date('2026-02-11T00:00:00.000Z'),
         status: LicenseConditionStatus.REGULAR,
+        targetMetricId: null,
+        targetOperator: null,
+        targetValue: null,
         riskLevel: LicenseConditionRiskLevel.RISK,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -27,6 +30,9 @@ describe('toLicenseConditionResponse', () => {
       responsible_agency: 'FEPAM',
       due_date: '2026-02-11T00:00:00.000Z',
       status: 'Regular',
+      target_metric_id: null,
+      target_operator: null,
+      target_value: null,
       risk_level: LicenseConditionRiskLevel.RISK,
     });
   });

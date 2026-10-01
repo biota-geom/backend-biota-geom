@@ -15,6 +15,10 @@ export const LICENSES_MESSAGES = {
     'A licença informada não corresponde à licença da rota.',
   CONDITION_DUE_DATE_MUST_BE_FUTURE:
     'A data de vencimento deve ser uma data futura.',
+  CONDITION_DUE_DATE_REQUIRED:
+    'A data de vencimento é obrigatória para registar a condicionante.',
+  CONDITION_TARGET_INCOMPLETE:
+    'Informe a métrica, o operador e o valor da meta juntos, ou nenhum deles.',
   CONDITION_CATEGORY_NOT_FOUND: 'Parâmetro GRI não encontrado.',
   CONDITION_CATEGORY_NOT_LINKED:
     'O parâmetro GRI informado não está vinculado a esta empresa.',

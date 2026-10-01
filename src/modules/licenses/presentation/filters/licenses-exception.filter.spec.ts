@@ -3,6 +3,8 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { ConditionCategoryNotFoundError } from '../../domain/errors/condition-category-not-found.error';
 import { ConditionCategoryNotLinkedError } from '../../domain/errors/condition-category-not-linked.error';
+import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
+import { InvalidConditionTargetError } from '../../domain/errors/invalid-condition-target.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
@@ -111,6 +113,22 @@ describe('LicensesExceptionFilter', () => {
       statusCode: 422,
       message: 'O parâmetro GRI informado não está vinculado a esta empresa.',
       error: 'Unprocessable Entity',
+    });
+  });
+
+  it.each([
+    [new InvalidConditionDueDateError(), 'CONDITION_DUE_DATE_REQUIRED'],
+    [new InvalidConditionTargetError(), 'CONDITION_TARGET_INCOMPLETE'],
+  ] as const)('maps %p to 400', (error, key) => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(error, host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 400,
+      message: LICENSES_MESSAGES[key],
+      error: 'Bad Request',
     });
   });
 });

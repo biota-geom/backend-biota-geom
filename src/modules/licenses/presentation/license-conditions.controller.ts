@@ -145,6 +145,9 @@ export class LicenseConditionsController {
           dueDate: new Date(dto.due_date),
           status: toLicenseConditionStatus(dto.status),
           description: dto.description || undefined,
+          targetMetricId: dto.target_metric_id,
+          targetOperator: dto.target_operator,
+          targetValue: dto.target_value,
         },
       ],
     });

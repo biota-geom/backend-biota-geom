@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LicenseConditionStatus } from '@prisma/client';
+import {
+  LicenseConditionStatus,
+  LicenseConditionTargetOperator,
+} from '@prisma/client';
 import { LicenseCondition } from '../../domain/license-condition.entity';
 import { LicenseConditionStatusDto } from './add-license-condition.dto';
 
@@ -43,6 +46,15 @@ export class LicenseConditionCreatedResponseDto {
   @ApiPropertyOptional({ nullable: true })
   description!: string | null;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
+  target_metric_id!: string | null;
+
+  @ApiProperty({ enum: LicenseConditionTargetOperator, nullable: true })
+  target_operator!: LicenseConditionTargetOperator | null;
+
+  @ApiProperty({ example: 150, nullable: true })
+  target_value!: number | null;
+
   @ApiProperty({ format: 'date-time' })
   created_at!: string;
 }
@@ -59,6 +71,9 @@ export function toLicenseConditionCreatedResponse(
     due_date: condition.dueDate.toISOString(),
     status: STATUS_LABELS[condition.status],
     description: condition.description,
+    target_metric_id: condition.targetMetricId,
+    target_operator: condition.targetOperator,
+    target_value: condition.targetValue,
     created_at: condition.createdAt.toISOString(),
   };
 }

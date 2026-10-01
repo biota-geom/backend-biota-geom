@@ -51,6 +51,7 @@ async function bootstrap() {
     origin: authConfig.corsOrigins,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+
     // Tokens travel via the Authorization header, never cookies, so the
     // browser never needs to send credentials cross-origin.
     credentials: false,

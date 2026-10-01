@@ -3,7 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { AddressType, DocumentType, LicenseType } from '@prisma/client';
+import {
+  AddressType,
+  DocumentType,
+  EsgPillar,
+  LicenseType,
+} from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
@@ -268,9 +273,225 @@ describe('Licenses (e2e)', () => {
       .expect(400);
   });
 
+  describe('POST /licenses/:licenseId/conditions', () => {
+    let conditionLicenseId: string;
+    let linkedMetric: { id: string; name: string };
+    let unlinkedMetricId: string;
+    let foreignPrivateMetricId: string;
+
+    function dueDateInDays(days: number): string {
+      return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    function conditionBody(overrides: Record<string, unknown> = {}) {
+      return {
+        name: 'MTR - Manifesto de Transporte de Resíduos',
+        esg_metric_id: linkedMetric.id,
+        license_id: conditionLicenseId,
+        responsible_agency: 'FEPAM',
+        due_date: dueDateInDays(400),
+        status: 'Regular',
+        description: 'Manifesto para destinação final de resíduos.',
+        ...overrides,
+      };
+    }
+
+    function postCondition(body: Record<string, unknown>) {
+      return request(app.getHttpServer())
+        .post(`/api/licenses/${conditionLicenseId}/conditions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(body);
+    }
+
+    beforeAll(async () => {
+      const response = await createLicenseRequest({
+        process_number: `LO condição-${uniqueSuffix()}`,
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'licenca.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      conditionLicenseId = (response.body as { id: string }).id;
+
+      const [linked, unlinked] = await Promise.all(
+        ['Resíduos', 'Emissões'].map((name) =>
+          prisma.esgMetric.create({
+            data: {
+              name: `${name} ${uniqueSuffix()}`,
+              unit: 't',
+              pillar: EsgPillar.AMBIENTAL,
+            },
+          }),
+        ),
+      );
+      linkedMetric = { id: linked.id, name: linked.name };
+      unlinkedMetricId = unlinked.id;
+
+      const otherOwner = await prisma.user.create({
+        data: {
+          name: 'Outra Consultoria',
+          email: `other-${uniqueSuffix()}@biotageom.com.br`,
+          passwordHash: 'not-a-real-hash',
+        },
+      });
+      const foreignPrivate = await prisma.esgMetric.create({
+        data: {
+          name: `Parâmetro privado ${uniqueSuffix()}`,
+          unit: 'un',
+          pillar: EsgPillar.AMBIENTAL,
+          customerId: otherOwner.id,
+        },
+      });
+      foreignPrivateMetricId = foreignPrivate.id;
+
+      await request(app.getHttpServer())
+        .post(`/api/customers/${customerId}/esg-metrics`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ metric_ids: [linkedMetric.id] })
+        .expect(204);
+    });
+
+    it('persists a condition categorized by a GRI parameter linked to the customer', async () => {
+      const response = await postCondition(conditionBody()).expect(201);
+
+      expect(response.body).toMatchObject({
+        category: { id: linkedMetric.id, name: linkedMetric.name },
+      });
+
+      const stored = await prisma.licenseCondition.findUniqueOrThrow({
+        where: { id: (response.body as { id: string }).id },
+      });
+      expect(stored.licenseId).toBe(conditionLicenseId);
+      expect(stored.esgMetricId).toBe(linkedMetric.id);
+      expect(stored.name).toBe('MTR - Manifesto de Transporte de Resíduos');
+      expect(stored.status).toBe('REGULAR');
+    });
+
+    it('lists the condition with the GRI parameter name as its category', async () => {
+      const created = await postCondition(
+        conditionBody({ name: `Listagem ${uniqueSuffix()}` }),
+      ).expect(201);
+      const createdId = (created.body as { id: string }).id;
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/customers/${customerId}/license-conditions`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const listed = (
+        response.body as { data: Array<{ id: string; due_date: string }> }
+      ).data.find((condition) => condition.id === createdId);
+      expect(listed).toMatchObject({
+        category: { id: linkedMetric.id, name: linkedMetric.name },
+      });
+      expect(new Date(listed!.due_date).toISOString()).toBe(listed!.due_date);
+    });
+
+    it('answers 422 for a catalog GRI parameter not linked to the customer', async () => {
+      const response = await postCondition(
+        conditionBody({ esg_metric_id: unlinkedMetricId }),
+      ).expect(422);
+
+      expect(response.body).toEqual({
+        statusCode: 422,
+        message: 'O parâmetro GRI informado não está vinculado a esta empresa.',
+        error: 'Unprocessable Entity',
+      });
+    });
+
+    it('refuses with 409 to unlink a GRI parameter still used by a condition', async () => {
+      function linkMetrics(metricIds: string[]) {
+        return request(app.getHttpServer())
+          .post(`/api/customers/${customerId}/esg-metrics`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ metric_ids: metricIds });
+      }
+
+      const response = await linkMetrics([]).expect(409);
+      expect((response.body as { message: string }).message).toBe(
+        'Não é possível desvincular parâmetros GRI usados como categoria de condicionantes desta empresa.',
+      );
+      await expect(
+        prisma.customerEsgMetric.count({
+          where: { customerId, esgMetricId: linkedMetric.id },
+        }),
+      ).resolves.toBe(1);
+
+      // Keeping the parameter in use while changing the others is allowed.
+      await linkMetrics([linkedMetric.id, unlinkedMetricId]).expect(204);
+      await linkMetrics([linkedMetric.id]).expect(204);
+    });
+
+    it("hides another account's private GRI parameter behind the same 404 as an unknown one", async () => {
+      // Even a (stray) link to the customer must not make it usable.
+      await prisma.customerEsgMetric.create({
+        data: { customerId, esgMetricId: foreignPrivateMetricId },
+      });
+
+      const foreign = await postCondition(
+        conditionBody({ esg_metric_id: foreignPrivateMetricId }),
+      ).expect(404);
+      const unknown = await postCondition(
+        conditionBody({
+          esg_metric_id: '00000000-0000-4000-8000-000000000000',
+        }),
+      ).expect(404);
+
+      expect(foreign.body).toEqual(unknown.body);
+    });
+
+    it('refuses to delete a GRI parameter in use by a condition', async () => {
+      const metric = await prisma.esgMetric.create({
+        data: {
+          name: `Em uso ${uniqueSuffix()}`,
+          unit: 't',
+          pillar: EsgPillar.AMBIENTAL,
+        },
+      });
+      await prisma.customerEsgMetric.create({
+        data: { customerId, esgMetricId: metric.id },
+      });
+      await postCondition(conditionBody({ esg_metric_id: metric.id })).expect(
+        201,
+      );
+      // Drop the customer link so only the condition still references it.
+      await prisma.customerEsgMetric.delete({
+        where: {
+          customerId_esgMetricId: { customerId, esgMetricId: metric.id },
+        },
+      });
+
+      await expect(
+        prisma.esgMetric.delete({ where: { id: metric.id } }),
+      ).rejects.toMatchObject({ code: 'P2003' });
+      await expect(
+        prisma.esgMetric.findUnique({ where: { id: metric.id } }),
+      ).resolves.not.toBeNull();
+    });
+
+    it('rejects the former free-text category field', async () => {
+      await postCondition(conditionBody({ category: 'Resíduos' })).expect(400);
+    });
+
+    it.each([
+      ['name', ''],
+      ['due_date', undefined],
+      ['esg_metric_id', 'not-a-uuid'],
+      ['esg_metric_id', undefined],
+    ])('rejects an invalid required %s', async (field, value) => {
+      const body: Record<string, unknown> = conditionBody();
+      body[field] = value;
+
+      await postCondition(body).expect(400);
+    });
+  });
+
   describe('GET /customers/:customerId/licenses (panel)', () => {
     let panelCustomerId: string;
     let panelToken: string;
+    let sectorId: string;
 
     beforeAll(async () => {
       panelToken = await createUserAndLogin();
@@ -278,6 +499,7 @@ describe('Licenses (e2e)', () => {
       const sector = await prisma.sector.create({
         data: { name: `Setor Painel ${uniqueSuffix()}` },
       });
+      sectorId = sector.id;
       const customerResponse = await request(app.getHttpServer())
         .post('/api/customers')
         .set('Authorization', `Bearer ${panelToken}`)
@@ -370,6 +592,55 @@ describe('Licenses (e2e)', () => {
         body.summary.regular + body.summary.attention + body.summary.expired,
       ).toBe(body.summary.total);
       expect(body.licenses).toHaveLength(4);
+    });
+
+    it('lists each company with its own total_licenses and updated_at', async () => {
+      // Same owner, no licenses: proves the count is per company, not per owner.
+      const emptyResponse = await request(app.getHttpServer())
+        .post('/api/customers')
+        .set('Authorization', `Bearer ${panelToken}`)
+        .send({
+          name: 'Empresa sem Licenças',
+          document: '23456789000195',
+          document_type: DocumentType.CNPJ,
+          sector_id: sectorId,
+          owner_name: 'Responsável Vazio',
+          owner_email: 'responsavel-vazio@empresa.com.br',
+          address: {
+            type: AddressType.BILLING,
+            city: 'Canoas',
+            state: 'RS',
+            country_code: 'BR',
+          },
+        })
+        .expect(201);
+      const emptyCustomerId = (emptyResponse.body as { id: string }).id;
+
+      const response = await request(app.getHttpServer())
+        .get('/api/customers')
+        .set('Authorization', `Bearer ${panelToken}`)
+        .expect(200);
+
+      const body = response.body as {
+        id: string;
+        total_licenses: number;
+        updated_at: string;
+      }[];
+      const byId = new Map(body.map((customer) => [customer.id, customer]));
+
+      const stored = await prisma.license.count({
+        where: { customerId: panelCustomerId },
+      });
+      expect(byId.get(panelCustomerId)?.total_licenses).toBe(stored);
+      expect(byId.get(panelCustomerId)?.total_licenses).toBe(4);
+      expect(byId.get(emptyCustomerId)?.total_licenses).toBe(0);
+
+      const customer = await prisma.customer.findUniqueOrThrow({
+        where: { id: panelCustomerId },
+      });
+      expect(byId.get(panelCustomerId)?.updated_at).toBe(
+        customer.updatedAt.toISOString(),
+      );
     });
 
     it("never returns another owner's licenses in the panel (data isolation)", async () => {

@@ -1,6 +1,7 @@
 import { DocumentType } from '@prisma/client';
 import { CreateCustomerData } from '../../domain/create-customer.data';
 import { Customer } from '../../domain/customer.entity';
+import { CustomerListItem } from '../../domain/customer-list-item.entity';
 import { CustomerRepository } from '../../domain/customers.repository';
 import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import type { UpdateCustomerData } from '../../domain/update-customer.data';
@@ -42,11 +43,16 @@ export class InMemoryCustomerRepository extends CustomerRepository {
     return customer;
   }
 
-  findAll(ownerUserId: string): Promise<Customer[]> {
+  // Licenses live in another module; this double has none to count.
+  findAll(ownerUserId: string): Promise<CustomerListItem[]> {
     return Promise.resolve(
-      this.rows.filter(
-        (row) => row.ownerUserId === ownerUserId && !row.isDeleted,
-      ),
+      this.rows
+        .filter((row) => row.ownerUserId === ownerUserId && !row.isDeleted)
+        .map((row) => ({
+          ...row,
+          totalLicenses: 0,
+          licenseConditionDueDates: [],
+        })),
     );
   }
 

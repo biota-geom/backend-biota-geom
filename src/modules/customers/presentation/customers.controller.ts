@@ -200,6 +200,10 @@ export class CustomerController {
   @ApiNoContentResponse({
     description: 'Customer ESG metric links were replaced.',
   })
+  @ApiConflictResponse({
+    description:
+      'Um parâmetro GRI que sairia da lista ainda é categoria de alguma condicionante da empresa.',
+  })
   async linkCustomerEsgMetrics(
     @Param('id', uuidPipe) customerId: string,
     @Body() dto: LinkCustomerEsgMetricsDto,

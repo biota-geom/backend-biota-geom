@@ -63,20 +63,41 @@ function buildRepository() {
 
 describe('PrismaCustomerRepository', () => {
   it('loads active customers with their nested address and sector', async () => {
+    const dueDates = [
+      new Date('2027-01-01T00:00:00.000Z'),
+      new Date('2026-01-01T00:00:00.000Z'),
+      new Date('2025-01-01T00:00:00.000Z'),
+    ];
     const customer = {
-      findMany: jest.fn().mockResolvedValue([{ id: 'customer-1' }]),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'customer-1',
+          _count: { licenses: 3 },
+          licenses: dueDates.map((dueDate) => ({
+            conditions: [{ dueDate }],
+          })),
+        },
+      ]),
     };
     const prisma = { customer } as unknown as PrismaService;
     const repository = new PrismaCustomerRepository(prisma);
 
     await expect(repository.findAll(OWNER)).resolves.toEqual([
-      { id: 'customer-1' },
+      {
+        id: 'customer-1',
+        totalLicenses: 3,
+        licenseConditionDueDates: dueDates,
+      },
     ]);
     expect(customer.findMany).toHaveBeenCalledWith({
       where: { ownerUserId: OWNER, isDeleted: false },
       include: {
         address: true,
         sector: true,
+        _count: { select: { licenses: true } },
+        licenses: {
+          select: { conditions: { select: { dueDate: true } } },
+        },
       },
     });
   });

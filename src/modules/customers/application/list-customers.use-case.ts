@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { calculateLicenseConditionsCompliance } from '../../licenses/domain/license-conditions-compliance.calculator';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerListResponseDTO } from '../presentation/dto/customer-list-response.dto';
 
@@ -8,20 +9,31 @@ export class ListCustomersUseCase {
 
   // Only the authenticated owner's portfolio (US03) — the repository scopes
   // the query, so there is no unfiltered list to fall back to.
-  async listCustomers(ownerUserId: string): Promise<CustomerListResponseDTO[]> {
+  async listCustomers(
+    ownerUserId: string,
+    now: Date = new Date(),
+  ): Promise<CustomerListResponseDTO[]> {
     const customers = await this.repository.findAll(ownerUserId);
 
     return customers.map((customer) => {
       const city = customer.address?.city ?? '';
       const state = customer.address?.state ?? '';
       const location = [city, state].filter(Boolean).join(' - ');
+      const { compliancePercentage } = calculateLicenseConditionsCompliance(
+        customer.licenseConditionDueDates,
+        now,
+      );
 
       return {
         id: customer.id,
         name: customer.name,
+        document: customer.document,
         status: customer.isActive ? 'Ativo' : 'Inativo',
         segment: customer.sector?.name ?? '',
         location,
+        total_licenses: customer.totalLicenses,
+        updated_at: customer.updatedAt.toISOString(),
+        conformity_percentage: compliancePercentage,
       };
     });
   }

@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
+import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
 import { AddLicenseConditionsUseCase } from './application/add-license-conditions.use-case';
+import { GetLicenseConditionsComplianceUseCase } from './application/get-license-conditions-compliance.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from './application/list-license-conditions-by-customer.use-case';
 import { ListLicensesByCustomerUseCase } from './application/list-licenses-by-customer.use-case';
 import { LicenseConditionRepository } from './domain/license-conditions.repository';
@@ -20,9 +22,13 @@ import { CreateLicenseConditionUseCase } from './application/create-license-cond
 import { GetLicenseDetailsUseCase } from './application/get-license-details.use-case';
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
-import { CreateLicenseConditionCategoryUseCase } from './application/create-license-condition-category.use-case';
 @Module({
-  imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
+  imports: [
+    AuthModule,
+    CustomerModule,
+    EsgMetricsModule,
+    IssuingAgenciesModule,
+  ],
   controllers: [LicensesController, LicenseConditionsController],
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
@@ -37,8 +43,8 @@ import { CreateLicenseConditionCategoryUseCase } from './application/create-lice
     GetLicenseDetailsUseCase,
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
-    CreateLicenseConditionCategoryUseCase,
     ListLicenseConditionsByCustomerUseCase,
+    GetLicenseConditionsComplianceUseCase,
     StorageConfigService,
     LocalDiskLicenseDocumentStorage,
     S3LicenseDocumentStorage,

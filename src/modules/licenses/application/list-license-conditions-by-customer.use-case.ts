@@ -48,9 +48,7 @@ export class ListLicenseConditionsByCustomerUseCase {
     const conditionsWithRisk = conditions
       .map((condition) => ({
         ...condition,
-        riskLevel: condition.dueDate
-          ? calculateLicenseConditionRiskLevel(condition.dueDate, now)
-          : LicenseConditionRiskLevel.REGULAR,
+        riskLevel: calculateLicenseConditionRiskLevel(condition.dueDate, now),
       }))
       .filter((condition) => !riskLevel || condition.riskLevel === riskLevel)
       .sort((left, right) => {
@@ -61,10 +59,7 @@ export class ListLicenseConditionsByCustomerUseCase {
           return riskDifference;
         }
 
-        return (
-          (left.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER) -
-          (right.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER)
-        );
+        return left.dueDate.getTime() - right.dueDate.getTime();
       });
 
     return {

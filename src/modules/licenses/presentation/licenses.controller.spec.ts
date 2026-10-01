@@ -1,7 +1,6 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateLicenseUseCase } from '../application/create-license.use-case';
-import { CreateLicenseConditionCategoryUseCase } from '../application/create-license-condition-category.use-case';
 import { CreateLicenseConditionUseCase } from '../application/create-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from '../application/delete-license-condition.use-case';
 import { GetLicenseDetailsUseCase } from '../application/get-license-details.use-case';
@@ -21,7 +20,6 @@ function buildController(overrides?: {
   getLicenseDetailsUseCase?: unknown;
   updateLicenseConditionUseCase?: unknown;
   deleteLicenseConditionUseCase?: unknown;
-  createCategoryUseCase?: unknown;
 }): LicensesController {
   return new LicensesController(
     (overrides?.createLicenseUseCase ??
@@ -40,9 +38,6 @@ function buildController(overrides?: {
     (overrides?.deleteLicenseConditionUseCase ?? {
       execute: jest.fn(),
     }) as DeleteLicenseConditionUseCase,
-    (overrides?.createCategoryUseCase ?? {
-      execute: jest.fn(),
-    }) as CreateLicenseConditionCategoryUseCase,
   );
 }
 
@@ -213,7 +208,7 @@ describe('LicensesController', () => {
     });
   });
 
-  it('delegates condition creation, details, deletion and category creation', async () => {
+  it('delegates condition creation, details and deletion', async () => {
     const createConditions = jest.fn().mockResolvedValue({
       count: 1,
       message: 'ok',
@@ -227,16 +222,10 @@ describe('LicensesController', () => {
       conditions: [],
     });
     const deleteCondition = jest.fn().mockResolvedValue(undefined);
-    const createCategory = jest.fn().mockResolvedValue({
-      id: 'category-1',
-      name: 'Emissões',
-      createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    });
     const controller = buildController({
       createLicenseConditionUseCase: { execute: createConditions },
       getLicenseDetailsUseCase: { execute: getDetails },
       deleteLicenseConditionUseCase: { execute: deleteCondition },
-      createCategoryUseCase: { execute: createCategory },
     });
 
     await expect(
@@ -260,9 +249,6 @@ describe('LicensesController', () => {
         { id: 'owner-1' },
       ),
     ).resolves.toBeUndefined();
-    await expect(
-      controller.createCategory({ name: 'Emissões' }),
-    ).resolves.toEqual(expect.objectContaining({ id: 'category-1' }));
     expect(createConditions).toHaveBeenCalled();
     expect(getDetails).toHaveBeenCalledWith(
       'customer-1',
@@ -275,6 +261,5 @@ describe('LicensesController', () => {
       'condition-1',
       'owner-1',
     );
-    expect(createCategory).toHaveBeenCalledWith('Emissões');
   });
 });

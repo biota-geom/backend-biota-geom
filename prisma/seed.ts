@@ -120,44 +120,6 @@ const seedEsgMetrics = [
   },
 ];
 
-const seedLicenseConditions = [
-  {
-    name: 'Automonitoramento Atmosférico',
-    description:
-      'Avaliação periódica de emissões em chaminés e qualidade do ar no entorno industrial.',
-    category: 'Emissões',
-    daysUntilDue: 3,
-  },
-  {
-    name: 'Relatório Semestral de Efluentes Líquidos',
-    description:
-      'Laudos de análises físico-químicas de efluentes tratados e lançados nos corpos hídricos.',
-    category: 'Recursos Hídricos',
-    daysUntilDue: 15,
-  },
-  {
-    name: 'MTR - Manifesto de Transporte de Resíduos',
-    description:
-      'Emissão de manifesto obrigatório para movimentação e destinação final de resíduos industriais.',
-    category: 'Resíduos',
-    daysUntilDue: 45,
-  },
-];
-
-/*
- * Categorias globais das condicionantes de licença. O model não tem índice
- * único em `name`, então o seed procura por nome antes de criar (mesmo padrão
- * das métricas ESG globais).
- */
-const seedConditionCategories = [
-  'Monitoramento',
-  'Resíduos',
-  'Efluentes',
-  'Emissões Atmosféricas',
-  'Educação Ambiental',
-  'Relatórios e Documentação',
-];
-
 /*
  * `owner` é o login (parte local do e-mail) da conta dona da empresa — no
  * modelo, `User` é a consultoria que assina o sistema e `Customer` é a empresa
@@ -393,7 +355,9 @@ interface SeedCondition {
   title: string;
   description: string;
   responsibleName: string;
-  category: string;
+  // Parâmetro GRI (nome em seedEsgMetrics) que categoriza a condicionante. Tem
+  // que estar entre os `metrics` da empresa, como a API exige (US02/US23).
+  esgMetric: string;
   conditionType: ConditionType;
   // Só faz sentido para PERIODIC.
   periodicity?: ConditionPeriodicity;
@@ -438,7 +402,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Realizar análise trimestral da qualidade da água superficial a montante e a jusante do empreendimento, com laudo de laboratório acreditado.',
         responsibleName: 'Roberto Andrade',
-        category: 'Monitoramento',
+        esgMetric: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.QUARTERLY,
         dueInDays: 30,
@@ -450,7 +414,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Apresentar semestralmente os manifestos de transporte e certificados de destinação final dos resíduos gerados.',
         responsibleName: 'Roberto Andrade',
-        category: 'Resíduos',
+        esgMetric: 'Resíduos Sólidos Gerados',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.SEMIANNUAL,
         dueInDays: -10, // OVERDUE
@@ -462,7 +426,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Protocolar o Plano de Controle Ambiental (PCA) atualizado junto ao órgão licenciador.',
         responsibleName: 'Roberto Andrade',
-        category: 'Relatórios e Documentação',
+        esgMetric: 'Consumo de Água',
         conditionType: ConditionType.INFORMATIVE,
         deadlineInDays: -60,
         completedInDays: -75, // FULFILLED
@@ -492,7 +456,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Elaborar e enviar o inventário anual de emissões de gases de efeito estufa das operações.',
         responsibleName: 'Fernanda Lopes',
-        category: 'Emissões Atmosféricas',
+        esgMetric: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.ANNUAL,
         dueInDays: 40,
@@ -504,7 +468,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Implementar o programa de educação ambiental junto às comunidades do entorno.',
         responsibleName: 'Fernanda Lopes',
-        category: 'Educação Ambiental',
+        esgMetric: 'Consumo de Água',
         conditionType: ConditionType.INFORMATIVE,
         deadlineInDays: 90,
       },
@@ -524,7 +488,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Enviar mensalmente o relatório de automonitoramento dos efluentes tratados, com os parâmetros da licença.',
         responsibleName: 'Mariana Souza',
-        category: 'Efluentes',
+        esgMetric: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.MONTHLY,
         dueInDays: 12,
@@ -555,7 +519,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Realizar amostragem semestral das emissões das chaminés dos fornos e enviar o laudo ao órgão.',
         responsibleName: 'Carlos Aço',
-        category: 'Emissões Atmosféricas',
+        esgMetric: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.SEMIANNUAL,
         dueInDays: 25,
@@ -567,7 +531,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Manter estação de monitoramento da qualidade do ar e apresentar relatório trimestral.',
         responsibleName: 'Carlos Aço',
-        category: 'Monitoramento',
+        esgMetric: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.QUARTERLY,
         dueInDays: -5, // OVERDUE
@@ -625,7 +589,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Enviar mensalmente os resultados de DBO, DQO e sólidos suspensos do efluente lançado no corpo receptor.',
         responsibleName: 'Beatriz Ramos',
-        category: 'Efluentes',
+        esgMetric: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.MONTHLY,
         dueInDays: 7,
@@ -637,7 +601,7 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Consolidar e protocolar o relatório de não conformidades ambientais do último ciclo.',
         responsibleName: 'Beatriz Ramos',
-        category: 'Relatórios e Documentação',
+        esgMetric: 'Não Conformidades Ambientais',
         conditionType: ConditionType.INFORMATIVE,
         deadlineInDays: -20,
         completedInDays: -30, // FULFILLED
@@ -773,24 +737,6 @@ async function seedEsgMetricsTable() {
   return metrics;
 }
 
-async function seedConditionCategoriesTable() {
-  const categories = new Map<string, string>();
-
-  for (const name of seedConditionCategories) {
-    const existing = await prisma.licenseConditionCategory.findFirst({
-      where: { name },
-    });
-
-    const created =
-      existing ??
-      (await prisma.licenseConditionCategory.create({ data: { name } }));
-
-    categories.set(created.name, created.id);
-  }
-
-  return categories;
-}
-
 async function seedCompaniesTable(
   users: Map<string, string>,
   sectors: Map<string, string>,
@@ -879,7 +825,7 @@ async function seedCompaniesTable(
 async function seedLicensesTable(
   companies: Map<string, string>,
   agencies: Map<string, string>,
-  categories: Map<string, string>,
+  metrics: Map<string, string>,
 ) {
   const now = new Date();
 
@@ -936,12 +882,16 @@ async function seedLicensesTable(
           },
         });
 
-    for (const condition of license.conditions) {
-      const categoryId = categories.get(condition.category);
+    const companyMetrics =
+      seedCompanies.find((company) => company.name === license.company)
+        ?.metrics ?? [];
 
-      if (!categoryId) {
+    for (const condition of license.conditions) {
+      const esgMetricId = metrics.get(condition.esgMetric);
+
+      if (!esgMetricId || !companyMetrics.includes(condition.esgMetric)) {
         throw new Error(
-          `Condicionante "${condition.itemNumber}" da licença "${license.processNumber}" referencia a categoria "${condition.category}", que não está em seedConditionCategories.`,
+          `Condicionante "${condition.itemNumber}" da licença "${license.processNumber}" referencia o parâmetro GRI "${condition.esgMetric}", que não está nos metrics de "${license.company}".`,
         );
       }
 
@@ -952,11 +902,16 @@ async function seedLicensesTable(
         conditionType: condition.conditionType,
         periodicity: condition.periodicity ?? null,
         deadline: optionalDate(now, condition.deadlineInDays),
-        dueDate: optionalDate(now, condition.dueInDays),
+        // due_date é obrigatório: é a data lida pelas regras de risco e
+        // conformidade. Informativas usam o próprio prazo.
+        dueDate: addDays(
+          now,
+          condition.dueInDays ?? condition.deadlineInDays ?? 0,
+        ),
         alertDate: optionalDate(now, condition.alertInDays),
         completionDate: optionalDate(now, condition.completedInDays),
         conditionStatus: deriveConditionStatus(condition, now),
-        categoryId,
+        esgMetricId,
       };
 
       await prisma.licenseCondition.upsert({
@@ -1023,9 +978,8 @@ async function main() {
   const sectors = await seedSectorsTable();
   const metrics = await seedEsgMetricsTable();
   const agencies = await seedIssuingAgenciesTable();
-  const categories = await seedConditionCategoriesTable();
   const companies = await seedCompaniesTable(users, sectors, metrics);
-  await seedLicensesTable(companies, agencies, categories);
+  await seedLicensesTable(companies, agencies, metrics);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);
@@ -1068,15 +1022,7 @@ async function main() {
     `Licenças: ${licenses.regular + licenses.attention + licenses.expired} (${licenses.regular} regulares, ${licenses.attention} em atenção, ${licenses.expired} vencidas) · Condicionantes: ${licenses.conditions}`,
   );
   console.log(
-    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length} · Categorias de condicionantes: ${seedConditionCategories.length}`,
-  );
-  console.log(
-    `Licenças seed: ${visible.length} · Condicionantes seed: ${licenses.conditions}`,
-  );
-  console.log(
-    `Licenças seed: ${visible.length} · Condicionantes seed: ${
-      visible.length * seedLicenseConditions.length
-    }`,
+    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
   );
 }
 

@@ -9,7 +9,6 @@ import { ConditionData } from '../domain/license-condition.data';
 import { LicenseCondition } from '../domain/condition.entity';
 import { UpdateLicenseConditionData } from '../domain/update-license-condition.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
-import { LicenseConditionCategory } from '../domain/license-condition-category.entity';
 
 function toDomainCondition(
   condition: Prisma.LicenseConditionGetPayload<{
@@ -48,12 +47,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
   async createConditions(data: ConditionData[]): Promise<ConditionResponse> {
     const result = await this.prisma.licenseCondition.createMany({ data });
     return { count: result.count };
-  }
-
-  async createConditionCategory(
-    name: string,
-  ): Promise<LicenseConditionCategory> {
-    return this.prisma.licenseConditionCategory.create({ data: { name } });
   }
 
   async findByIdForCustomer(

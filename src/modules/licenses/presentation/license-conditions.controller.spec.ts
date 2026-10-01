@@ -1,5 +1,6 @@
 import { LicenseConditionStatus } from '@prisma/client';
 import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
+import { GetLicenseConditionsComplianceUseCase } from '../application/get-license-conditions-compliance.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
 import { LicenseConditionStatusFilter } from './dto/list-license-conditions-query.dto';
@@ -8,6 +9,7 @@ import { LicenseConditionsController } from './license-conditions.controller';
 function buildController(overrides?: {
   listLicenseConditionsByCustomerUseCase?: unknown;
   addLicenseConditionsUseCase?: unknown;
+  getLicenseConditionsComplianceUseCase?: unknown;
 }): LicenseConditionsController {
   return new LicenseConditionsController(
     (overrides?.listLicenseConditionsByCustomerUseCase ??
@@ -16,10 +18,37 @@ function buildController(overrides?: {
       } as unknown)) as ListLicenseConditionsByCustomerUseCase,
     (overrides?.addLicenseConditionsUseCase ??
       ({ execute: jest.fn() } as unknown)) as AddLicenseConditionsUseCase,
+    (overrides?.getLicenseConditionsComplianceUseCase ??
+      ({
+        execute: jest.fn(),
+      } as unknown)) as GetLicenseConditionsComplianceUseCase,
   );
 }
 
 describe('LicenseConditionsController', () => {
+  it('returns the compliance summary in the API contract shape', async () => {
+    const execute = jest.fn().mockResolvedValue({
+      totalActive: 8,
+      inCompliance: 4,
+      compliancePercentage: 50,
+    });
+    const controller = buildController({
+      getLicenseConditionsComplianceUseCase: { execute },
+    });
+
+    const response = await controller.getLicenseConditionsCompliance(
+      'customer-1',
+      { id: 'owner-1' },
+    );
+
+    expect(execute).toHaveBeenCalledWith('customer-1', 'owner-1');
+    expect(response).toEqual({
+      total_active: 8,
+      in_compliance: 4,
+      compliance_percentage: 50,
+    });
+  });
+
   it('forwards the filter and maps the response', async () => {
     const execute = jest.fn().mockResolvedValue({
       total: 1,
@@ -29,7 +58,7 @@ describe('LicenseConditionsController', () => {
           licenseId: 'license-1',
           name: 'Automonitoramento Atmosférico',
           description: 'Avaliação periódica de emissões.',
-          category: 'Emissões',
+          category: { id: 'metric-emissoes', name: 'Emissões' },
           responsibleAgency: 'FEPAM',
           dueDate: new Date('2026-02-11T00:00:00.000Z'),
           status: LicenseConditionStatus.REGULAR,
@@ -62,7 +91,7 @@ describe('LicenseConditionsController', () => {
           license_id: 'license-1',
           name: 'Automonitoramento Atmosférico',
           description: 'Avaliação periódica de emissões.',
-          category: 'Emissões',
+          category: { id: 'metric-emissoes', name: 'Emissões' },
           responsible_agency: 'FEPAM',
           due_date: '2026-02-11T00:00:00.000Z',
           status: 'Regular',
@@ -94,7 +123,7 @@ describe('LicenseConditionsController', () => {
         id: 'condition-1',
         licenseId: 'license-1',
         name: 'MTR',
-        category: 'Resíduos',
+        category: { id: 'metric-residuos', name: 'Resíduos' },
         responsibleAgency: 'FEPAM',
         dueDate: new Date('2027-05-20T00:00:00.000Z'),
         status: LicenseConditionStatus.REGULAR,
@@ -111,7 +140,7 @@ describe('LicenseConditionsController', () => {
       'license-1',
       {
         name: 'MTR',
-        category: 'Resíduos',
+        esg_metric_id: 'metric-residuos',
         license_id: 'license-1',
         responsible_agency: 'FEPAM',
         due_date: '2027-05-20T00:00:00.000Z',
@@ -128,7 +157,7 @@ describe('LicenseConditionsController', () => {
         {
           licenseId: 'license-1',
           name: 'MTR',
-          category: 'Resíduos',
+          esgMetricId: 'metric-residuos',
           responsibleAgency: 'FEPAM',
           dueDate: new Date('2027-05-20T00:00:00.000Z'),
           status: undefined,
@@ -140,7 +169,7 @@ describe('LicenseConditionsController', () => {
       id: 'condition-1',
       license_id: 'license-1',
       name: 'MTR',
-      category: 'Resíduos',
+      category: { id: 'metric-residuos', name: 'Resíduos' },
       responsible_agency: 'FEPAM',
       due_date: '2027-05-20T00:00:00.000Z',
       status: 'Regular',

@@ -19,20 +19,19 @@ export class CustomerListResponseDTO {
   @ApiProperty({ example: 'Porto Alegre - RS' })
   location!: string;
 
-  @ApiProperty({ example: 6, minimum: 0 })
+  @ApiProperty({ type: 'integer', example: 6 })
   total_licenses!: number;
 
-  @ApiProperty({ example: '2026-09-17T14:30:00.000Z' })
+  @ApiProperty({ format: 'date-time', example: '2026-09-17T14:30:00.000Z' })
   updated_at!: string;
 
   @ApiProperty({
-    type: Number,
+    type: 'integer',
     example: 95,
     minimum: 0,
     maximum: 100,
-    nullable: true,
     description:
-      'Percentage of regular licenses. Null when the customer has no licenses.',
+      'Percentage of REGULAR conditions over active conditions (same value as GET /customers/:customerId/license-conditions/compliance). 100 when there are no active conditions.',
   })
-  conformity_percentage!: number | null;
+  conformity_percentage!: number;
 }

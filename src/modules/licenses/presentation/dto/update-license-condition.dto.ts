@@ -8,8 +8,11 @@ import {
   IsBoolean,
   IsDateString,
   IsIn,
+  IsNotEmpty,
   IsOptional,
+  MaxLength,
   IsString,
+  ValidateIf,
 } from 'class-validator';
 
 const CONDITION_STATUS_INPUTS = [
@@ -35,10 +38,13 @@ export class UpdateLicenseConditionDto {
   @IsString()
   item_number?: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  @IsOptional()
+  // Required column (stored as `title`): it can be renamed but not cleared.
+  @ApiPropertyOptional({ maxLength: 160 })
+  @ValidateIf((dto: UpdateLicenseConditionDto) => dto.title !== undefined)
   @IsString()
-  title?: string | null;
+  @IsNotEmpty()
+  @MaxLength(160)
+  title?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -65,10 +71,11 @@ export class UpdateLicenseConditionDto {
   @IsDateString()
   deadline?: string | null;
 
-  @ApiPropertyOptional({ format: 'date-time', nullable: true })
-  @IsOptional()
+  // Required column: it can be changed but not cleared, so null is rejected.
+  @ApiPropertyOptional({ format: 'date-time' })
+  @ValidateIf((dto: UpdateLicenseConditionDto) => dto.due_date !== undefined)
   @IsDateString()
-  due_date?: string | null;
+  due_date?: string;
 
   @ApiPropertyOptional({ format: 'date-time', nullable: true })
   @IsOptional()

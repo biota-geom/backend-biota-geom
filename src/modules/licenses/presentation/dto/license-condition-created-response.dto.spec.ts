@@ -12,17 +12,22 @@ describe('toLicenseConditionCreatedResponse', () => {
         id: 'condition-1',
         licenseId: 'license-1',
         name: 'MTR',
-        category: 'Resíduos',
+        category: { id: 'metric-1', name: 'Resíduos Sólidos Gerados' },
         responsibleAgency: 'FEPAM',
-        dueDate: null,
+        dueDate: new Date('2026-06-01T00:00:00.000Z'),
         status,
         description: null,
+        targetMetricId: null,
+        targetOperator: null,
+        targetValue: null,
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
-      } as never),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
     ).toEqual(
       expect.objectContaining({
         status: label,
-        due_date: null,
+        category: { id: 'metric-1', name: 'Resíduos Sólidos Gerados' },
+        due_date: '2026-06-01T00:00:00.000Z',
       }),
     );
   });

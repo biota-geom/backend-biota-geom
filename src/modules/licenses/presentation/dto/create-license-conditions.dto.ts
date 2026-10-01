@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -14,6 +15,12 @@ export class ConditionDto {
   @IsString()
   @IsNotEmpty()
   item_number: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(160)
+  title?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -23,9 +30,11 @@ export class ConditionDto {
   @IsIn(['PERIODIC', 'INFORMATIVE'])
   condition_type: string;
 
+  // Only periodic conditions repeat; informative ones have no periodicity.
+  @IsOptional()
   @IsString()
   @IsIn(['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL'])
-  periodicity: string;
+  periodicity?: string;
 
   @IsDateString()
   deadline: string;
@@ -34,9 +43,9 @@ export class ConditionDto {
   @IsNotEmpty()
   responsible_name: string;
 
-  @IsOptional()
+  // GRI parameter (US02) linked to the customer that categorizes the condition.
   @IsUUID()
-  category_id?: string;
+  esg_metric_id: string;
 }
 
 export class CreateLicenseConditionsDto {

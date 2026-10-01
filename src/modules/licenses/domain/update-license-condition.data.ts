@@ -6,13 +6,13 @@ import {
 
 export interface UpdateLicenseCondition {
   itemNumber?: string;
-  title?: string | null;
+  title?: string;
   description?: string;
   responsibleName?: string;
   conditionType?: ConditionType;
   periodicity?: ConditionPeriodicity | null;
   deadline?: Date | null;
-  dueDate?: Date | null;
+  dueDate?: Date;
   alertDate?: Date | null;
   completionDate?: Date | null;
   status?: ConditionStatus;

@@ -24,17 +24,21 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with license totals and expiration dates', async () => {
+  it('lists customers with license totals and condition due dates', async () => {
     const { repository, findMany } = buildRepository();
-    const expirationDates = Array.from(
-      { length: 10 },
+    const dueDates = Array.from(
+      { length: 3 },
       (_, index) => new Date(`2027-01-${String(index + 1).padStart(2, '0')}`),
     );
     const customers = [
       {
         id: 'customer-1',
-        _count: { licenses: 10 },
-        licenses: expirationDates.map((expirationDate) => ({ expirationDate })),
+        _count: { licenses: 2 },
+        // Conditions of every license are flattened into one list.
+        licenses: [
+          { conditions: [{ dueDate: dueDates[0] }, { dueDate: dueDates[1] }] },
+          { conditions: [{ dueDate: dueDates[2] }] },
+        ],
       },
     ];
     findMany.mockResolvedValue(customers);
@@ -42,8 +46,8 @@ describe('PrismaCustomerRepository', () => {
     await expect(repository.findAll(OWNER)).resolves.toEqual([
       {
         id: 'customer-1',
-        totalLicenses: 10,
-        licenseExpirationDates: expirationDates,
+        totalLicenses: 2,
+        licenseConditionDueDates: dueDates,
       },
     ]);
     // Scoped in the query itself: there is no unfiltered read to fall back to.
@@ -54,7 +58,7 @@ describe('PrismaCustomerRepository', () => {
         sector: true,
         _count: { select: { licenses: true } },
         licenses: {
-          select: { expirationDate: true },
+          select: { conditions: { select: { dueDate: true } } },
         },
       },
     });

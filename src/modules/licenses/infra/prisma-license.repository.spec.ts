@@ -82,20 +82,6 @@ describe('PrismaLicenseRepository', () => {
     expect(createMany).toHaveBeenCalledWith({ data: [] });
   });
 
-  it('creates a condition category', async () => {
-    const create = jest.fn().mockResolvedValue({ id: 'category-1' });
-    const repository = new PrismaLicenseRepository({
-      licenseConditionCategory: { create },
-    } as unknown as PrismaService);
-
-    await expect(
-      repository.createConditionCategory('Emissões'),
-    ).resolves.toEqual({
-      id: 'category-1',
-    });
-    expect(create).toHaveBeenCalledWith({ data: { name: 'Emissões' } });
-  });
-
   it('finds a customer license and maps its conditions', async () => {
     const findFirst = jest.fn().mockResolvedValue({
       id: 'license-1',

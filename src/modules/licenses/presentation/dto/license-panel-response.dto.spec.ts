@@ -43,6 +43,7 @@ describe('toLicensePanelResponse', () => {
           issue_date: '2024-03-12T00:00:00.000Z',
           expiration_date: '2026-03-12T00:00:00.000Z',
           status: 'Regular',
+          document_url: 'https://bucket.aws.com/licenses/lp-482-2024.pdf',
         },
       ],
     });
@@ -68,5 +69,16 @@ describe('toLicensePanelResponse', () => {
     });
 
     expect(result.licenses[0].issuing_agency).toBeNull();
+  });
+
+  it('exposes the document_url on each license item', () => {
+    const result = toLicensePanelResponse({
+      summary: { total: 1, regular: 1, attention: 0, expired: 0 },
+      licenses: [buildLicense({ documentUrl: 'https://example.com/file.pdf' })],
+    });
+
+    expect(result.licenses[0].document_url).toBe(
+      'https://example.com/file.pdf',
+    );
   });
 });

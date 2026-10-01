@@ -10,7 +10,7 @@ import {
 function payload(overrides: Record<string, unknown> = {}) {
   return {
     name: 'MTR - Manifesto de Transporte de Resíduos',
-    category: 'Resíduos',
+    esg_metric_id: '0192f0a4-7c1e-7d3a-9b2f-3a1c5e8d9f01',
     license_id: '550e8400-e29b-41d4-a716-446655440000',
     responsible_agency: 'FEPAM',
     due_date: '2027-05-20T00:00:00.000Z',
@@ -66,14 +66,22 @@ describe('AddLicenseConditionDto', () => {
     );
   });
 
-  it.each(['name', 'category', 'responsible_agency'])(
-    'rejects an empty %s',
-    (field) => {
+  it.each(['name', 'responsible_agency'])('rejects an empty %s', (field) => {
+    expect(
+      validate(payload({ [field]: '   ' })).errors.map(
+        (error) => error.property,
+      ),
+    ).toContain(field);
+  });
+
+  it.each(['not-a-uuid', undefined])(
+    'rejects a missing or malformed esg_metric_id (%s)',
+    (esgMetricId) => {
       expect(
-        validate(payload({ [field]: '   ' })).errors.map(
+        validate(payload({ esg_metric_id: esgMetricId })).errors.map(
           (error) => error.property,
         ),
-      ).toContain(field);
+      ).toContain('esg_metric_id');
     },
   );
 
@@ -93,6 +101,45 @@ describe('AddLicenseConditionDto', () => {
         ),
       ).toContain('due_date');
     }
+  });
+
+  it('rejects an omitted or empty due_date', () => {
+    const omitted: Record<string, unknown> = payload();
+    delete omitted.due_date;
+
+    expect(validate(omitted).errors.map((e) => e.property)).toContain(
+      'due_date',
+    );
+    expect(
+      validate(payload({ due_date: '' })).errors.map((e) => e.property),
+    ).toContain('due_date');
+  });
+
+  it('accepts a complete target and rejects invalid target fields', () => {
+    expect(
+      validate(
+        payload({
+          target_metric_id: '0192f0a4-7c1e-7d3a-9b2f-3a1c5e8d9f02',
+          target_operator: 'LTE',
+          target_value: 150,
+        }),
+      ).errors,
+    ).toHaveLength(0);
+
+    const properties = validate(
+      payload({
+        target_metric_id: 'x',
+        target_operator: 'NEQ',
+        target_value: 'abc',
+      }),
+    ).errors.map((e) => e.property);
+    expect(properties).toEqual(
+      expect.arrayContaining([
+        'target_metric_id',
+        'target_operator',
+        'target_value',
+      ]),
+    );
   });
 
   it('rejects an unknown status', () => {

@@ -44,25 +44,6 @@ enum AddressType {
   @@map("address_type")
 }
 
-enum ConditionType {
-  INFORMATIVE   
-  PERIODIC     
-}
-
-enum ConditionPeriodicity {
-  MONTHLY
-  QUARTERLY
-  SEMIANNUAL  
-  ANNUAL     
-}
-
-enum ConditionStatus {
-  FULFILLED 
-  IN_PROGRESS   
-  OVERDUE      
-}
-
-
 model Customer {
   id           String       @id @default(uuid(7)) @db.Uuid
   name         String       @db.VarChar(255)
@@ -156,7 +137,9 @@ model EsgMetric {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerLinks CustomerEsgMetric[]
+  customerLinks        CustomerEsgMetric[]
+  licenseConditions    LicenseCondition[]  @relation("LicenseConditionCategory")
+  targetedByConditions LicenseCondition[]  @relation("LicenseConditionTargetMetric")
 
   @@unique([customerId, name])
   @@index([griStandardId])
@@ -203,6 +186,41 @@ enum LicenseConditionStatus {
   @@map("license_condition_status")
 }
 
+enum ConditionType {
+  INFORMATIVE
+  PERIODIC
+
+  @@map("condition_type")
+}
+
+enum ConditionPeriodicity {
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+
+  @@map("condition_periodicity")
+}
+
+// Fulfillment lifecycle of a condition (US16), independent from the risk
+// status above, which feeds the customer compliance counters.
+enum ConditionStatus {
+  FULFILLED
+  IN_PROGRESS
+  OVERDUE
+
+  @@map("condition_status")
+}
+
+enum LicenseConditionTargetOperator {
+  LTE
+  GTE
+  EQ
+  BETWEEN
+
+  @@map("license_condition_target_operator")
+}
+
 model IssuingAgency {
   id        String   @id @default(uuid(7)) @db.Uuid
   name      String   @unique @db.VarChar(150)
@@ -241,44 +259,47 @@ model License {
   @@map("licenses")
 }
 
-model LicenseConditionCategory {
-  id         String              @id @default(uuid(7)) @db.Uuid
-  name       String              @map("name") @db.VarChar(255)
-  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conditions LicenseCondition[]
-
-  @@map("license_condition_category")
-}
-
 model LicenseCondition {
   id                String                 @id @default(uuid(7)) @db.Uuid
+  // Item of the condition as numbered in the license document ("1", "1.1").
+  // Items without a dot group the sub-items below them.
   itemNumber        String?                @map("item_number") @db.VarChar(20)
-  name              String?                @map("title") @db.VarChar(255)
+  name              String                 @map("title") @db.VarChar(160)
   description       String?                @db.VarChar(4095)
-  category          String?                @db.VarChar(120)
   responsibleAgency String?                @map("responsible_agency") @db.VarChar(150)
   responsibleName   String?                @map("responsible_name") @db.VarChar(255)
   conditionType     ConditionType?         @map("condition_type")
-  periodicity       ConditionPeriodicity?  @map("periodicity")
-  deadline          DateTime?              @map("deadline") @db.Timestamptz(3)
-  dueDate           DateTime?              @map("due_date") @db.Timestamptz(3)
+  periodicity       ConditionPeriodicity?
+  deadline          DateTime?              @db.Timestamptz(3)
+  dueDate           DateTime               @map("due_date") @db.Timestamptz(3)
   alertDate         DateTime?              @map("alert_date") @db.Timestamptz(3)
   completionDate    DateTime?              @map("completion_date") @db.Timestamptz(3)
-  riskStatus        LicenseConditionStatus @default(REGULAR) @map("license_condition_status")
-  conditionStatus   ConditionStatus        @default(IN_PROGRESS) @map("status")
+  status            LicenseConditionStatus @default(REGULAR)
+  conditionStatus   ConditionStatus        @default(IN_PROGRESS) @map("condition_status")
   isViolated        Boolean                @default(false) @map("is_violated")
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  licenseId       String                    @map("license_id") @db.Uuid
-  license         License                   @relation(fields: [licenseId], references: [id], onDelete: Restrict)
+  licenseId String  @map("license_id") @db.Uuid
+  license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 
-  categoryId      String?                    @map("category_id") @db.Uuid
-  categoryRef     LicenseConditionCategory?  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  // Category of the condition: one of the GRI parameters (US02) linked to the
+  // license's customer. onDelete: Restrict — a GRI parameter in use by any
+  // condition cannot be removed.
+  esgMetricId String    @map("esg_metric_id") @db.Uuid
+  esgMetric   EsgMetric @relation("LicenseConditionCategory", fields: [esgMetricId], references: [id], onDelete: Restrict)
+
+  // Compliance target (US17): the ESG metric to track, how to compare it and
+  // the expected value. All three are set together or all left null.
+  targetMetricId String?                         @map("target_metric_id") @db.Uuid
+  targetMetric   EsgMetric?                      @relation("LicenseConditionTargetMetric", fields: [targetMetricId], references: [id], onDelete: Restrict)
+  targetOperator LicenseConditionTargetOperator? @map("target_operator")
+  targetValue    Float?                          @map("target_value")
 
   @@unique([licenseId, itemNumber])
   @@index([licenseId])
-  @@index([categoryId])
+  @@index([dueDate])
+  @@index([esgMetricId])
+  @@index([targetMetricId])
   @@map("license_condition")
 }

@@ -35,9 +35,9 @@ export class PrismaCustomerRepository implements CustomerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(ownerUserId: string): Promise<CustomerListItem[]> {
-    const customers = await this.prisma.customer.findMany({
-      // _count runs as a correlated subquery on licenses.customer_id, so each
-      // row only counts its own licenses — no N+1 and no cross-customer total.
+    // _count runs as a correlated subquery on licenses.customer_id, so each
+    // row only counts its own licenses — no N+1 and no cross-customer total.
+    const rows = await this.prisma.customer.findMany({
       where: { ownerUserId, isDeleted: false },
       include: {
         address: true,
@@ -49,16 +49,22 @@ export class PrismaCustomerRepository implements CustomerRepository {
         },
         licenses: {
           select: {
-            expirationDate: true,
+            conditions: {
+              select: {
+                dueDate: true,
+              },
+            },
           },
         },
       },
     });
 
-    return customers.map(({ _count, licenses, ...customer }) => ({
+    return rows.map(({ _count, licenses, ...customer }) => ({
       ...customer,
       totalLicenses: _count.licenses,
-      licenseExpirationDates: licenses.map((license) => license.expirationDate),
+      licenseConditionDueDates: licenses.flatMap((license) =>
+        license.conditions.map((condition) => condition.dueDate),
+      ),
     }));
   }
 

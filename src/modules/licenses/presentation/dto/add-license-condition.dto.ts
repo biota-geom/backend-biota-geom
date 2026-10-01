@@ -1,10 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LicenseConditionStatus } from '@prisma/client';
+import {
+  LicenseConditionStatus,
+  LicenseConditionTargetOperator,
+} from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
-  IsDateString,
   IsEnum,
+  IsISO8601,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -49,12 +53,13 @@ export class AddLicenseConditionDto {
   @MaxLength(160)
   name!: string;
 
-  @ApiProperty({ example: 'Resíduos', maxLength: 120 })
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
-  category!: string;
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'Parâmetro GRI (US02) vinculado à empresa que define a categoria da condicionante.',
+  })
+  @IsUUID()
+  esg_metric_id!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -68,7 +73,8 @@ export class AddLicenseConditionDto {
   responsible_agency!: string;
 
   @ApiProperty({ example: '2027-05-20T00:00:00.000Z', format: 'date-time' })
-  @IsDateString()
+  @IsNotEmpty()
+  @IsISO8601()
   @Validate(IsFutureDateConstraint)
   due_date!: string;
 
@@ -79,6 +85,25 @@ export class AddLicenseConditionDto {
   @IsOptional()
   @IsEnum(LicenseConditionStatusDto)
   status?: LicenseConditionStatusDto;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Métrica ESG alvo da meta. Informar junto com target_operator e target_value.',
+  })
+  @IsOptional()
+  @IsUUID()
+  target_metric_id?: string;
+
+  @ApiPropertyOptional({ enum: LicenseConditionTargetOperator, example: 'LTE' })
+  @IsOptional()
+  @IsEnum(LicenseConditionTargetOperator)
+  target_operator?: LicenseConditionTargetOperator;
+
+  @ApiPropertyOptional({ example: 150 })
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  target_value?: number;
 
   @ApiPropertyOptional({
     example:

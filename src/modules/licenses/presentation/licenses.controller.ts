@@ -68,12 +68,6 @@ import {
   toNullableIsoDate,
 } from './dto/license-details-response.dto';
 import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
-import { CreateLicenseConditionCategoryUseCase } from '../application/create-license-condition-category.use-case';
-import { CreateLicenseConditionCategoryDto } from './dto/create-license-condition-category.dto';
-import {
-  LicenseConditionCategoryResponseDto,
-  toLicenseConditionCategoryResponse,
-} from './dto/license-condition-category-response.dto';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -124,7 +118,6 @@ export class LicensesController {
     private readonly getLicenseDetailsUseCase: GetLicenseDetailsUseCase,
     private readonly updateLicenseConditionUseCase: UpdateLicenseConditionUseCase,
     private readonly deleteLicenseConditionUseCase: DeleteLicenseConditionUseCase,
-    private readonly createCategoryUseCase: CreateLicenseConditionCategoryUseCase,
   ) {}
 
   @Get(':licenseId')
@@ -248,8 +241,8 @@ export class LicensesController {
   @ApiBearerAuth()
   @ApiParam({ name: 'customerId', format: 'uuid' })
   async createLicenseConditions(
-    @Param('customerId') customerId: string,
-    @Param('licenseId') licenseId: string,
+    @Param('customerId', uuidPipe) customerId: string,
+    @Param('licenseId', uuidPipe) licenseId: string,
     @Body() dto: CreateLicenseConditionsDto,
     @CurrentUser() user: { id: string },
   ): Promise<CreateLicenseConditionsResponseDto> {
@@ -289,7 +282,8 @@ export class LicensesController {
         conditionType: toConditionType(dto.condition_type),
         periodicity: toConditionPeriodicity(dto.periodicity),
         deadline: toNullableIsoDate(dto.deadline),
-        dueDate: toNullableIsoDate(dto.due_date),
+        dueDate:
+          dto.due_date === undefined ? undefined : new Date(dto.due_date),
         alertDate: toNullableIsoDate(dto.alert_date),
         completionDate: toNullableIsoDate(dto.completion_date),
         status: toConditionStatus(dto.status, dto.is_violated),
@@ -321,16 +315,5 @@ export class LicensesController {
       conditionId,
       user.id,
     );
-  }
-
-  @Post('categories')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Create a license condition category.' })
-  @ApiCreatedResponse({ type: LicenseConditionCategoryResponseDto })
-  async createCategory(
-    @Body() dto: CreateLicenseConditionCategoryDto,
-  ): Promise<LicenseConditionCategoryResponseDto> {
-    const category = await this.createCategoryUseCase.execute(dto.name);
-    return toLicenseConditionCategoryResponse(category);
   }
 }

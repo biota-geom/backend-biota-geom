@@ -1,4 +1,3 @@
-// domain/create-condition.data.ts
 import {
   ConditionType,
   ConditionPeriodicity,
@@ -7,16 +6,17 @@ import {
 
 export interface ConditionData {
   licenseId: string;
-  categoryId?: string | null;
+  // GRI parameter (EsgMetric) linked to the license's customer.
+  esgMetricId: string;
   itemNumber: string;
-  title?: string;
+  name: string;
   description: string;
   responsibleName: string;
   conditionType: ConditionType;
   periodicity?: ConditionPeriodicity | null;
   deadline?: Date | null;
-  dueDate?: Date;
+  dueDate: Date;
   alertDate?: Date;
   completionDate?: Date;
-  status: ConditionStatus;
+  conditionStatus: ConditionStatus;
 }

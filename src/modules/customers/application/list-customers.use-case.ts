@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LicenseStatus } from '@prisma/client';
-import { calculateLicenseStatus } from '../../licenses/domain/license-status.calculator';
-import { calculateConformityPercentage } from '../domain/conformity-percentage';
+import { calculateLicenseConditionsCompliance } from '../../licenses/domain/license-conditions-compliance.calculator';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerListResponseDTO } from '../presentation/dto/customer-list-response.dto';
 
@@ -21,10 +19,10 @@ export class ListCustomersUseCase {
       const city = customer.address?.city ?? '';
       const state = customer.address?.state ?? '';
       const location = [city, state].filter(Boolean).join(' - ');
-      const regularLicenses = customer.licenseExpirationDates.filter(
-        (expirationDate) =>
-          calculateLicenseStatus(expirationDate, now) === LicenseStatus.REGULAR,
-      ).length;
+      const { compliancePercentage } = calculateLicenseConditionsCompliance(
+        customer.licenseConditionDueDates,
+        now,
+      );
 
       return {
         id: customer.id,
@@ -35,10 +33,7 @@ export class ListCustomersUseCase {
         location,
         total_licenses: customer.totalLicenses,
         updated_at: customer.updatedAt.toISOString(),
-        conformity_percentage: calculateConformityPercentage(
-          regularLicenses,
-          customer.totalLicenses,
-        ),
+        conformity_percentage: compliancePercentage,
       };
     });
   }

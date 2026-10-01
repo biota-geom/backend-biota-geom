@@ -4,6 +4,7 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerAddressNotFoundError } from '../../domain/errors/customer-address-not-found.error';
 import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import { CustomerNotFoundError } from '../../domain/errors/customer-not-found.error';
+import { EsgMetricsInUseError } from '../../domain/errors/esg-metrics-in-use.error';
 import { EsgMetricsNotFoundError } from '../../domain/errors/esg-metrics-not-found.error';
 import { SectorNotFoundError } from '../../domain/errors/sector-not-found.error';
 import { CustomersExceptionFilter } from './customers-exception.filter';
@@ -71,6 +72,20 @@ describe('CustomersExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         message: AUTH_MESSAGES.CUSTOMER_DOCUMENT_ALREADY_EXISTS,
+        statusCode: HttpStatus.CONFLICT,
+      }),
+    );
+  });
+
+  it('answers unlinking a GRI parameter in use with 409 and the PT-BR message', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new EsgMetricsInUseError(['metric-1']), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: AUTH_MESSAGES.ESG_METRICS_IN_USE,
         statusCode: HttpStatus.CONFLICT,
       }),
     );

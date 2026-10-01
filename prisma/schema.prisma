@@ -186,6 +186,32 @@ enum LicenseConditionStatus {
   @@map("license_condition_status")
 }
 
+enum ConditionType {
+  INFORMATIVE
+  PERIODIC
+
+  @@map("condition_type")
+}
+
+enum ConditionPeriodicity {
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+
+  @@map("condition_periodicity")
+}
+
+// Fulfillment lifecycle of a condition (US16), independent from the risk
+// status above, which feeds the customer compliance counters.
+enum ConditionStatus {
+  FULFILLED
+  IN_PROGRESS
+  OVERDUE
+
+  @@map("condition_status")
+}
+
 enum LicenseConditionTargetOperator {
   LTE
   GTE
@@ -235,11 +261,22 @@ model License {
 
 model LicenseCondition {
   id                String                 @id @default(uuid(7)) @db.Uuid
+  // Item of the condition as numbered in the license document ("1", "1.1").
+  // Items without a dot group the sub-items below them.
+  itemNumber        String?                @map("item_number") @db.VarChar(20)
   name              String                 @map("title") @db.VarChar(160)
-  description       String?                @db.VarChar(500)
+  description       String?                @db.VarChar(4095)
   responsibleAgency String?                @map("responsible_agency") @db.VarChar(150)
+  responsibleName   String?                @map("responsible_name") @db.VarChar(255)
+  conditionType     ConditionType?         @map("condition_type")
+  periodicity       ConditionPeriodicity?
+  deadline          DateTime?              @db.Timestamptz(3)
   dueDate           DateTime               @map("due_date") @db.Timestamptz(3)
+  alertDate         DateTime?              @map("alert_date") @db.Timestamptz(3)
+  completionDate    DateTime?              @map("completion_date") @db.Timestamptz(3)
   status            LicenseConditionStatus @default(REGULAR)
+  conditionStatus   ConditionStatus        @default(IN_PROGRESS) @map("condition_status")
+  isViolated        Boolean                @default(false) @map("is_violated")
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -259,6 +296,7 @@ model LicenseCondition {
   targetOperator LicenseConditionTargetOperator? @map("target_operator")
   targetValue    Float?                          @map("target_value")
 
+  @@unique([licenseId, itemNumber])
   @@index([licenseId])
   @@index([dueDate])
   @@index([esgMetricId])

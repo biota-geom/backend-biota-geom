@@ -2,9 +2,13 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   MaxFileSizeValidator,
   Param,
+  Put,
   ParseFilePipe,
   ParseUUIDPipe,
   Post,
@@ -20,6 +24,8 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -45,6 +51,23 @@ import {
 import { LicensesExceptionFilter } from './filters/licenses-exception.filter';
 import { LICENSES_MESSAGES } from './messages/licenses.messages.pt-br';
 import { PdfFileValidator } from './validators/pdf-file.validator';
+import { CreateLicenseConditionsDto } from './dto/create-license-conditions.dto';
+import { CreateLicenseConditionsResponseDto } from './dto/create-license-conditions-response.dto';
+import { CreateLicenseConditionUseCase } from '../application/create-license-conditions.use-case';
+import { GetLicenseDetailsUseCase } from '../application/get-license-details.use-case';
+import { UpdateLicenseConditionUseCase } from '../application/update-license-conditions.use-case';
+import { DeleteLicenseConditionUseCase } from '../application/delete-license-condition.use-case';
+import {
+  LicenseConditionDetailsResponseDto,
+  LicenseDetailsResponseDto,
+  toConditionStatus,
+  toConditionPeriodicity,
+  toConditionType,
+  toLicenseConditionDetailsResponse,
+  toLicenseDetailsResponse,
+  toNullableIsoDate,
+} from './dto/license-details-response.dto';
+import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -91,7 +114,33 @@ export class LicensesController {
   constructor(
     private readonly createLicenseUseCase: CreateLicenseUseCase,
     private readonly listLicensesByCustomerUseCase: ListLicensesByCustomerUseCase,
+    private readonly createLicenseConditionUseCase: CreateLicenseConditionUseCase,
+    private readonly getLicenseDetailsUseCase: GetLicenseDetailsUseCase,
+    private readonly updateLicenseConditionUseCase: UpdateLicenseConditionUseCase,
+    private readonly deleteLicenseConditionUseCase: DeleteLicenseConditionUseCase,
   ) {}
+
+  @Get(':licenseId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @ApiOperation({ summary: 'Get a license and its conditions.' })
+  @ApiOkResponse({ type: LicenseDetailsResponseDto })
+  @ApiNotFoundResponse({ description: 'Customer or license not found.' })
+  async getLicenseDetails(
+    @Param('customerId', uuidPipe) customerId: string,
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseDetailsResponseDto> {
+    const license = await this.getLicenseDetailsUseCase.execute(
+      customerId,
+      licenseId,
+      user.id,
+    );
+
+    return toLicenseDetailsResponse(license);
+  }
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -185,5 +234,86 @@ export class LicensesController {
     });
 
     return toLicenseCreatedResponse(license);
+  }
+
+  @Post(':licenseId/conditions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  async createLicenseConditions(
+    @Param('customerId', uuidPipe) customerId: string,
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @Body() dto: CreateLicenseConditionsDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<CreateLicenseConditionsResponseDto> {
+    return this.createLicenseConditionUseCase.execute({
+      customerId: customerId,
+      licenseId: licenseId,
+      userId: user.id,
+      data: dto,
+    });
+  }
+
+  @Put(':licenseId/conditions/:conditionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @ApiParam({ name: 'conditionId', format: 'uuid' })
+  @ApiOkResponse({ type: LicenseConditionDetailsResponseDto })
+  @ApiNotFoundResponse({ description: 'Customer or condition not found.' })
+  async updateLicenseCondition(
+    @Param('customerId', uuidPipe) customerId: string,
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @Param('conditionId', uuidPipe) conditionId: string,
+    @Body() dto: UpdateLicenseConditionDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    const condition = await this.updateLicenseConditionUseCase.execute({
+      customerId,
+      licenseId,
+      conditionId,
+      ownerUserId: user.id,
+      data: {
+        itemNumber: dto.item_number,
+        title: dto.title,
+        description: dto.description,
+        responsibleName: dto.responsible_name,
+        conditionType: toConditionType(dto.condition_type),
+        periodicity: toConditionPeriodicity(dto.periodicity),
+        deadline: toNullableIsoDate(dto.deadline),
+        dueDate:
+          dto.due_date === undefined ? undefined : new Date(dto.due_date),
+        alertDate: toNullableIsoDate(dto.alert_date),
+        completionDate: toNullableIsoDate(dto.completion_date),
+        status: toConditionStatus(dto.status, dto.is_violated),
+        isViolated: dto.is_violated,
+      },
+    });
+
+    return toLicenseConditionDetailsResponse(condition);
+  }
+
+  @Delete(':licenseId/conditions/:conditionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @ApiParam({ name: 'conditionId', format: 'uuid' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: 'Condition deleted.' })
+  @ApiNotFoundResponse({ description: 'Customer or condition not found.' })
+  async deleteLicenseCondition(
+    @Param('customerId', uuidPipe) customerId: string,
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @Param('conditionId', uuidPipe) conditionId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<void> {
+    await this.deleteLicenseConditionUseCase.execute(
+      customerId,
+      licenseId,
+      conditionId,
+      user.id,
+    );
   }
 }

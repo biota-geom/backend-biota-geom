@@ -2,7 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { LicenseConditionWithRisk } from '../../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../../domain/license-condition-risk-level';
 import { LicenseConditionStatusDto } from './add-license-condition.dto';
-import { toLicenseConditionCreatedResponse } from './license-condition-created-response.dto';
+import {
+  LicenseConditionCategoryResponseDto,
+  toLicenseConditionCreatedResponse,
+} from './license-condition-created-response.dto';
 
 export class LicenseConditionResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -17,8 +20,12 @@ export class LicenseConditionResponseDto {
   @ApiProperty({ nullable: true })
   description!: string | null;
 
-  @ApiProperty({ example: 'Emissões' })
-  category!: string;
+  @ApiProperty({
+    type: LicenseConditionCategoryResponseDto,
+    description:
+      'Parâmetro GRI (US02) da empresa que categoriza a condicionante.',
+  })
+  category!: LicenseConditionCategoryResponseDto;
 
   @ApiProperty({ example: 'FEPAM', nullable: true })
   responsible_agency!: string | null;

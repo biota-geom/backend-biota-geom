@@ -10,7 +10,7 @@ import {
 function payload(overrides: Record<string, unknown> = {}) {
   return {
     name: 'MTR - Manifesto de Transporte de Resíduos',
-    category: 'Resíduos',
+    esg_metric_id: '0192f0a4-7c1e-7d3a-9b2f-3a1c5e8d9f01',
     license_id: '550e8400-e29b-41d4-a716-446655440000',
     responsible_agency: 'FEPAM',
     due_date: '2027-05-20T00:00:00.000Z',
@@ -66,14 +66,22 @@ describe('AddLicenseConditionDto', () => {
     );
   });
 
-  it.each(['name', 'category', 'responsible_agency'])(
-    'rejects an empty %s',
-    (field) => {
+  it.each(['name', 'responsible_agency'])('rejects an empty %s', (field) => {
+    expect(
+      validate(payload({ [field]: '   ' })).errors.map(
+        (error) => error.property,
+      ),
+    ).toContain(field);
+  });
+
+  it.each(['not-a-uuid', undefined])(
+    'rejects a missing or malformed esg_metric_id (%s)',
+    (esgMetricId) => {
       expect(
-        validate(payload({ [field]: '   ' })).errors.map(
+        validate(payload({ esg_metric_id: esgMetricId })).errors.map(
           (error) => error.property,
         ),
-      ).toContain(field);
+      ).toContain('esg_metric_id');
     },
   );
 

@@ -49,12 +49,13 @@ export class AddLicenseConditionDto {
   @MaxLength(160)
   name!: string;
 
-  @ApiProperty({ example: 'Resíduos', maxLength: 120 })
-  @Transform(trimString)
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
-  category!: string;
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'Parâmetro GRI (US02) vinculado à empresa que define a categoria da condicionante.',
+  })
+  @IsUUID()
+  esg_metric_id!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()

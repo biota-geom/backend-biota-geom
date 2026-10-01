@@ -34,7 +34,9 @@ import { CustomerController } from './presentation/customers.controller';
     CustomersService,
   ],
   // CustomerRepository is reused by the licenses module (LicensesModule) to
-  // scope license creation to the authenticated owner's own customers.
-  exports: [CustomerRepository],
+  // scope license creation to the authenticated owner's own customers, and
+  // CustomerEsgMetricRepository to restrict a condition's category to the GRI
+  // parameters linked to its customer.
+  exports: [CustomerRepository, CustomerEsgMetricRepository],
 })
 export class CustomerModule {}

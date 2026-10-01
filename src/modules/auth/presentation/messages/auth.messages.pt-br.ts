@@ -22,6 +22,8 @@ export const AUTH_MESSAGES = {
     'Não é possível atualizar o endereço: esta empresa ainda não possui um endereço cadastrado.',
   ESG_METRICS_NOT_FOUND:
     'Uma ou mais métricas informadas não foram encontradas.',
+  ESG_METRICS_IN_USE:
+    'Não é possível desvincular parâmetros GRI usados como categoria de condicionantes desta empresa.',
   CUSTOMER_DOCUMENT_ALREADY_EXISTS:
     'Já existe uma empresa cadastrada com este CNPJ.',
   SECTOR_NOT_FOUND: 'O segmento informado não existe.',

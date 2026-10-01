@@ -24,17 +24,31 @@ function buildRepository() {
 }
 
 describe('PrismaCustomerRepository', () => {
-  it('lists customers with license totals and expiration dates', async () => {
+  it('lists customers with license totals, expiration dates and condition due dates', async () => {
     const { repository, findMany } = buildRepository();
     const expirationDates = Array.from(
-      { length: 10 },
+      { length: 2 },
+      (_, index) => new Date(`2027-02-${String(index + 1).padStart(2, '0')}`),
+    );
+    const dueDates = Array.from(
+      { length: 3 },
       (_, index) => new Date(`2027-01-${String(index + 1).padStart(2, '0')}`),
     );
     const customers = [
       {
         id: 'customer-1',
-        _count: { licenses: 10 },
-        licenses: expirationDates.map((expirationDate) => ({ expirationDate })),
+        _count: { licenses: 2 },
+        // Conditions of every license are flattened into one list.
+        licenses: [
+          {
+            expirationDate: expirationDates[0],
+            conditions: [{ dueDate: dueDates[0] }, { dueDate: dueDates[1] }],
+          },
+          {
+            expirationDate: expirationDates[1],
+            conditions: [{ dueDate: dueDates[2] }],
+          },
+        ],
       },
     ];
     findMany.mockResolvedValue(customers);
@@ -42,8 +56,9 @@ describe('PrismaCustomerRepository', () => {
     await expect(repository.findAll(OWNER)).resolves.toEqual([
       {
         id: 'customer-1',
-        totalLicenses: 10,
+        totalLicenses: 2,
         licenseExpirationDates: expirationDates,
+        licenseConditionDueDates: dueDates,
       },
     ]);
     // Scoped in the query itself: there is no unfiltered read to fall back to.
@@ -54,7 +69,10 @@ describe('PrismaCustomerRepository', () => {
         sector: true,
         _count: { select: { licenses: true } },
         licenses: {
-          select: { expirationDate: true },
+          select: {
+            expirationDate: true,
+            conditions: { select: { dueDate: true } },
+          },
         },
       },
     });

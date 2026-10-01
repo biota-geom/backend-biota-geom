@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { DocumentType } from '@prisma/client';
 import type { Customer } from '../domain/customer.entity';
-import type { CustomerListItem } from '../domain/customer-list-item';
+import type { CustomerListItem } from '../domain/customer-list-item.entity';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerNotFoundError } from '../domain/errors/customer-not-found.error';
 import type { UpdateCustomerData } from '../domain/update-customer.data';

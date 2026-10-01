@@ -137,7 +137,9 @@ model EsgMetric {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerLinks CustomerEsgMetric[]
+  customerLinks        CustomerEsgMetric[]
+  licenseConditions    LicenseCondition[]  @relation("LicenseConditionCategory")
+  targetedByConditions LicenseCondition[]  @relation("LicenseConditionTargetMetric")
 
   @@unique([customerId, name])
   @@index([griStandardId])
@@ -176,6 +178,23 @@ enum LicenseStatus {
   @@map("license_status")
 }
 
+enum LicenseConditionStatus {
+  REGULAR
+  ATTENTION
+  RISK
+
+  @@map("license_condition_status")
+}
+
+enum LicenseConditionTargetOperator {
+  LTE
+  GTE
+  EQ
+  BETWEEN
+
+  @@map("license_condition_target_operator")
+}
+
 model IssuingAgency {
   id        String   @id @default(uuid(7)) @db.Uuid
   name      String   @unique @db.VarChar(150)
@@ -188,26 +207,61 @@ model IssuingAgency {
 }
 
 model License {
-  id              String        @id @default(uuid(7)) @db.Uuid
-  type            LicenseType
-  processNumber   String        @map("process_number") @db.VarChar(255)
-  issueDate       DateTime      @map("issue_date") @db.Timestamptz(3)
-  expirationDate  DateTime      @map("expiration_date") @db.Timestamptz(3)
+  id             String        @id @default(uuid(7)) @db.Uuid
+  type           LicenseType
+  processNumber  String        @map("process_number") @db.VarChar(255)
+  issueDate      DateTime      @map("issue_date") @db.Timestamptz(3)
+  expirationDate DateTime      @map("expiration_date") @db.Timestamptz(3)
   // Computed server-side at creation time from expirationDate — never
   // accepted from a client. See CreateLicenseUseCase.
-  status          LicenseStatus
+  status         LicenseStatus
   // Absolute URL of the uploaded PDF. Local storage or S3 depending on
   // STORAGE_DRIVER — the column just holds whatever URL that driver returns.
-  documentUrl     String        @map("document_url") @db.VarChar(2048)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  documentUrl    String        @map("document_url") @db.VarChar(2048)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerId      String        @map("customer_id") @db.Uuid
-  customer        Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   issuingAgencyId String        @map("issuing_agency_id") @db.Uuid
   issuingAgency   IssuingAgency @relation(fields: [issuingAgencyId], references: [id], onDelete: Restrict)
 
+  conditions LicenseCondition[]
+
   @@index([customerId])
   @@map("licenses")
+}
+
+model LicenseCondition {
+  id                String                 @id @default(uuid(7)) @db.Uuid
+  name              String                 @map("title") @db.VarChar(160)
+  description       String?                @db.VarChar(500)
+  responsibleAgency String?                @map("responsible_agency") @db.VarChar(150)
+  dueDate           DateTime               @map("due_date") @db.Timestamptz(3)
+  status            LicenseConditionStatus @default(REGULAR)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  licenseId String  @map("license_id") @db.Uuid
+  license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  // Category of the condition: one of the GRI parameters (US02) linked to the
+  // license's customer. onDelete: Restrict — a GRI parameter in use by any
+  // condition cannot be removed.
+  esgMetricId String    @map("esg_metric_id") @db.Uuid
+  esgMetric   EsgMetric @relation("LicenseConditionCategory", fields: [esgMetricId], references: [id], onDelete: Restrict)
+
+  // Compliance target (US17): the ESG metric to track, how to compare it and
+  // the expected value. All three are set together or all left null.
+  targetMetricId String?                         @map("target_metric_id") @db.Uuid
+  targetMetric   EsgMetric?                      @relation("LicenseConditionTargetMetric", fields: [targetMetricId], references: [id], onDelete: Restrict)
+  targetOperator LicenseConditionTargetOperator? @map("target_operator")
+  targetValue    Float?                          @map("target_value")
+
+  @@index([licenseId])
+  @@index([dueDate])
+  @@index([esgMetricId])
+  @@index([targetMetricId])
+  @@map("license_condition")
 }

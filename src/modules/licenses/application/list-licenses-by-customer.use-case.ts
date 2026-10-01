@@ -13,6 +13,17 @@ export interface LicenseStatusSummary {
   expired: number;
 }
 
+/*
+ * Criticality order for the panel: EXPIRED first, then ATTENTION, then
+ * REGULAR. Applied to the status re-derived below (not the stored one), so a
+ * license whose persisted status went stale still lands in the right group.
+ */
+const CRITICALITY_RANK: Record<LicenseStatus, number> = {
+  [LicenseStatus.EXPIRED]: 0,
+  [LicenseStatus.ATTENTION]: 1,
+  [LicenseStatus.REGULAR]: 2,
+};
+
 export interface ListLicensesByCustomerResult {
   summary: LicenseStatusSummary;
   licenses: License[];
@@ -63,6 +74,13 @@ export class ListLicensesByCustomerUseCase {
 
       return { ...license, status };
     });
+
+    // Within each criticality group, the soonest expiration comes first.
+    licenses.sort(
+      (a, b) =>
+        CRITICALITY_RANK[a.status] - CRITICALITY_RANK[b.status] ||
+        a.expirationDate.getTime() - b.expirationDate.getTime(),
+    );
 
     return {
       // `total` always derives from the sum below — never an independent count.

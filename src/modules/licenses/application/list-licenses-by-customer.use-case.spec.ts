@@ -118,9 +118,60 @@ describe('ListLicensesByCustomerUseCase', () => {
         result.summary.expired,
     ).toBe(result.summary.total);
     expect(result.licenses.map((l) => l.status)).toEqual([
-      LicenseStatus.REGULAR,
-      LicenseStatus.ATTENTION,
       LicenseStatus.EXPIRED,
+      LicenseStatus.ATTENTION,
+      LicenseStatus.REGULAR,
+    ]);
+
+    jest.useRealTimers();
+  });
+
+  it('orders licenses by live criticality (EXPIRED → ATTENTION → REGULAR), then soonest expiration within each group', async () => {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+
+    const { useCase } = buildUseCase({
+      licenseRepository: {
+        findAllByCustomerId: jest.fn().mockResolvedValue([
+          buildLicense({
+            id: 'regular-later',
+            expirationDate: new Date('2028-01-01T00:00:00.000Z'),
+          }),
+          buildLicense({
+            id: 'regular-sooner',
+            expirationDate: new Date('2027-01-01T00:00:00.000Z'),
+          }),
+          buildLicense({
+            id: 'attention-later',
+            expirationDate: new Date('2026-01-20T00:00:00.000Z'),
+          }),
+          buildLicense({
+            id: 'attention-sooner',
+            expirationDate: new Date('2026-01-05T00:00:00.000Z'),
+          }),
+          buildLicense({
+            id: 'expired-recent',
+            expirationDate: new Date('2025-12-20T00:00:00.000Z'),
+            status: LicenseStatus.REGULAR, // stale stored status, must be ignored
+          }),
+          buildLicense({
+            id: 'expired-oldest',
+            expirationDate: new Date('2025-06-01T00:00:00.000Z'),
+            status: LicenseStatus.REGULAR, // stale stored status, must be ignored
+          }),
+        ]),
+      },
+    });
+
+    const result = await useCase.execute('customer-1', 'owner-1');
+
+    expect(result.licenses.map((l) => l.id)).toEqual([
+      'expired-oldest',
+      'expired-recent',
+      'attention-sooner',
+      'attention-later',
+      'regular-sooner',
+      'regular-later',
     ]);
 
     jest.useRealTimers();

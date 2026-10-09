@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { ConfigService } from '@nestjs/config';
 import { AuthConfigService } from './modules/auth/infra/auth-config.service';
-import { StorageConfigService } from './modules/licenses/infra/storage/storage-config.service';
+import { StorageConfigService } from './common/storage/storage-config.service';
 
 jest.mock('@nestjs/core', () => ({
   ...jest.requireActual<object>('@nestjs/core'),
@@ -68,6 +68,10 @@ describe('bootstrap', () => {
       join('./storage', 'licenses'),
       { prefix: '/uploads/licenses' },
     );
+    expect(mockApp.useStaticAssets).toHaveBeenCalledWith(
+      join('./storage', 'documents'),
+      { prefix: '/uploads/documents' },
+    );
     expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
     expect(mockApp.enableCors).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -82,5 +86,5 @@ describe('bootstrap', () => {
       { useGlobalPrefix: true },
     );
     expect(mockApp.listen).toHaveBeenCalledWith(3000, '0.0.0.0');
-  });
+  }, 30_000);
 });

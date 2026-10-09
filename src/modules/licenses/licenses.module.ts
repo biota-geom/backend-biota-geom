@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { FileStorageModule } from '../../common/storage/file-storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
@@ -12,10 +13,6 @@ import { LicenseConditionRepository } from './domain/license-conditions.reposito
 import { LicenseRepository } from './domain/licenses.repository';
 import { PrismaLicenseConditionRepository } from './infra/prisma-license-condition.repository';
 import { PrismaLicenseRepository } from './infra/prisma-license.repository';
-import { licenseDocumentStorageProvider } from './infra/storage/license-document-storage.provider';
-import { LocalDiskLicenseDocumentStorage } from './infra/storage/local-disk-license-document-storage';
-import { S3LicenseDocumentStorage } from './infra/storage/s3-license-document-storage';
-import { StorageConfigService } from './infra/storage/storage-config.service';
 import { LicenseConditionsController } from './presentation/license-conditions.controller';
 import { LicensesController } from './presentation/licenses.controller';
 import { CreateLicenseConditionUseCase } from './application/create-license-conditions.use-case';
@@ -28,6 +25,7 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
     CustomerModule,
     EsgMetricsModule,
     IssuingAgenciesModule,
+    FileStorageModule,
   ],
   controllers: [LicensesController, LicenseConditionsController],
   providers: [
@@ -45,10 +43,6 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
     DeleteLicenseConditionUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
-    StorageConfigService,
-    LocalDiskLicenseDocumentStorage,
-    S3LicenseDocumentStorage,
-    licenseDocumentStorageProvider,
   ],
 })
 export class LicensesModule {}

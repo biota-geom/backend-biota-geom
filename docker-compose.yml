@@ -1,4 +1,15 @@
 services:
+  migrate:
+    build:
+      context: .
+      target: migrator
+    restart: 'no'
+    environment:
+      DATABASE_URL: postgresql://biota:biota@postgres:5432/biota_geom?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: .
@@ -19,8 +30,8 @@ services:
     ports:
       - '3000:3000'
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   postgres:
     image: postgis/postgis:16-3.4

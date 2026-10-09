@@ -22,10 +22,11 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
 
-  esgMetrics EsgMetric[]
+  esgMetrics        EsgMetric[]
   // Companies this account owns. A User is the consultancy that subscribes to
   // the system (the tenant); a Customer is a company/site it looks after.
-  customers  Customer[]
+  customers         Customer[]
+  uploadedDocuments Document[]  @relation("DocumentUploader")
 
   @@map("users")
 }
@@ -82,6 +83,7 @@ model Customer {
   monitoredEsgMetrics CustomerEsgMetric[]
   licenses            License[]
   esgIndicatorRecords EsgIndicatorRecord[]
+  documents           Document[]
 
   @@unique([ownerUserId, document])
   @@map("customers")
@@ -164,6 +166,38 @@ enum LicenseType {
   LO
 
   @@map("license_type")
+}
+
+enum CustomerDocumentType {
+  CONTRATO
+  LAUDO
+  CERTIDAO
+  OUTROS
+
+  @@map("customer_document_type")
+}
+
+model Document {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  title        String               @db.VarChar(255)
+  type         CustomerDocumentType
+  documentDate DateTime             @map("document_date") @db.Date
+  fileUrl      String               @map("file_url") @db.VarChar(2048)
+  fileName     String               @map("file_name") @db.VarChar(255)
+  mimeType     String               @map("mime_type") @db.VarChar(255)
+  sizeBytes    Int                  @map("size_bytes")
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt    DateTime?            @map("deleted_at") @db.Timestamptz(3)
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  uploadedById String @map("uploaded_by") @db.Uuid
+  uploadedBy   User   @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, deletedAt, documentDate(sort: Desc), createdAt(sort: Desc)])
+  @@index([uploadedById])
+  @@map("document")
 }
 
 // Kept English on purpose (see AGENTS.md: domain/infra stay English-only).

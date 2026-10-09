@@ -1,12 +1,12 @@
 import { StorageConfigService } from './storage-config.service';
-import { S3LicenseDocumentStorage } from './s3-license-document-storage';
+import { S3FileStorage } from './s3-file-storage';
 
 /*
  * Runs the real AWS SDK signer (no network involved — signing is local) to
  * prove the URL handed to the client is a SigV4 pre-signed URL that expires,
  * rather than the bare object URL a private bucket answers with 403.
  */
-describe('S3LicenseDocumentStorage pre-signed URL (real signer)', () => {
+describe('S3FileStorage pre-signed URL (real signer)', () => {
   const config = {
     s3Bucket: 'biota-geom-licenses',
     s3Region: 'us-east-1',
@@ -18,7 +18,7 @@ describe('S3LicenseDocumentStorage pre-signed URL (real signer)', () => {
   } as StorageConfigService;
 
   it('returns a SigV4 URL for the stored object that expires after the TTL', async () => {
-    const storage = new S3LicenseDocumentStorage(config);
+    const storage = new S3FileStorage(config);
 
     const result = await storage.getAccessUrl(
       'https://biota-geom-licenses.s3.us-east-1.amazonaws.com/licenses/customer-1/doc.pdf',

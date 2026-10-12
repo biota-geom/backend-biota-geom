@@ -11,4 +11,5 @@ export interface CreateLicenseData {
   // from the request body.
   status: LicenseStatus;
   documentUrl: string;
+  previousLicenseId?: string | null;
 }

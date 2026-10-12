@@ -36,7 +36,10 @@ export class LicensePanelItemDto {
   @ApiProperty({ format: 'date-time' })
   expiration_date!: string;
 
-  @ApiProperty({ example: 'Regular', enum: ['Regular', 'Atenção', 'Vencida'] })
+  @ApiProperty({
+    example: 'Regular',
+    enum: ['Regular', 'Atenção', 'Vencida', 'Renovada/Arquivada'],
+  })
   status!: string;
 
   @ApiProperty({

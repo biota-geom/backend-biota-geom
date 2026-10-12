@@ -28,7 +28,10 @@ export class LicenseCreatedResponseDto {
   @ApiProperty({ format: 'date-time' })
   expiration_date!: string;
 
-  @ApiProperty({ example: 'Vencida', enum: ['Regular', 'Atenção', 'Vencida'] })
+  @ApiProperty({
+    example: 'Vencida',
+    enum: ['Regular', 'Atenção', 'Vencida', 'Renovada/Arquivada'],
+  })
   status!: string;
 
   @ApiProperty({

@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { LicenseConditionStatus, LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaLicenseConditionRepository } from './prisma-license-condition.repository';
 
@@ -68,7 +68,12 @@ describe('PrismaLicenseConditionRepository', () => {
       [DOMAIN],
     );
     expect(findMany).toHaveBeenCalledWith({
-      where: { license: { customerId: 'customer-1' } },
+      where: {
+        license: {
+          customerId: 'customer-1',
+          status: { not: LicenseStatus.ARCHIVED },
+        },
+      },
       include: WITH_CATEGORY,
       orderBy: { dueDate: 'asc' },
     });

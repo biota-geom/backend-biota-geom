@@ -18,6 +18,7 @@ import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-licens
 import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
+import { LicenseAlreadyArchivedError } from '../../domain/errors/license-already-archived.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
@@ -25,6 +26,7 @@ type LicensesDomainError =
   | CustomerNotFoundError
   | IssuingAgencyNotFoundError
   | InvalidLicenseDateRangeError
+  | LicenseAlreadyArchivedError
   | LicenseNotFoundError
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
@@ -37,6 +39,7 @@ type LicensesDomainError =
   CustomerNotFoundError,
   IssuingAgencyNotFoundError,
   InvalidLicenseDateRangeError,
+  LicenseAlreadyArchivedError,
   LicenseNotFoundError,
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
@@ -73,6 +76,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
 
     if (error instanceof LicenseNotFoundError) {
       return new NotFoundException(LICENSES_MESSAGES.LICENSE_NOT_FOUND);
+    }
+
+    if (error instanceof LicenseAlreadyArchivedError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.LICENSE_ALREADY_ARCHIVED,
+      );
     }
 
     if (error instanceof LicenseConditionNotFoundError) {

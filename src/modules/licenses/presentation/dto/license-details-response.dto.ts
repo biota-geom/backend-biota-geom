@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { License } from '../../domain/license.entity';
 import { LicenseCondition } from '../../domain/condition.entity';
+import { LICENSE_TYPE_LABELS } from './license-labels';
 
 export class LicenseConditionDetailsResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -47,13 +48,21 @@ export class LicenseDetailsResponseDto {
   @ApiProperty({ example: 'LP nº 482/2024' })
   process_number!: string;
 
+  @ApiProperty({ example: 'Licença Prévia (LP)' })
+  type!: string;
+
+  @ApiProperty({ example: 'FEPAM', nullable: true })
+  issuing_agency!: string | null;
+
   @ApiProperty({ format: 'date-time' })
   issue_date!: string;
 
   @ApiProperty({ format: 'date-time' })
   expiration_date!: string;
 
-  @ApiProperty({ enum: ['Regular', 'Atenção', 'Vencida'] })
+  @ApiProperty({
+    enum: ['Regular', 'Atenção', 'Vencida', 'Renovada/Arquivada'],
+  })
   status!: string;
 
   @ApiProperty({ type: LicenseConditionDetailsResponseDto, isArray: true })
@@ -64,6 +73,7 @@ const LICENSE_STATUS_LABELS: Record<LicenseStatus, string> = {
   [LicenseStatus.REGULAR]: 'Regular',
   [LicenseStatus.ATTENTION]: 'Atenção',
   [LicenseStatus.EXPIRED]: 'Vencida',
+  [LicenseStatus.ARCHIVED]: 'Renovada/Arquivada',
 };
 
 const CONDITION_TYPE_LABELS: Record<ConditionType, string> = {
@@ -83,6 +93,8 @@ export function toLicenseDetailsResponse(
   return {
     id: license.id,
     process_number: license.processNumber,
+    type: LICENSE_TYPE_LABELS[license.type],
+    issuing_agency: license.issuingAgency?.name ?? null,
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: LICENSE_STATUS_LABELS[license.status],

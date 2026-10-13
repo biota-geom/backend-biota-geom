@@ -24,6 +24,7 @@ import { UpdateLicenseConditionUseCase } from './application/update-license-cond
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
 import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
+import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-fulfillment.use-case';
 @Module({
   imports: [
     AuthModule,
@@ -52,6 +53,7 @@ import { GetLicenseDocumentUrlUseCase } from './application/get-license-document
     DeleteLicenseConditionUseCase,
     RenewLicenseUseCase,
     GetLicenseDocumentUrlUseCase,
+    SaveConditionsFulfillmentUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
   ],

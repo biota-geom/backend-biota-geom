@@ -5,6 +5,7 @@ import { ConditionResponse } from './create-condition-response.entity';
 import { ConditionData } from './license-condition.data';
 import { LicenseCondition } from './condition.entity';
 import { UpdateLicenseConditionData } from './update-license-condition.data';
+import { SaveConditionsFulfillmentData } from './save-conditions-fulfillment.data';
 
 @Injectable()
 export abstract class LicenseRepository {
@@ -29,4 +30,7 @@ export abstract class LicenseRepository {
    * on the live-derived status, since the stored status can be stale.
    */
   abstract findAllByCustomerId(customerId: string): Promise<License[]>;
+  abstract saveConditionsFulfillment(
+    data: SaveConditionsFulfillmentData,
+  ): Promise<void>;
 }

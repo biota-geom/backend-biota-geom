@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
-import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
 import { AddLicenseConditionsUseCase } from './application/add-license-conditions.use-case';
@@ -27,12 +26,7 @@ import { UpdateLicenseConditionUseCase } from './application/update-license-cond
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
 @Module({
-  imports: [
-    AuthModule,
-    CustomerModule,
-    EsgMetricsModule,
-    IssuingAgenciesModule,
-  ],
+  imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
   controllers: [
     LicensesController,
     LicenseRenewalsController,

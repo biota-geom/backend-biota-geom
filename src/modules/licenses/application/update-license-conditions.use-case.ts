@@ -35,4 +35,16 @@ export class UpdateLicenseConditionUseCase {
       data: input.data,
     });
   }
+
+  executeForOwner(
+    conditionId: string,
+    ownerUserId: string,
+    data: UpdateLicenseCondition,
+  ): Promise<LicenseCondition> {
+    return this.repository.updateConditionForOwner(
+      conditionId,
+      ownerUserId,
+      data,
+    );
+  }
 }

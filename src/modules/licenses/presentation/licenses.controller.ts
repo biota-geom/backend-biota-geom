@@ -281,9 +281,10 @@ export class LicensesController {
       conditionId,
       ownerUserId: user.id,
       data: {
-        itemNumber: dto.item_number,
-        title: dto.title,
+        title: dto.name ?? dto.title,
+        environmentalDescriptor: dto.environmental_descriptor,
         description: dto.description,
+        responsibleAgency: dto.responsible_agency,
         responsibleName: dto.responsible_name,
         conditionType: toConditionType(dto.condition_type),
         periodicity: toConditionPeriodicity(dto.periodicity),
@@ -292,7 +293,8 @@ export class LicensesController {
           dto.due_date === undefined ? undefined : new Date(dto.due_date),
         alertDate: toNullableIsoDate(dto.alert_date),
         completionDate: toNullableIsoDate(dto.completion_date),
-        status: toConditionStatus(dto.status, dto.is_violated),
+        status: toConditionStatus(dto.status),
+        hasDelivery: dto.has_delivery,
         isViolated: dto.is_violated,
       },
     });

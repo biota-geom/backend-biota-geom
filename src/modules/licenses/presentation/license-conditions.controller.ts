@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UseFilters,
   UseGuards,
@@ -18,11 +19,11 @@ import {
   ApiParam,
   ApiQuery,
   ApiTags,
-  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
+import { UpdateLicenseConditionUseCase } from '../application/update-license-conditions.use-case';
 import { GetLicenseConditionsComplianceUseCase } from '../application/get-license-conditions-compliance.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
@@ -46,6 +47,11 @@ import {
 } from './dto/list-license-conditions-query.dto';
 import { LicensesExceptionFilter } from './filters/licenses-exception.filter';
 import { invalidCustomerIdException } from './licenses.controller';
+import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
+import {
+  LicenseConditionDetailsResponseDto,
+  toLicenseConditionDetailsResponse,
+} from './dto/license-details-response.dto';
 
 const uuidPipe = new ParseUUIDPipe({
   exceptionFactory: invalidCustomerIdException,
@@ -59,6 +65,7 @@ export class LicenseConditionsController {
     private readonly listLicenseConditionsByCustomerUseCase: ListLicenseConditionsByCustomerUseCase,
     private readonly addLicenseConditionsUseCase: AddLicenseConditionsUseCase,
     private readonly getLicenseConditionsComplianceUseCase: GetLicenseConditionsComplianceUseCase,
+    private readonly updateLicenseConditionUseCase: UpdateLicenseConditionUseCase,
   ) {}
 
   @Get('customers/:customerId/license-conditions/compliance')
@@ -123,10 +130,7 @@ export class LicenseConditionsController {
   })
   @ApiCreatedResponse({ type: LicenseConditionCreatedResponseDto })
   @ApiNotFoundResponse({
-    description: 'Licença ou parâmetro GRI inexistente.',
-  })
-  @ApiUnprocessableEntityResponse({
-    description: 'Parâmetro GRI não vinculado à empresa da licença.',
+    description: 'Licença inexistente.',
   })
   async addLicenseCondition(
     @Param('licenseId', uuidPipe) licenseId: string,
@@ -140,19 +144,46 @@ export class LicenseConditionsController {
         {
           licenseId: dto.license_id,
           name: dto.name,
-          esgMetricId: dto.esg_metric_id,
+          environmentalDescriptor: dto.environmental_descriptor,
           responsibleAgency: dto.responsible_agency,
           dueDate: new Date(dto.due_date),
           status: toLicenseConditionStatus(dto.status),
+          hasDelivery: dto.has_delivery,
           description: dto.description || undefined,
-          targetMetricId: dto.target_metric_id,
-          targetOperator: dto.target_operator,
-          targetValue: dto.target_value,
         },
       ],
     });
 
     return toLicenseConditionCreatedResponse(condition);
+  }
+
+  @Put('license-conditions/:conditionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'conditionId', format: 'uuid' })
+  @ApiOkResponse({ type: LicenseConditionDetailsResponseDto })
+  @ApiNotFoundResponse({ description: 'Condition not found.' })
+  async updateLicenseCondition(
+    @Param('conditionId', uuidPipe) conditionId: string,
+    @Body() dto: UpdateLicenseConditionDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseConditionDetailsResponseDto> {
+    const condition = await this.updateLicenseConditionUseCase.executeForOwner(
+      conditionId,
+      user.id,
+      {
+        title: dto.name ?? dto.title,
+        environmentalDescriptor: dto.environmental_descriptor,
+        description: dto.description,
+        responsibleAgency: dto.responsible_agency,
+        dueDate:
+          dto.due_date === undefined ? undefined : new Date(dto.due_date),
+        hasDelivery: dto.has_delivery,
+        isViolated: dto.is_violated,
+      },
+    );
+
+    return toLicenseConditionDetailsResponse(condition);
   }
 }
 

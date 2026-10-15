@@ -47,4 +47,25 @@ describe('UpdateLicenseConditionUseCase', () => {
     await expect(useCase.execute(input)).rejects.toThrow(CustomerNotFoundError);
     expect(updateCondition).not.toHaveBeenCalled();
   });
+
+  it('updates a condition for the authenticated owner', async () => {
+    const condition = {
+      id: 'condition-1',
+      status: LicenseConditionStatus.REGULAR,
+    };
+    const updateConditionForOwner = jest.fn().mockResolvedValue(condition);
+    const useCase = new UpdateLicenseConditionUseCase(
+      { updateConditionForOwner } as unknown as LicenseRepository,
+      {} as CustomerRepository,
+    );
+
+    await expect(
+      useCase.executeForOwner('condition-1', 'owner-1', input.data),
+    ).resolves.toBe(condition);
+    expect(updateConditionForOwner).toHaveBeenCalledWith(
+      'condition-1',
+      'owner-1',
+      input.data,
+    );
+  });
 });

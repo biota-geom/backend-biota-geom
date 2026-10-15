@@ -5,13 +5,14 @@ import {
   ConditionType,
 } from '@prisma/client';
 import {
+  Allow,
   IsBoolean,
   IsDateString,
   IsIn,
   IsNotEmpty,
   IsOptional,
-  MaxLength,
   IsString,
+  MaxLength,
   ValidateIf,
 } from 'class-validator';
 
@@ -33,18 +34,33 @@ const CONDITION_PERIODICITY_INPUTS = [
 ];
 
 export class UpdateLicenseConditionDto {
-  @ApiPropertyOptional({ example: '1.1' })
-  @IsOptional()
-  @IsString()
-  item_number?: string;
+  // Legacy clients may still send this value; numbering is computed on read.
+  @Allow()
+  item_number?: unknown;
 
-  // Required column (stored as `title`): it can be renamed but not cleared.
+  @ApiPropertyOptional({ maxLength: 160 })
+  @ValidateIf((dto: UpdateLicenseConditionDto) => dto.name !== undefined)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(160)
+  name?: string;
+
   @ApiPropertyOptional({ maxLength: 160 })
   @ValidateIf((dto: UpdateLicenseConditionDto) => dto.title !== undefined)
   @IsString()
   @IsNotEmpty()
   @MaxLength(160)
   title?: string;
+
+  @ApiPropertyOptional({ maxLength: 120 })
+  @ValidateIf(
+    (dto: UpdateLicenseConditionDto) =>
+      dto.environmental_descriptor !== undefined,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  environmental_descriptor?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -55,6 +71,11 @@ export class UpdateLicenseConditionDto {
   @IsOptional()
   @IsString()
   responsible_name?: string;
+
+  @ApiPropertyOptional({ example: 'FEPAM' })
+  @IsOptional()
+  @IsString()
+  responsible_agency?: string;
 
   @ApiPropertyOptional({ enum: CONDITION_TYPE_INPUTS })
   @IsOptional()
@@ -71,7 +92,6 @@ export class UpdateLicenseConditionDto {
   @IsDateString()
   deadline?: string | null;
 
-  // Required column: it can be changed but not cleared, so null is rejected.
   @ApiPropertyOptional({ format: 'date-time' })
   @ValidateIf((dto: UpdateLicenseConditionDto) => dto.due_date !== undefined)
   @IsDateString()
@@ -100,5 +120,19 @@ export class UpdateLicenseConditionDto {
   @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
   @IsBoolean()
+  has_delivery?: boolean;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @IsBoolean()
   is_violated?: boolean;
+
+  @Allow()
+  target_metric_id?: unknown;
+
+  @Allow()
+  target_operator?: unknown;
+
+  @Allow()
+  target_value?: unknown;
 }

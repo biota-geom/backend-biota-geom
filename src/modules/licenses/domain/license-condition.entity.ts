@@ -1,26 +1,16 @@
-import {
-  LicenseConditionStatus,
-  LicenseConditionTargetOperator,
-} from '@prisma/client';
-
-// The GRI parameter (EsgMetric) the condition is categorized under.
-export interface LicenseConditionCategory {
-  id: string;
-  name: string;
-}
+import { LicenseConditionStatus } from '@prisma/client';
 
 export interface LicenseCondition {
   id: string;
   licenseId: string;
   name: string;
   description: string | null;
-  category: LicenseConditionCategory;
+  environmentalDescriptor: string;
   responsibleAgency: string | null;
   dueDate: Date;
   status: LicenseConditionStatus;
-  targetMetricId: string | null;
-  targetOperator: LicenseConditionTargetOperator | null;
-  targetValue: number | null;
+  hasDelivery: boolean;
+  isViolated: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

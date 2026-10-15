@@ -19,6 +19,11 @@ export abstract class LicenseRepository {
   abstract updateCondition(
     data: UpdateLicenseConditionData,
   ): Promise<LicenseCondition>;
+  abstract updateConditionForOwner(
+    id: string,
+    ownerUserId: string,
+    data: UpdateLicenseConditionData['data'],
+  ): Promise<LicenseCondition>;
   abstract deleteCondition(
     id: string,
     licenseId: string,

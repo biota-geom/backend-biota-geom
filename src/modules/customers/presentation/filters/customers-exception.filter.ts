@@ -13,7 +13,6 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerAddressNotFoundError } from '../../domain/errors/customer-address-not-found.error';
 import { CustomerAlreadyExistsError } from '../../domain/errors/customer-already-exists.error';
 import { CustomerNotFoundError } from '../../domain/errors/customer-not-found.error';
-import { EsgMetricsInUseError } from '../../domain/errors/esg-metrics-in-use.error';
 import { EsgMetricsNotFoundError } from '../../domain/errors/esg-metrics-not-found.error';
 import { SectorNotFoundError } from '../../domain/errors/sector-not-found.error';
 
@@ -21,7 +20,6 @@ type CustomersDomainError =
   | CustomerNotFoundError
   | CustomerAddressNotFoundError
   | EsgMetricsNotFoundError
-  | EsgMetricsInUseError
   | CustomerAlreadyExistsError
   | SectorNotFoundError;
 
@@ -29,7 +27,6 @@ type CustomersDomainError =
   CustomerNotFoundError,
   CustomerAddressNotFoundError,
   EsgMetricsNotFoundError,
-  EsgMetricsInUseError,
   CustomerAlreadyExistsError,
   SectorNotFoundError,
 )
@@ -56,10 +53,6 @@ export class CustomersExceptionFilter implements ExceptionFilter {
       return new ConflictException(
         AUTH_MESSAGES.CUSTOMER_DOCUMENT_ALREADY_EXISTS,
       );
-    }
-
-    if (error instanceof EsgMetricsInUseError) {
-      return new ConflictException(AUTH_MESSAGES.ESG_METRICS_IN_USE);
     }
 
     if (error instanceof SectorNotFoundError) {

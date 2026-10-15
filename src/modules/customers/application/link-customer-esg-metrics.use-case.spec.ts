@@ -2,7 +2,6 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { CustomerEsgMetricRepository } from '../domain/customer-esg-metric.repository';
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerNotFoundError } from '../domain/errors/customer-not-found.error';
-import { EsgMetricsInUseError } from '../domain/errors/esg-metrics-in-use.error';
 import { EsgMetricsNotFoundError } from '../domain/errors/esg-metrics-not-found.error';
 import { LinkCustomerEsgMetricsUseCase } from './link-customer-esg-metrics.use-case';
 
@@ -14,7 +13,6 @@ const METRIC_B = '550e8400-e29b-41d4-a716-446655440001';
 function buildUseCase(overrides?: {
   customer?: { id: string } | null;
   existingMetricIds?: string[];
-  inUseMetricIds?: string[];
 }) {
   const findOne = jest.fn<
     (
@@ -41,14 +39,9 @@ function buildUseCase(overrides?: {
     overrides?.existingMetricIds ?? [METRIC_A, METRIC_B],
   );
 
-  const findMetricIdsInUseExcept =
-    jest.fn<(customerId: string, keptIds: string[]) => Promise<string[]>>();
-  findMetricIdsInUseExcept.mockResolvedValue(overrides?.inUseMetricIds ?? []);
-
   const customerEsgMetricRepository = {
     replaceAll,
     findExistingMetricIds,
-    findMetricIdsInUseExcept,
     findMetricsByCustomerId: jest.fn(),
   } as unknown as CustomerEsgMetricRepository;
 
@@ -59,7 +52,6 @@ function buildUseCase(overrides?: {
     ),
     replaceAll,
     findExistingMetricIds,
-    findMetricIdsInUseExcept,
     findOne,
   };
 }
@@ -116,30 +108,13 @@ describe('LinkCustomerEsgMetricsUseCase', () => {
     expect(replaceAll).not.toHaveBeenCalled();
   });
 
-  it('checks conditions only against the metrics leaving the list', async () => {
-    const { useCase, findMetricIdsInUseExcept } = buildUseCase({
-      existingMetricIds: [METRIC_A],
-    });
-
-    await useCase.execute(CUSTOMER_ID, OWNER, [METRIC_A, METRIC_A]);
-
-    expect(findMetricIdsInUseExcept).toHaveBeenCalledWith(CUSTOMER_ID, [
-      METRIC_A,
-    ]);
-  });
-
-  it('refuses to unlink a GRI parameter used by a license condition', async () => {
+  it('allows replacing links independently from license conditions', async () => {
     const { useCase, replaceAll } = buildUseCase({
       existingMetricIds: [METRIC_A],
-      inUseMetricIds: [METRIC_B],
     });
 
-    const error = await useCase
-      .execute(CUSTOMER_ID, OWNER, [METRIC_A])
-      .catch((caught: unknown) => caught);
+    await useCase.execute(CUSTOMER_ID, OWNER, [METRIC_A]);
 
-    expect(error).toBeInstanceOf(EsgMetricsInUseError);
-    expect((error as EsgMetricsInUseError).metricIds).toEqual([METRIC_B]);
-    expect(replaceAll).not.toHaveBeenCalled();
+    expect(replaceAll).toHaveBeenCalledWith(CUSTOMER_ID, [METRIC_A]);
   });
 });

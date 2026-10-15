@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ConditionStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
@@ -9,6 +9,7 @@ import { ConditionData } from '../domain/license-condition.data';
 import { LicenseCondition } from '../domain/condition.entity';
 import { UpdateLicenseConditionData } from '../domain/update-license-condition.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
+import { SaveConditionsFulfillmentData } from '../domain/save-conditions-fulfillment.data';
 
 function toDomainCondition(
   condition: Prisma.LicenseConditionGetPayload<{
@@ -131,5 +132,24 @@ export class PrismaLicenseRepository implements LicenseRepository {
       include: { issuingAgency: true },
       orderBy: { expirationDate: 'asc' },
     });
+  }
+
+  async saveConditionsFulfillment(
+    data: SaveConditionsFulfillmentData,
+  ): Promise<void> {
+    const now = new Date();
+    await this.prisma.$transaction(
+      data.items.map((item) =>
+        this.prisma.licenseCondition.update({
+          where: { id: item.conditionId },
+          data: {
+            conditionStatus: item.fulfilled
+              ? ConditionStatus.FULFILLED
+              : ConditionStatus.IN_PROGRESS,
+            completionDate: item.fulfilled ? now : null,
+          },
+        }),
+      ),
+    );
   }
 }

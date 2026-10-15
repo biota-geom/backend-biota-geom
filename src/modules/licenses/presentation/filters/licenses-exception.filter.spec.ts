@@ -6,6 +6,7 @@ import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-licens
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
+import { RenewalConditionsIncompleteError } from '../../domain/errors/renewal-conditions-incomplete.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 import { LicensesExceptionFilter } from './licenses-exception.filter';
 
@@ -98,5 +99,18 @@ describe('LicensesExceptionFilter', () => {
       message: LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
       error: 'Bad Request',
     });
+  });
+
+  it('maps RenewalConditionsIncompleteError to 400', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new RenewalConditionsIncompleteError(), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: LICENSES_MESSAGES.RENEWAL_CONDITIONS_INCOMPLETE,
+      }),
+    );
   });
 });

@@ -29,6 +29,9 @@ export abstract class LicenseRepository {
     licenseId: string,
     customerId: string,
   ): Promise<LicenseCondition>;
+  abstract findConditionsByLicenseId(
+    licenseId: string,
+  ): Promise<LicenseCondition[]>;
   abstract findById(id: string): Promise<License | null>;
   abstract findByIdForOwner(
     id: string,

@@ -69,6 +69,11 @@ import {
 } from './dto/license-details-response.dto';
 import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
 import { RenewLicenseUseCase } from '../application/renew-license.use-case';
+import { ListLicenseHistoryUseCase } from '../application/list-license-history.use-case';
+import {
+  LicenseHistoryItemDto,
+  toLicenseHistoryResponse,
+} from './dto/license-history-response.dto';
 import { RenewLicenseDto } from './dto/renew-license.dto';
 import {
   LicenseRenewedResponseDto,
@@ -330,7 +335,32 @@ export class LicensesController {
 @UseFilters(LicensesExceptionFilter)
 @Controller('licenses')
 export class LicenseRenewalsController {
-  constructor(private readonly renewLicenseUseCase: RenewLicenseUseCase) {}
+  constructor(
+    private readonly renewLicenseUseCase: RenewLicenseUseCase,
+    private readonly listLicenseHistoryUseCase: ListLicenseHistoryUseCase,
+  ) {}
+
+  @Get(':licenseId/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @ApiOperation({
+    summary:
+      'Lista a cadeia de versões da licença, da mais nova à mais antiga.',
+  })
+  @ApiOkResponse({ type: LicenseHistoryItemDto, isArray: true })
+  @ApiNotFoundResponse({ description: 'License not found.' })
+  async getLicenseHistory(
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseHistoryItemDto[]> {
+    const history = await this.listLicenseHistoryUseCase.execute(
+      licenseId,
+      user.id,
+    );
+
+    return toLicenseHistoryResponse(history);
+  }
 
   @Post(':licenseId/renew')
   @UseGuards(JwtAuthGuard)
@@ -354,6 +384,11 @@ export class LicenseRenewalsController {
         issue_date: { type: 'string', format: 'date-time' },
         expiration_date: { type: 'string', format: 'date-time' },
         document_file: { type: 'string', format: 'binary' },
+        conditions: {
+          type: 'string',
+          description:
+            'JSON: [{ condition_id, fulfilled, copy_to_new?, new_due_date? }]',
+        },
       },
     },
   })
@@ -392,6 +427,12 @@ export class LicenseRenewalsController {
         originalName: file.originalname,
         mimeType: file.mimetype,
       },
+      conditions: dto.conditions.map((item) => ({
+        conditionId: item.condition_id,
+        fulfilled: item.fulfilled,
+        copyToNew: item.copy_to_new ?? false,
+        newDueDate: item.new_due_date ? new Date(item.new_due_date) : undefined,
+      })),
     });
 
     return toLicenseRenewedResponse(license);

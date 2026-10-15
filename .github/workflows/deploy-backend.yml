@@ -30,6 +30,8 @@ jobs:
               "cd /home/ec2-user/app",
               "git pull origin main",
               "docker build -t backend-api .",
+              "docker stop backend-api || true",
+              "docker rm backend-api || true",
               "SECRETS=$(aws secretsmanager get-secret-value --secret-id biota-geom-app-secrets --region ${{ secrets.AWS_REGION }} --query SecretString --output text)",
               "DATABASE_URL=$(echo $SECRETS | jq -r .DATABASE_URL)",
               "JWT_SECRET=$(echo $SECRETS | jq -r .JWT_SECRET)",

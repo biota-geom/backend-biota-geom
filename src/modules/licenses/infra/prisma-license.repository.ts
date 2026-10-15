@@ -90,7 +90,7 @@ export class PrismaLicenseRepository implements LicenseRepository {
       where: { id, customerId },
       include: {
         issuingAgency: true,
-        conditions: { orderBy: { itemNumber: 'asc' } },
+        conditions: { orderBy: { createdAt: 'asc' } },
       },
     });
 
@@ -115,6 +115,9 @@ export class PrismaLicenseRepository implements LicenseRepository {
         if (!condition) throw new LicenseConditionNotFoundError(data.id);
 
         const { title, status, isViolated, ...fields } = data.data;
+        const environmentalDescriptorChanged =
+          fields.environmentalDescriptor !== undefined &&
+          fields.environmentalDescriptor !== condition.environmentalDescriptor;
         const updated = await transaction.licenseCondition.update({
           where: { id: data.id },
           data: {
@@ -122,6 +125,45 @@ export class PrismaLicenseRepository implements LicenseRepository {
             ...(title !== undefined ? { name: title } : {}),
             ...(status !== undefined ? { conditionStatus: status } : {}),
             ...(isViolated !== undefined ? { isViolated } : {}),
+            ...(environmentalDescriptorChanged
+              ? { createdAt: new Date() }
+              : {}),
+          },
+        });
+
+        return toDomainCondition(updated);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async updateConditionForOwner(
+    id: string,
+    ownerUserId: string,
+    data: UpdateLicenseConditionData['data'],
+  ): Promise<LicenseCondition> {
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const condition = await transaction.licenseCondition.findFirst({
+          where: { id, license: { customer: { ownerUserId } } },
+        });
+
+        if (!condition) throw new LicenseConditionNotFoundError(id);
+
+        const { title, status, isViolated, ...fields } = data;
+        const environmentalDescriptorChanged =
+          fields.environmentalDescriptor !== undefined &&
+          fields.environmentalDescriptor !== condition.environmentalDescriptor;
+        const updated = await transaction.licenseCondition.update({
+          where: { id },
+          data: {
+            ...fields,
+            ...(title !== undefined ? { name: title } : {}),
+            ...(status !== undefined ? { conditionStatus: status } : {}),
+            ...(isViolated !== undefined ? { isViolated } : {}),
+            ...(environmentalDescriptorChanged
+              ? { createdAt: new Date() }
+              : {}),
           },
         });
 

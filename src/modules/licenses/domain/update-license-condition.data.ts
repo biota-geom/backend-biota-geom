@@ -5,9 +5,10 @@ import {
 } from '@prisma/client';
 
 export interface UpdateLicenseCondition {
-  itemNumber?: string;
   title?: string;
+  environmentalDescriptor?: string;
   description?: string;
+  responsibleAgency?: string;
   responsibleName?: string;
   conditionType?: ConditionType;
   periodicity?: ConditionPeriodicity | null;
@@ -16,6 +17,7 @@ export interface UpdateLicenseCondition {
   alertDate?: Date | null;
   completionDate?: Date | null;
   status?: ConditionStatus;
+  hasDelivery?: boolean;
   isViolated?: boolean;
 }
 

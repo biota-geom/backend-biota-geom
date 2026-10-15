@@ -351,13 +351,10 @@ const seedCompanies = [
  * estados (Regular / Atenção / Vencida).
  */
 interface SeedCondition {
-  itemNumber: string;
   title: string;
   description: string;
   responsibleName: string;
-  // Parâmetro GRI (nome em seedEsgMetrics) que categoriza a condicionante. Tem
-  // que estar entre os `metrics` da empresa, como a API exige (US02/US23).
-  esgMetric: string;
+  environmentalDescriptor: string;
   conditionType: ConditionType;
   // Só faz sentido para PERIODIC.
   periodicity?: ConditionPeriodicity;
@@ -397,36 +394,33 @@ const seedLicenses: SeedLicense[] = [
     expiresInDays: 400, // REGULAR
     conditions: [
       {
-        itemNumber: '1.1',
         title: 'Monitoramento da qualidade da água',
         description:
           'Realizar análise trimestral da qualidade da água superficial a montante e a jusante do empreendimento, com laudo de laboratório acreditado.',
         responsibleName: 'Roberto Andrade',
-        esgMetric: 'Consumo de Água',
+        environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.QUARTERLY,
         dueInDays: 30,
         alertInDays: 15,
       },
       {
-        itemNumber: '1.2',
         title: 'Destinação de resíduos sólidos',
         description:
           'Apresentar semestralmente os manifestos de transporte e certificados de destinação final dos resíduos gerados.',
         responsibleName: 'Roberto Andrade',
-        esgMetric: 'Resíduos Sólidos Gerados',
+        environmentalDescriptor: 'Resíduos Sólidos Gerados',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.SEMIANNUAL,
         dueInDays: -10, // OVERDUE
         alertInDays: -25,
       },
       {
-        itemNumber: '2.1',
         title: 'Apresentação do Plano de Controle Ambiental',
         description:
           'Protocolar o Plano de Controle Ambiental (PCA) atualizado junto ao órgão licenciador.',
         responsibleName: 'Roberto Andrade',
-        esgMetric: 'Consumo de Água',
+        environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.INFORMATIVE,
         deadlineInDays: -60,
         completedInDays: -75, // FULFILLED
@@ -451,24 +445,22 @@ const seedLicenses: SeedLicense[] = [
     expiresInDays: 45, // ATTENTION
     conditions: [
       {
-        itemNumber: '1.1',
         title: 'Inventário de emissões atmosféricas',
         description:
           'Elaborar e enviar o inventário anual de emissões de gases de efeito estufa das operações.',
         responsibleName: 'Fernanda Lopes',
-        esgMetric: 'Emissão de CO2 Equivalente',
+        environmentalDescriptor: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.ANNUAL,
         dueInDays: 40,
         alertInDays: 10,
       },
       {
-        itemNumber: '1.2',
         title: 'Programa de educação ambiental',
         description:
           'Implementar o programa de educação ambiental junto às comunidades do entorno.',
         responsibleName: 'Fernanda Lopes',
-        esgMetric: 'Consumo de Água',
+        environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.INFORMATIVE,
         deadlineInDays: 90,
       },
@@ -483,12 +475,11 @@ const seedLicenses: SeedLicense[] = [
     expiresInDays: 700, // REGULAR
     conditions: [
       {
-        itemNumber: '1',
         title: 'Monitoramento de efluentes',
         description:
           'Enviar mensalmente o relatório de automonitoramento dos efluentes tratados, com os parâmetros da licença.',
         responsibleName: 'Mariana Souza',
-        esgMetric: 'Consumo de Água',
+        environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.MONTHLY,
         dueInDays: 12,
@@ -514,24 +505,22 @@ const seedLicenses: SeedLicense[] = [
     expiresInDays: 60, // ATTENTION
     conditions: [
       {
-        itemNumber: '1.1',
         title: 'Monitoramento de emissões de chaminé',
         description:
           'Realizar amostragem semestral das emissões das chaminés dos fornos e enviar o laudo ao órgão.',
         responsibleName: 'Carlos Aço',
-        esgMetric: 'Emissão de CO2 Equivalente',
+        environmentalDescriptor: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.SEMIANNUAL,
         dueInDays: 25,
         alertInDays: 10,
       },
       {
-        itemNumber: '1.2',
         title: 'Monitoramento da qualidade do ar',
         description:
           'Manter estação de monitoramento da qualidade do ar e apresentar relatório trimestral.',
         responsibleName: 'Carlos Aço',
-        esgMetric: 'Emissão de CO2 Equivalente',
+        environmentalDescriptor: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.QUARTERLY,
         dueInDays: -5, // OVERDUE
@@ -584,24 +573,22 @@ const seedLicenses: SeedLicense[] = [
     expiresInDays: 20, // ATTENTION
     conditions: [
       {
-        itemNumber: '1',
         title: 'Monitoramento do efluente tratado',
         description:
           'Enviar mensalmente os resultados de DBO, DQO e sólidos suspensos do efluente lançado no corpo receptor.',
         responsibleName: 'Beatriz Ramos',
-        esgMetric: 'Consumo de Água',
+        environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.MONTHLY,
         dueInDays: 7,
         alertInDays: 2,
       },
       {
-        itemNumber: '2',
         title: 'Relatório de não conformidades',
         description:
           'Consolidar e protocolar o relatório de não conformidades ambientais do último ciclo.',
         responsibleName: 'Beatriz Ramos',
-        esgMetric: 'Não Conformidades Ambientais',
+        environmentalDescriptor: 'Não Conformidades Ambientais',
         conditionType: ConditionType.INFORMATIVE,
         deadlineInDays: -20,
         completedInDays: -30, // FULFILLED
@@ -825,7 +812,6 @@ async function seedCompaniesTable(
 async function seedLicensesTable(
   companies: Map<string, string>,
   agencies: Map<string, string>,
-  metrics: Map<string, string>,
 ) {
   const now = new Date();
 
@@ -882,21 +868,10 @@ async function seedLicensesTable(
           },
         });
 
-    const companyMetrics =
-      seedCompanies.find((company) => company.name === license.company)
-        ?.metrics ?? [];
-
     for (const condition of license.conditions) {
-      const esgMetricId = metrics.get(condition.esgMetric);
-
-      if (!esgMetricId || !companyMetrics.includes(condition.esgMetric)) {
-        throw new Error(
-          `Condicionante "${condition.itemNumber}" da licença "${license.processNumber}" referencia o parâmetro GRI "${condition.esgMetric}", que não está nos metrics de "${license.company}".`,
-        );
-      }
-
       const conditionData = {
         name: condition.title,
+        environmentalDescriptor: condition.environmentalDescriptor,
         description: condition.description,
         responsibleName: condition.responsibleName,
         conditionType: condition.conditionType,
@@ -911,23 +886,22 @@ async function seedLicensesTable(
         alertDate: optionalDate(now, condition.alertInDays),
         completionDate: optionalDate(now, condition.completedInDays),
         conditionStatus: deriveConditionStatus(condition, now),
-        esgMetricId,
       };
 
-      await prisma.licenseCondition.upsert({
-        where: {
-          licenseId_itemNumber: {
-            licenseId: saved.id,
-            itemNumber: condition.itemNumber,
-          },
-        },
-        update: conditionData,
-        create: {
-          ...conditionData,
-          itemNumber: condition.itemNumber,
-          licenseId: saved.id,
-        },
+      const existingCondition = await prisma.licenseCondition.findFirst({
+        where: { licenseId: saved.id, name: condition.title },
       });
+
+      if (existingCondition) {
+        await prisma.licenseCondition.update({
+          where: { id: existingCondition.id },
+          data: conditionData,
+        });
+      } else {
+        await prisma.licenseCondition.create({
+          data: { ...conditionData, licenseId: saved.id },
+        });
+      }
     }
   }
 }
@@ -979,7 +953,7 @@ async function main() {
   const metrics = await seedEsgMetricsTable();
   const agencies = await seedIssuingAgenciesTable();
   const companies = await seedCompaniesTable(users, sectors, metrics);
-  await seedLicensesTable(companies, agencies, metrics);
+  await seedLicensesTable(companies, agencies);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);

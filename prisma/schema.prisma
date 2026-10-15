@@ -159,13 +159,6 @@ model CustomerEsgMetric {
   @@map("customer_esg_metrics")
 }
 
-enum LicenseType {
-  LP
-  LI
-  LO
-
-  @@map("license_type")
-}
 
 // Kept English on purpose (see AGENTS.md: domain/infra stay English-only).
 // The PT-BR labels ("Regular"/"Atenção"/"Vencida") required by the API
@@ -227,14 +220,13 @@ model IssuingAgency {
   acronym   String?  @db.VarChar(20)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  licenses License[]
 
   @@map("issuing_agencies")
 }
 
 model License {
   id             String        @id @default(uuid(7)) @db.Uuid
-  type           LicenseType
+  type           String        @db.VarChar(50)
   processNumber  String        @map("process_number") @db.VarChar(255)
   issueDate      DateTime      @map("issue_date") @db.Timestamptz(3)
   expirationDate DateTime      @map("expiration_date") @db.Timestamptz(3)
@@ -250,8 +242,7 @@ model License {
   customerId String   @map("customer_id") @db.Uuid
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  issuingAgencyId String        @map("issuing_agency_id") @db.Uuid
-  issuingAgency   IssuingAgency @relation(fields: [issuingAgencyId], references: [id], onDelete: Restrict)
+  issuingAgency String        @map("issuing_agency") @db.VarChar(150)
 
   conditions LicenseCondition[]
 

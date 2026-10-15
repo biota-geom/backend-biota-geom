@@ -1,15 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { LicenseType } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
-import { IssuingAgencyRepository } from '../../issuing-agencies/domain/issuing-agencies.repository';
 import {
   FileToStore,
   LicenseDocumentStorage,
 } from '../domain/license-document-storage';
 import { calculateLicenseStatus } from '../domain/license-status.calculator';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
-import { IssuingAgencyNotFoundError } from '../domain/errors/issuing-agency-not-found.error';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
 
@@ -18,9 +15,9 @@ export interface CreateLicenseInput {
   // From the authenticated token — used only to scope the customer lookup,
   // never persisted on the license itself.
   ownerUserId: string;
-  type: LicenseType;
+  type: string;
   processNumber: string;
-  issuingAgencyId: string;
+  issuingAgency: string;
   issueDate: Date;
   expirationDate: Date;
   file: FileToStore;
@@ -31,7 +28,6 @@ export class CreateLicenseUseCase {
   constructor(
     private readonly licenseRepository: LicenseRepository,
     private readonly customerRepository: CustomerRepository,
-    private readonly issuingAgencyRepository: IssuingAgencyRepository,
     private readonly documentStorage: LicenseDocumentStorage,
   ) {}
 
@@ -47,13 +43,6 @@ export class CreateLicenseUseCase {
     );
     if (!customer) {
       throw new CustomerNotFoundError(input.customerId);
-    }
-
-    const issuingAgencyExists = await this.issuingAgencyRepository.existsById(
-      input.issuingAgencyId,
-    );
-    if (!issuingAgencyExists) {
-      throw new IssuingAgencyNotFoundError(input.issuingAgencyId);
     }
 
     if (input.expirationDate <= input.issueDate) {
@@ -75,7 +64,7 @@ export class CreateLicenseUseCase {
       customerId: input.customerId,
       type: input.type,
       processNumber: input.processNumber,
-      issuingAgencyId: input.issuingAgencyId,
+      issuingAgency: input.issuingAgency,
       issueDate: input.issueDate,
       expirationDate: input.expirationDate,
       status,

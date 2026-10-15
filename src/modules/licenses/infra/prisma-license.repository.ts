@@ -32,14 +32,11 @@ export class PrismaLicenseRepository implements LicenseRepository {
         customer: { connect: { id: data.customerId } },
         type: data.type,
         processNumber: data.processNumber,
-        issuingAgency: { connect: { id: data.issuingAgencyId } },
+        issuingAgency: data.issuingAgency,
         issueDate: data.issueDate,
         expirationDate: data.expirationDate,
         status: data.status,
         documentUrl: data.documentUrl,
-      },
-      include: {
-        issuingAgency: true,
       },
     });
   }
@@ -121,14 +118,12 @@ export class PrismaLicenseRepository implements LicenseRepository {
   async findById(id: string): Promise<License | null> {
     return this.prisma.license.findUnique({
       where: { id },
-      include: { issuingAgency: true },
     });
   }
 
   async findAllByCustomerId(customerId: string): Promise<License[]> {
     return this.prisma.license.findMany({
       where: { customerId },
-      include: { issuingAgency: true },
       orderBy: { expirationDate: 'asc' },
     });
   }

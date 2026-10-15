@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { AddLicenseConditionsUseCase } from '../application/add-license-conditions.use-case';
 import { GetLicenseConditionsComplianceUseCase } from '../application/get-license-conditions-compliance.use-case';
 import { ListLicenseConditionsByCustomerUseCase } from '../application/list-license-conditions-by-customer.use-case';
@@ -111,5 +111,110 @@ describe('LicenseConditionsController', () => {
       in_compliance: 4,
       compliance_percentage: 50,
     });
+  });
+
+  it.each([
+    [LicenseConditionStatusFilter.REGULAR, LicenseConditionRiskLevel.REGULAR],
+    [
+      LicenseConditionStatusFilter.ATTENTION,
+      LicenseConditionRiskLevel.ATTENTION,
+    ],
+    [undefined, undefined],
+  ])('maps the %s monitor filter', async (status, expectedRiskLevel) => {
+    const execute = jest.fn().mockResolvedValue({ total: 0, data: [] });
+    const controller = buildController({ list: { execute } });
+
+    await controller.listLicenseConditions(
+      'customer-1',
+      { id: 'owner-1' },
+      { status },
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      'customer-1',
+      'owner-1',
+      expectedRiskLevel,
+    );
+  });
+
+  it('updates the editable condition fields for the authenticated owner', async () => {
+    const executeForOwner = jest.fn().mockResolvedValue({
+      ...CONDITION,
+      title: 'Updated condition',
+      environmentalDescriptor: 'Waste',
+      description: 'Updated description',
+      responsibleName: null,
+      conditionType: null,
+      periodicity: null,
+      deadline: null,
+      dueDate: new Date('2027-06-20T00:00:00.000Z'),
+      alertDate: null,
+      completionDate: null,
+      status: ConditionStatus.IN_PROGRESS,
+      isViolated: true,
+    });
+    const controller = buildController({ update: { executeForOwner } });
+
+    const response = await controller.updateLicenseCondition(
+      'condition-1',
+      {
+        name: 'Updated condition',
+        environmental_descriptor: 'Waste',
+        description: 'Updated description',
+        responsible_agency: 'FEPAM',
+        due_date: '2027-06-20T00:00:00.000Z',
+        has_delivery: false,
+        is_violated: true,
+      },
+      { id: 'owner-1' },
+    );
+
+    expect(executeForOwner).toHaveBeenCalledWith('condition-1', 'owner-1', {
+      title: 'Updated condition',
+      environmentalDescriptor: 'Waste',
+      description: 'Updated description',
+      responsibleAgency: 'FEPAM',
+      dueDate: new Date('2027-06-20T00:00:00.000Z'),
+      hasDelivery: false,
+      isViolated: true,
+    });
+    expect(response).toEqual(
+      expect.objectContaining({
+        name: 'Updated condition',
+        environmental_descriptor: 'Waste',
+        is_violated: true,
+      }),
+    );
+  });
+
+  it('keeps omitted fields undefined when updating a condition', async () => {
+    const executeForOwner = jest.fn().mockResolvedValue({
+      ...CONDITION,
+      title: 'Condition',
+      responsibleName: null,
+      conditionType: null,
+      periodicity: null,
+      deadline: null,
+      dueDate: null,
+      alertDate: null,
+      completionDate: null,
+      status: ConditionStatus.IN_PROGRESS,
+    });
+    const controller = buildController({ update: { executeForOwner } });
+
+    await controller.updateLicenseCondition(
+      'condition-1',
+      { title: 'Condition' },
+      { id: 'owner-1' },
+    );
+
+    expect(executeForOwner).toHaveBeenCalledWith(
+      'condition-1',
+      'owner-1',
+      expect.objectContaining({
+        title: 'Condition',
+        dueDate: undefined,
+      }),
+    );
   });
 });

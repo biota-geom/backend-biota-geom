@@ -3,7 +3,10 @@ import {
   ConditionStatus,
   ConditionType,
   LicenseStatus,
+  LicenseType,
 } from '@prisma/client';
+import { LicenseCondition } from '../../domain/condition.entity';
+import { License } from '../../domain/license.entity';
 import {
   toConditionPeriodicity,
   toConditionStatus,
@@ -14,30 +17,40 @@ import {
 } from './license-details-response.dto';
 
 describe('license details response mappers', () => {
-  // Removido o 'as never' para que o TypeScript saiba que é um objeto válido
-  const condition = {
+  const condition: LicenseCondition = {
     id: 'condition-1',
+    licenseId: 'license-1',
     itemNumber: '1.1',
     description: 'Relatório',
+    title: 'Relatório',
+    responsibleName: 'Ana',
     conditionType: ConditionType.PERIODIC,
     periodicity: ConditionPeriodicity.MONTHLY,
     deadline: new Date('2027-01-02T00:00:00.000Z'),
     status: ConditionStatus.FULFILLED,
     completionDate: new Date('2026-12-01T00:00:00.000Z'),
-    responsibleName: 'Ana',
+    dueDate: null,
+    alertDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   it('maps license and condition details', () => {
     expect(
       toLicenseDetailsResponse({
         id: 'license-1',
+        customerId: 'customer-1',
+        type: LicenseType.LO,
         processNumber: 'LO 118/2020',
+        issuingAgencyId: 'agency-1',
         issueDate: new Date('2020-01-01T00:00:00.000Z'),
         expirationDate: new Date('2028-01-01T00:00:00.000Z'),
-        // Certifique-se de usar um status válido do LicenseStatus do Prisma (ex: ACTIVE ou o correto do seu enum)
         status: LicenseStatus.REGULAR,
+        documentUrl: '',
+        createdAt: new Date('2020-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2020-01-01T00:00:00.000Z'),
         conditions: [condition],
-      } as any), // Usar 'as any' em mocks de testes complexos evita travar o TS se faltarem propriedades secundárias do Prisma
+      } satisfies License & { conditions: LicenseCondition[] }),
     ).toEqual(
       expect.objectContaining({
         id: 'license-1',
@@ -47,24 +60,22 @@ describe('license details response mappers', () => {
     );
   });
 
-  it.each([
+  it.each<[ConditionStatus, string, boolean]>([
     [ConditionStatus.FULFILLED, 'Atendida', false],
     [ConditionStatus.IN_PROGRESS, 'Em andamento', false],
     [ConditionStatus.OVERDUE, 'Atrasada', true],
   ])('maps condition status %s', (status, label, violated) => {
     expect(
       toLicenseConditionDetailsResponse({
-        ...condition, // Agora funciona perfeitamente sem virar 'never'
-        conditionStatus: status,
+        ...condition,
         status,
-        conditionType: null,
         periodicity: null,
         deadline: null,
         completionDate: null,
-      } as any),
+      }),
     ).toEqual(
       expect.objectContaining({
-        condition_type: undefined,
+        condition_type: 'Periódico',
         periodicity: 'NA',
         status: label,
         is_violated: violated,

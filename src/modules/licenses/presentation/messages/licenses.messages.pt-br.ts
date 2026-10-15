@@ -12,6 +12,8 @@ export const LICENSES_MESSAGES = {
     'A data de validade deve ser posterior à data de emissão.',
   LICENSE_NOT_FOUND: 'Licença não encontrada.',
   LICENSE_ALREADY_ARCHIVED: 'Licença já renovada/arquivada.',
+  RENEWAL_CONDITIONS_INCOMPLETE:
+    'Marque todas as condicionantes da licença anterior como cumpridas ou não cumpridas.',
   CONDITION_NOT_FOUND: 'Condicionante não encontrada.',
   CONDITION_LICENSE_MISMATCH:
     'A licença informada não corresponde à licença da rota.',

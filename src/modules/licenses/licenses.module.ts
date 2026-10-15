@@ -25,6 +25,7 @@ import { GetLicenseDetailsUseCase } from './application/get-license-details.use-
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
+import { ListLicenseHistoryUseCase } from './application/list-license-history.use-case';
 @Module({
   imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
   controllers: [
@@ -46,6 +47,7 @@ import { RenewLicenseUseCase } from './application/renew-license.use-case';
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
     RenewLicenseUseCase,
+    ListLicenseHistoryUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
     StorageConfigService,

@@ -4,6 +4,8 @@ import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-d
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { LicenseDocumentStorage } from '../domain/license-document-storage';
 import { LicenseRepository } from '../domain/licenses.repository';
+import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
+import { RenewalConditionsIncompleteError } from '../domain/errors/renewal-conditions-incomplete.error';
 import { RenewLicenseUseCase } from './renew-license.use-case';
 
 function buildUseCase(overrides?: {
@@ -24,6 +26,7 @@ function buildUseCase(overrides?: {
       createdAt: new Date('2020-01-10T00:00:00.000Z'),
       updatedAt: new Date('2020-01-10T00:00:00.000Z'),
     }),
+    findConditionsByLicenseId: jest.fn().mockResolvedValue([]),
     renew: jest.fn().mockImplementation((data) =>
       Promise.resolve({
         id: 'new-license',
@@ -66,6 +69,7 @@ describe('RenewLicenseUseCase', () => {
       issueDate: new Date('2026-01-10T00:00:00.000Z'),
       expirationDate: new Date('2030-01-10T00:00:00.000Z'),
       file: FILE,
+      conditions: [],
     });
 
     expect(licenseRepository.findByIdForOwner).toHaveBeenCalledWith(
@@ -102,6 +106,7 @@ describe('RenewLicenseUseCase', () => {
         issueDate: new Date('2026-01-10T00:00:00.000Z'),
         expirationDate: new Date('2030-01-10T00:00:00.000Z'),
         file: FILE,
+        conditions: [],
       }),
     ).rejects.toThrow(LicenseNotFoundError);
     expect(documentStorage.upload).not.toHaveBeenCalled();
@@ -125,6 +130,7 @@ describe('RenewLicenseUseCase', () => {
         issueDate: new Date('2026-01-10T00:00:00.000Z'),
         expirationDate: new Date('2030-01-10T00:00:00.000Z'),
         file: FILE,
+        conditions: [],
       }),
     ).rejects.toThrow(LicenseAlreadyArchivedError);
     expect(documentStorage.upload).not.toHaveBeenCalled();
@@ -141,8 +147,102 @@ describe('RenewLicenseUseCase', () => {
         issueDate: new Date('2026-01-10T00:00:00.000Z'),
         expirationDate: new Date('2026-01-10T00:00:00.000Z'),
         file: FILE,
+        conditions: [],
       }),
     ).rejects.toThrow(InvalidLicenseDateRangeError);
     expect(documentStorage.upload).not.toHaveBeenCalled();
+  });
+
+  describe('conditions of the previous license', () => {
+    const baseInput = {
+      licenseId: 'old-license',
+      ownerUserId: 'owner-1',
+      processNumber: 'LO nº 119/2026',
+      issueDate: new Date('2026-01-10T00:00:00.000Z'),
+      expirationDate: new Date('2030-01-10T00:00:00.000Z'),
+      file: FILE,
+    };
+    const findConditions = jest
+      .fn()
+      .mockResolvedValue([{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }]);
+
+    it('passes every decision to the repository when all conditions are marked', async () => {
+      const { useCase, licenseRepository } = buildUseCase({
+        licenseRepository: { findConditionsByLicenseId: findConditions },
+      });
+      const conditions = [
+        {
+          conditionId: 'c-1',
+          fulfilled: true,
+          copyToNew: true,
+          newDueDate: new Date('2027-10-01T00:00:00.000Z'),
+        },
+        { conditionId: 'c-2', fulfilled: false, copyToNew: false },
+        {
+          conditionId: 'c-3',
+          fulfilled: true,
+          copyToNew: true,
+          newDueDate: new Date('2027-11-01T00:00:00.000Z'),
+        },
+      ];
+
+      await useCase.execute({ ...baseInput, conditions });
+
+      expect(findConditions).toHaveBeenCalledWith('old-license');
+      expect(licenseRepository.renew).toHaveBeenCalledWith(
+        expect.objectContaining({ conditions }),
+      );
+    });
+
+    it('rejects the renewal when some condition was not marked', async () => {
+      const { useCase, documentStorage, licenseRepository } = buildUseCase({
+        licenseRepository: { findConditionsByLicenseId: findConditions },
+      });
+
+      await expect(
+        useCase.execute({
+          ...baseInput,
+          conditions: [
+            { conditionId: 'c-1', fulfilled: true, copyToNew: false },
+          ],
+        }),
+      ).rejects.toThrow(RenewalConditionsIncompleteError);
+      expect(documentStorage.upload).not.toHaveBeenCalled();
+      expect(licenseRepository.renew).not.toHaveBeenCalled();
+    });
+
+    it('rejects the renewal when a condition is marked twice', async () => {
+      const { useCase } = buildUseCase({
+        licenseRepository: { findConditionsByLicenseId: findConditions },
+      });
+      const item = { conditionId: 'c-1', fulfilled: true, copyToNew: false };
+
+      await expect(
+        useCase.execute({
+          ...baseInput,
+          conditions: [
+            item,
+            item,
+            { conditionId: 'c-2', fulfilled: true, copyToNew: false },
+          ],
+        }),
+      ).rejects.toThrow(RenewalConditionsIncompleteError);
+    });
+
+    it('rejects a condition id that does not belong to the previous license', async () => {
+      const { useCase, documentStorage } = buildUseCase({
+        licenseRepository: { findConditionsByLicenseId: findConditions },
+      });
+
+      await expect(
+        useCase.execute({
+          ...baseInput,
+          conditions: [
+            { conditionId: 'other', fulfilled: true, copyToNew: false },
+          ],
+        }),
+      ).rejects.toThrow(LicenseConditionLicenseMismatchError);
+      expect(documentStorage.upload).not.toHaveBeenCalled();
+    });
   });
 });

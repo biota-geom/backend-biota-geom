@@ -5,6 +5,7 @@ import { CreateLicenseConditionUseCase } from '../application/create-license-con
 import { DeleteLicenseConditionUseCase } from '../application/delete-license-condition.use-case';
 import { GetLicenseDetailsUseCase } from '../application/get-license-details.use-case';
 import { ListLicensesByCustomerUseCase } from '../application/list-licenses-by-customer.use-case';
+import { ListLicenseHistoryUseCase } from '../application/list-license-history.use-case';
 import { RenewLicenseUseCase } from '../application/renew-license.use-case';
 import { UpdateLicenseConditionUseCase } from '../application/update-license-conditions.use-case';
 import {
@@ -290,9 +291,10 @@ describe('LicenseRenewalsController', () => {
       createdAt: new Date('2026-01-10T00:00:00.000Z'),
       updatedAt: new Date('2026-01-10T00:00:00.000Z'),
     });
-    const controller = new LicenseRenewalsController({
-      execute,
-    } as unknown as RenewLicenseUseCase);
+    const controller = new LicenseRenewalsController(
+      { execute } as unknown as RenewLicenseUseCase,
+      {} as ListLicenseHistoryUseCase,
+    );
 
     const response = await controller.renewLicense(
       'old-license',
@@ -300,6 +302,15 @@ describe('LicenseRenewalsController', () => {
         process_number: 'LO nº 119/2026',
         issue_date: '2026-01-10T00:00:00.000Z',
         expiration_date: '2030-01-10T00:00:00.000Z',
+        conditions: [
+          {
+            condition_id: 'c-1',
+            fulfilled: true,
+            copy_to_new: true,
+            new_due_date: '2027-10-01',
+          },
+          { condition_id: 'c-2', fulfilled: false },
+        ],
       },
       buildFile(),
       { id: 'owner-1' },
@@ -316,11 +327,71 @@ describe('LicenseRenewalsController', () => {
         originalName: 'renovada.pdf',
         mimeType: 'application/pdf',
       },
+      conditions: [
+        {
+          conditionId: 'c-1',
+          fulfilled: true,
+          copyToNew: true,
+          newDueDate: new Date('2027-10-01'),
+        },
+        {
+          conditionId: 'c-2',
+          fulfilled: false,
+          copyToNew: false,
+          newDueDate: undefined,
+        },
+      ],
     });
     expect(response).toEqual({
       id: 'new-license',
       previous_license_id: 'old-license',
       status: 'Regular',
     });
+  });
+
+  it('returns the license history newest first, flagging the requested one', async () => {
+    const history = [
+      {
+        id: 'new-license',
+        customerId: 'customer-1',
+        processNumber: 'LO nº 119/2026',
+        issueDate: new Date('2026-01-10T00:00:00.000Z'),
+        expirationDate: new Date('2030-01-10T00:00:00.000Z'),
+        status: LicenseStatus.REGULAR,
+      },
+      {
+        id: 'old-license',
+        customerId: 'customer-1',
+        processNumber: 'LO nº 118/2020',
+        issueDate: new Date('2020-01-10T00:00:00.000Z'),
+        expirationDate: new Date('2025-01-10T00:00:00.000Z'),
+        status: LicenseStatus.ARCHIVED,
+      },
+    ];
+    const execute = jest.fn().mockResolvedValue(history);
+    const controller = new LicenseRenewalsController(
+      {} as RenewLicenseUseCase,
+      { execute } as unknown as ListLicenseHistoryUseCase,
+    );
+
+    const response = await controller.getLicenseHistory('new-license', {
+      id: 'owner-1',
+    });
+
+    expect(execute).toHaveBeenCalledWith('new-license', 'owner-1');
+    expect(response).toEqual([
+      expect.objectContaining({
+        id: 'new-license',
+        status: 'Regular',
+        is_current: true,
+      }),
+      expect.objectContaining({
+        id: 'old-license',
+        customer_id: 'customer-1',
+        process_number: 'LO nº 118/2020',
+        status: 'Renovada/Arquivada',
+        is_current: false,
+      }),
+    ]);
   });
 });

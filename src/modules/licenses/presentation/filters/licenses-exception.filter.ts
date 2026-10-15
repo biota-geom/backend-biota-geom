@@ -17,6 +17,7 @@ import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-n
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseAlreadyArchivedError } from '../../domain/errors/license-already-archived.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
+import { RenewalConditionsIncompleteError } from '../../domain/errors/renewal-conditions-incomplete.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
 type LicensesDomainError =
@@ -27,7 +28,8 @@ type LicensesDomainError =
   | LicenseNotFoundError
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
-  | InvalidConditionDueDateError;
+  | InvalidConditionDueDateError
+  | RenewalConditionsIncompleteError;
 
 @Catch(
   CustomerNotFoundError,
@@ -38,6 +40,7 @@ type LicensesDomainError =
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
   InvalidConditionDueDateError,
+  RenewalConditionsIncompleteError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -88,6 +91,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof InvalidConditionDueDateError) {
       return new BadRequestException(
         LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
+      );
+    }
+
+    if (error instanceof RenewalConditionsIncompleteError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.RENEWAL_CONDITIONS_INCOMPLETE,
       );
     }
 

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LicenseStatus, Prisma } from '@prisma/client';
+import { ConditionStatus, LicenseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
@@ -70,6 +70,49 @@ export class PrismaLicenseRepository implements LicenseRepository {
           where: { id: data.previousLicenseId },
           data: { status: LicenseStatus.ARCHIVED },
         });
+
+        const now = new Date();
+        for (const decision of data.conditions) {
+          await transaction.licenseCondition.update({
+            where: { id: decision.conditionId },
+            data: {
+              conditionStatus: decision.fulfilled
+                ? ConditionStatus.FULFILLED
+                : ConditionStatus.IN_PROGRESS,
+              completionDate: decision.fulfilled ? now : null,
+            },
+          });
+        }
+
+        const dueDateById = new Map(
+          data.conditions
+            .filter((decision) => decision.copyToNew && decision.newDueDate)
+            .map((decision) => [decision.conditionId, decision.newDueDate]),
+        );
+        if (dueDateById.size > 0) {
+          const sources = await transaction.licenseCondition.findMany({
+            where: {
+              licenseId: data.previousLicenseId,
+              id: { in: [...dueDateById.keys()] },
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          await transaction.licenseCondition.createMany({
+            data: sources.map((source) => ({
+              licenseId: renewed.id,
+              name: source.name,
+              environmentalDescriptor: source.environmentalDescriptor,
+              description: source.description,
+              responsibleAgency: source.responsibleAgency,
+              responsibleName: source.responsibleName,
+              conditionType: source.conditionType,
+              periodicity: source.periodicity,
+              hasDelivery: source.hasDelivery,
+              dueDate: dueDateById.get(source.id) as Date,
+            })),
+          });
+        }
 
         return renewed;
       },
@@ -194,6 +237,17 @@ export class PrismaLicenseRepository implements LicenseRepository {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+  }
+
+  async findConditionsByLicenseId(
+    licenseId: string,
+  ): Promise<LicenseCondition[]> {
+    const conditions = await this.prisma.licenseCondition.findMany({
+      where: { licenseId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return conditions.map(toDomainCondition);
   }
 
   async findById(id: string): Promise<License | null> {

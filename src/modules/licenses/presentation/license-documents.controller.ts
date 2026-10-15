@@ -24,7 +24,7 @@ import {
 import { LicensesExceptionFilter } from './filters/licenses-exception.filter';
 import { invalidCustomerIdException } from './licenses.controller';
 
-const uuidPipe = new ParseUUIDPipe({
+export const licenseIdPipe = new ParseUUIDPipe({
   exceptionFactory: invalidCustomerIdException,
 });
 
@@ -49,7 +49,7 @@ export class LicenseDocumentsController {
     description: 'License not found or owned by another user.',
   })
   async getDocumentUrl(
-    @Param('licenseId', uuidPipe) licenseId: string,
+    @Param('licenseId', licenseIdPipe) licenseId: string,
     @CurrentUser() user: { id: string },
   ): Promise<LicenseDocumentUrlResponseDto> {
     const accessUrl = await this.getLicenseDocumentUrlUseCase.execute(

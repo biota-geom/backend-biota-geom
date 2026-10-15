@@ -39,7 +39,11 @@ export function extractObjectKey(storedUrl: string): string {
   const path = decodeURIComponent(new URL(storedUrl).pathname);
   const keyStart = path.lastIndexOf(`/${KEY_PREFIX}`);
 
-  return keyStart === -1 ? path.replace(/^\/+/, '') : path.slice(keyStart + 1);
+  if (keyStart !== -1) return path.slice(keyStart + 1);
+
+  // Stryker disable next-line Regex: a URL pathname always starts with "/",
+  // so dropping the `^` anchor still strips the same leading run of slashes.
+  return path.replace(/^\/+/, '');
 }
 
 /*

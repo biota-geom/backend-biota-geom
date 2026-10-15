@@ -68,6 +68,7 @@ describe('S3LicenseDocumentStorage', () => {
   beforeEach(() => {
     mockSend().mockClear();
     MockedS3Client.mockClear();
+    MockedPutObjectCommand.mockClear();
   });
 
   it('uploads the buffer to the configured bucket under licenses/<customerId>/', async () => {
@@ -101,6 +102,38 @@ describe('S3LicenseDocumentStorage', () => {
     expect(result.url).toMatch(
       /^https:\/\/cdn\.biotageom\.com\.br\/licenses\/customer-1\/[0-9a-f-]+\.pdf$/,
     );
+  });
+
+  it.each([
+    ['without a trailing slash', 'https://cdn.example.com/files'],
+    ['with a trailing slash', 'https://cdn.example.com/files/'],
+  ])(
+    'keeps the path of AWS_S3_PUBLIC_URL_BASE %s',
+    async (_label, s3PublicUrlBase) => {
+      const storage = new S3LicenseDocumentStorage(
+        buildConfig({ s3PublicUrlBase }),
+      );
+
+      const result = await storage.upload(file, 'customer-1');
+
+      expect(result.url).toMatch(
+        /^https:\/\/cdn\.example\.com\/files\/licenses\/customer-1\/[0-9a-f-]+\.pdf$/,
+      );
+    },
+  );
+
+  it('stores a file whose original name has no extension without one', async () => {
+    const storage = new S3LicenseDocumentStorage(buildConfig());
+
+    await storage.upload(
+      { ...file, originalName: 'licenca-sem-extensao' },
+      'customer-1',
+    );
+
+    const [putObjectInput] = MockedPutObjectCommand.mock.calls[0] as [
+      { Key: string },
+    ];
+    expect(putObjectInput.Key).toMatch(/^licenses\/customer-1\/[0-9a-f-]{36}$/);
   });
 
   it('throws when AWS_S3_BUCKET is not set', async () => {
@@ -196,6 +229,12 @@ describe('extractObjectKey', () => {
     expect(
       extractObjectKey('https://cdn.example.com/licenses/c-1/my%20doc.pdf'),
     ).toBe('licenses/c-1/my doc.pdf');
+  });
+
+  it('strips every leading slash when the prefix is missing', () => {
+    expect(extractObjectKey('https://cdn.example.com//other/doc.pdf')).toBe(
+      'other/doc.pdf',
+    );
   });
 
   it('falls back to the whole path when the prefix is missing', () => {

@@ -1,5 +1,10 @@
 import { GetLicenseDocumentUrlUseCase } from '../application/get-license-document-url.use-case';
-import { LicenseDocumentsController } from './license-documents.controller';
+import { BadRequestException } from '@nestjs/common';
+import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
+import {
+  licenseIdPipe,
+  LicenseDocumentsController,
+} from './license-documents.controller';
 
 describe('LicenseDocumentsController', () => {
   it('returns the signed URL for the authenticated user', async () => {
@@ -18,5 +23,16 @@ describe('LicenseDocumentsController', () => {
       expires_in: 900,
     });
     expect(execute).toHaveBeenCalledWith('license-1', 'owner-1');
+  });
+
+  it('rejects a malformed license id with the generic PT-BR 400', async () => {
+    const error = await licenseIdPipe
+      .transform('not-a-uuid', { type: 'param', data: 'licenseId' })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as BadRequestException).message).toBe(
+      AUTH_MESSAGES.INVALID_REQUEST,
+    );
   });
 });

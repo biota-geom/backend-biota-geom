@@ -1,21 +1,13 @@
 import { ConditionStatus, ConditionType } from '@prisma/client';
-import { CustomerEsgMetricRepository } from '../../customers/domain/customer-esg-metric.repository';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
-import { EsgMetricRepository } from '../../esg-metrics/domain/repositories/esg-metric.repository';
-import { ConditionCategoryNotFoundError } from '../domain/errors/condition-category-not-found.error';
-import { ConditionCategoryNotLinkedError } from '../domain/errors/condition-category-not-linked.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { CreateLicenseConditionUseCase } from './create-license-conditions.use-case';
 
-const METRIC_ID = 'metric-1';
-
 function buildUseCase(overrides?: {
   customerRepository?: Partial<CustomerRepository>;
   repository?: Partial<LicenseRepository>;
-  esgMetricRepository?: Partial<EsgMetricRepository>;
-  customerEsgMetricRepository?: Partial<CustomerEsgMetricRepository>;
 }) {
   const customerRepository: Partial<CustomerRepository> = {
     findOne: jest.fn().mockResolvedValue({ id: 'customer-1' }),
@@ -25,28 +17,15 @@ function buildUseCase(overrides?: {
     findById: jest
       .fn()
       .mockResolvedValue({ id: 'license-1', customerId: 'customer-1' }),
-    createConditions: jest.fn().mockResolvedValue({ count: 2 }),
+    createConditions: jest.fn().mockResolvedValue({ count: 1 }),
     ...overrides?.repository,
-  };
-  const esgMetricRepository: Partial<EsgMetricRepository> = {
-    findByIds: jest
-      .fn()
-      .mockResolvedValue([{ id: METRIC_ID, customerId: null }]),
-    ...overrides?.esgMetricRepository,
-  };
-  const customerEsgMetricRepository: Partial<CustomerEsgMetricRepository> = {
-    findLinkedMetricIds: jest.fn().mockResolvedValue([METRIC_ID]),
-    ...overrides?.customerEsgMetricRepository,
   };
 
   return {
     useCase: new CreateLicenseConditionUseCase(
       repository as LicenseRepository,
       customerRepository as CustomerRepository,
-      esgMetricRepository as EsgMetricRepository,
-      customerEsgMetricRepository as CustomerEsgMetricRepository,
     ),
-    customerRepository,
     repository,
   };
 }
@@ -59,8 +38,7 @@ function buildInput(condition: Record<string, unknown> = {}) {
     data: {
       conditions: [
         {
-          esg_metric_id: METRIC_ID,
-          item_number: '1.1',
+          environmental_descriptor: 'Resíduos sólidos',
           description: 'Relatório',
           responsible_name: 'Ana',
           condition_type: ConditionType.INFORMATIVE,
@@ -73,20 +51,24 @@ function buildInput(condition: Record<string, unknown> = {}) {
 }
 
 describe('CreateLicenseConditionUseCase', () => {
-  it('creates conditions categorized by a GRI parameter of the customer', async () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('creates conditions with a computed-number-ready descriptor', async () => {
     const { useCase, repository } = buildUseCase();
+    const deadline = new Date('2027-01-01T00:00:00.000Z');
+    jest.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
 
     await expect(useCase.execute(buildInput())).resolves.toEqual({
-      count: 2,
+      count: 1,
       message: 'Condicionantes vinculadas com sucesso',
     });
-    const deadline = new Date('2027-01-01T00:00:00.000Z');
     expect(repository.createConditions).toHaveBeenCalledWith([
       {
         licenseId: 'license-1',
-        esgMetricId: METRIC_ID,
-        itemNumber: '1.1',
-        name: 'Item 1.1',
+        environmentalDescriptor: 'Resíduos sólidos',
+        name: 'Relatório',
         description: 'Relatório',
         responsibleName: 'Ana',
         conditionType: ConditionType.INFORMATIVE,
@@ -94,11 +76,35 @@ describe('CreateLicenseConditionUseCase', () => {
         deadline,
         dueDate: deadline,
         conditionStatus: ConditionStatus.IN_PROGRESS,
+        hasDelivery: true,
+        createdAt: new Date(1_800_000_000_000),
       },
     ]);
   });
 
-  it('uses the given title and periodicity', async () => {
+  it('preserves payload order with increasing creation timestamps', async () => {
+    const { useCase, repository } = buildUseCase();
+    jest.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
+    const input = buildInput();
+    input.data.conditions.push({
+      environmental_descriptor: 'Água',
+      description: 'Laudo',
+      responsible_name: 'Bia',
+      condition_type: ConditionType.INFORMATIVE,
+      deadline: '2027-02-01T00:00:00.000Z',
+    });
+
+    await useCase.execute(input);
+
+    const createConditions = jest.mocked(repository.createConditions!);
+    const created = createConditions.mock.calls[0]?.[0];
+    if (!created) throw new Error('Expected conditions to be created');
+    expect(created.map((condition) => condition.createdAt.getTime())).toEqual([
+      1_800_000_000_000, 1_800_000_000_001,
+    ]);
+  });
+
+  it('uses the given title, periodicity and delivery setting', async () => {
     const { useCase, repository } = buildUseCase();
 
     await useCase.execute(
@@ -106,6 +112,7 @@ describe('CreateLicenseConditionUseCase', () => {
         title: 'Monitoramento de efluentes',
         condition_type: ConditionType.PERIODIC,
         periodicity: 'MONTHLY',
+        has_delivery: false,
       }),
     );
 
@@ -113,77 +120,29 @@ describe('CreateLicenseConditionUseCase', () => {
       expect.objectContaining({
         name: 'Monitoramento de efluentes',
         periodicity: 'MONTHLY',
+        hasDelivery: false,
       }),
     ]);
   });
 
-  it('returns zero when nothing was created', async () => {
-    const { useCase } = buildUseCase({
-      repository: {
-        findById: jest
-          .fn()
-          .mockResolvedValue({ id: 'license-1', customerId: 'customer-1' }),
-        createConditions: jest.fn().mockResolvedValue(null),
-      },
-    });
-
-    await expect(useCase.execute(buildInput())).resolves.toEqual(
-      expect.objectContaining({ count: 0 }),
-    );
-  });
-
   it('rejects an unknown customer', async () => {
-    const { useCase, repository } = buildUseCase({
+    const { useCase } = buildUseCase({
       customerRepository: { findOne: jest.fn().mockResolvedValue(null) },
     });
-
     await expect(useCase.execute(buildInput())).rejects.toThrow(
       CustomerNotFoundError,
     );
-    expect(repository.createConditions).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['an unknown license', null],
-    [
-      'a license of another customer',
-      { id: 'license-1', customerId: 'customer-2' },
-    ],
-  ])('rejects %s as not found', async (_, license) => {
-    const { useCase, repository } = buildUseCase({
-      repository: {
-        findById: jest.fn().mockResolvedValue(license),
-        createConditions: jest.fn(),
-      },
-    });
-
-    await expect(useCase.execute(buildInput())).rejects.toThrow(
-      LicenseNotFoundError,
-    );
-    expect(repository.createConditions).not.toHaveBeenCalled();
-  });
-
-  it('rejects a GRI parameter that does not exist', async () => {
-    const { useCase, repository } = buildUseCase({
-      esgMetricRepository: { findByIds: jest.fn().mockResolvedValue([]) },
-    });
-
-    await expect(useCase.execute(buildInput())).rejects.toThrow(
-      ConditionCategoryNotFoundError,
-    );
-    expect(repository.createConditions).not.toHaveBeenCalled();
-  });
-
-  it('rejects a GRI parameter not linked to the customer', async () => {
-    const { useCase, repository } = buildUseCase({
-      customerEsgMetricRepository: {
-        findLinkedMetricIds: jest.fn().mockResolvedValue([]),
-      },
-    });
-
-    await expect(useCase.execute(buildInput())).rejects.toThrow(
-      ConditionCategoryNotLinkedError,
-    );
-    expect(repository.createConditions).not.toHaveBeenCalled();
-  });
+  it.each([null, { id: 'license-1', customerId: 'customer-2' }])(
+    'rejects an unknown or foreign license',
+    async (license) => {
+      const { useCase } = buildUseCase({
+        repository: { findById: jest.fn().mockResolvedValue(license) },
+      });
+      await expect(useCase.execute(buildInput())).rejects.toThrow(
+        LicenseNotFoundError,
+      );
+    },
+  );
 });

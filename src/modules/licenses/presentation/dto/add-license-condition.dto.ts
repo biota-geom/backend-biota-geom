@@ -1,14 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  LicenseConditionStatus,
-  LicenseConditionTargetOperator,
-} from '@prisma/client';
+import { LicenseConditionStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
+  Allow,
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -43,6 +41,10 @@ export function toLicenseConditionStatus(
 }
 
 export class AddLicenseConditionDto {
+  // Legacy clients may still send this value; numbering is computed on read.
+  @Allow()
+  item_number?: unknown;
+
   @ApiProperty({
     example: 'MTR - Manifesto de Transporte de Resíduos',
     maxLength: 160,
@@ -53,13 +55,12 @@ export class AddLicenseConditionDto {
   @MaxLength(160)
   name!: string;
 
-  @ApiProperty({
-    format: 'uuid',
-    description:
-      'Parâmetro GRI (US02) vinculado à empresa que define a categoria da condicionante.',
-  })
-  @IsUUID()
-  esg_metric_id!: string;
+  @ApiProperty({ example: 'Resíduos sólidos', maxLength: 120 })
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  environmental_descriptor!: string;
 
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -86,24 +87,20 @@ export class AddLicenseConditionDto {
   @IsEnum(LicenseConditionStatusDto)
   status?: LicenseConditionStatusDto;
 
-  @ApiPropertyOptional({
-    format: 'uuid',
-    description:
-      'Métrica ESG alvo da meta. Informar junto com target_operator e target_value.',
-  })
+  @ApiPropertyOptional({ type: Boolean, default: true })
   @IsOptional()
-  @IsUUID()
-  target_metric_id?: string;
+  @IsBoolean()
+  has_delivery?: boolean;
 
-  @ApiPropertyOptional({ enum: LicenseConditionTargetOperator, example: 'LTE' })
-  @IsOptional()
-  @IsEnum(LicenseConditionTargetOperator)
-  target_operator?: LicenseConditionTargetOperator;
+  // Legacy compliance-target fields remain whitelisted and are ignored.
+  @Allow()
+  target_metric_id?: unknown;
 
-  @ApiPropertyOptional({ example: 150 })
-  @IsOptional()
-  @IsNumber({ allowNaN: false, allowInfinity: false })
-  target_value?: number;
+  @Allow()
+  target_operator?: unknown;
+
+  @Allow()
+  target_value?: unknown;
 
   @ApiPropertyOptional({
     example:

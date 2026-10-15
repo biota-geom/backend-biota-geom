@@ -1,20 +1,31 @@
 import { Type } from 'class-transformer';
 import {
+  Allow,
   ArrayMinSize,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
 
 export class ConditionDto {
-  @IsString()
-  @IsNotEmpty()
-  item_number: string;
+  // Legacy clients may still send this value; numbering is computed on read.
+  @Allow()
+  item_number?: unknown;
+
+  // Legacy compliance-target fields remain whitelisted and are ignored.
+  @Allow()
+  target_metric_id?: unknown;
+
+  @Allow()
+  target_operator?: unknown;
+
+  @Allow()
+  target_value?: unknown;
 
   @IsOptional()
   @IsString()
@@ -30,7 +41,6 @@ export class ConditionDto {
   @IsIn(['PERIODIC', 'INFORMATIVE'])
   condition_type: string;
 
-  // Only periodic conditions repeat; informative ones have no periodicity.
   @IsOptional()
   @IsString()
   @IsIn(['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL'])
@@ -43,9 +53,14 @@ export class ConditionDto {
   @IsNotEmpty()
   responsible_name: string;
 
-  // GRI parameter (US02) linked to the customer that categorizes the condition.
-  @IsUUID()
-  esg_metric_id: string;
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  environmental_descriptor: string;
+
+  @IsOptional()
+  @IsBoolean()
+  has_delivery?: boolean;
 }
 
 export class CreateLicenseConditionsDto {

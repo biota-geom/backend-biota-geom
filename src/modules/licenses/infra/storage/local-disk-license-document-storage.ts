@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import {
+  DocumentAccessUrl,
   FileToStore,
   LicenseDocumentStorage,
   StoredDocument,
@@ -44,5 +45,11 @@ export class LocalDiskLicenseDocumentStorage implements LicenseDocumentStorage {
     );
 
     return { url: url.toString() };
+  }
+
+  // Local files are served by a public static route, so there is nothing to
+  // sign: the stored URL is already the access URL.
+  getAccessUrl(storedUrl: string): Promise<DocumentAccessUrl> {
+    return Promise.resolve({ url: storedUrl, expiresInSeconds: null });
   }
 }

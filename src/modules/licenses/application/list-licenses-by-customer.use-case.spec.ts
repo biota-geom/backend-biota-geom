@@ -176,4 +176,40 @@ describe('ListLicensesByCustomerUseCase', () => {
 
     jest.useRealTimers();
   });
+
+  it('keeps archived licenses archived and excludes them from active status counts', async () => {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+
+    const { useCase } = buildUseCase({
+      licenseRepository: {
+        findAllByCustomerId: jest.fn().mockResolvedValue([
+          buildLicense({
+            id: 'archived',
+            expirationDate: new Date('2025-01-01T00:00:00.000Z'),
+            status: LicenseStatus.ARCHIVED,
+          }),
+          buildLicense({
+            id: 'expired',
+            expirationDate: new Date('2025-12-31T00:00:00.000Z'),
+          }),
+        ]),
+      },
+    });
+
+    const result = await useCase.execute('customer-1', 'owner-1');
+
+    expect(result.summary).toEqual({
+      total: 1,
+      regular: 0,
+      attention: 0,
+      expired: 1,
+    });
+    expect(result.licenses.map((license) => license.status)).toEqual([
+      LicenseStatus.EXPIRED,
+      LicenseStatus.ARCHIVED,
+    ]);
+
+    jest.useRealTimers();
+  });
 });

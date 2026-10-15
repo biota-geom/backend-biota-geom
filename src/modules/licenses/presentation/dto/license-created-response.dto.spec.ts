@@ -30,6 +30,7 @@ describe('toLicenseCreatedResponse', () => {
     [LicenseStatus.REGULAR, 'Regular'],
     [LicenseStatus.ATTENTION, 'Atenção'],
     [LicenseStatus.EXPIRED, 'Vencida'],
+    [LicenseStatus.ARCHIVED, 'Renovada/Arquivada'],
   ])('maps %s to the PT-BR label %s', (status, label) => {
     const response = toLicenseCreatedResponse(buildLicense({ status }));
 

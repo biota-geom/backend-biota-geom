@@ -34,8 +34,56 @@ describe('PrismaLicenseRepository', () => {
         expirationDate: data.expirationDate,
         status: LicenseStatus.EXPIRED,
         documentUrl: 'https://storage.example.com/license.pdf',
+        previousLicense: undefined,
       },
       include: { issuingAgency: true },
+    });
+  });
+
+  it('renews a license by creating the new one and archiving the previous one in a transaction', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'new-license' });
+    const update = jest.fn().mockResolvedValue({ id: 'old-license' });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ license: { create, update } }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    const issueDate = new Date('2026-01-10T00:00:00.000Z');
+    const expirationDate = new Date('2030-01-10T00:00:00.000Z');
+
+    await expect(
+      repository.renew({
+        previousLicenseId: 'old-license',
+        customerId: 'customer-1',
+        type: LicenseType.LO,
+        processNumber: 'LO nº 119/2026',
+        issuingAgencyId: 'agency-1',
+        issueDate,
+        expirationDate,
+        status: LicenseStatus.REGULAR,
+        documentUrl: 'https://storage.example.com/new.pdf',
+      }),
+    ).resolves.toEqual({ id: 'new-license' });
+
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        customer: { connect: { id: 'customer-1' } },
+        type: LicenseType.LO,
+        processNumber: 'LO nº 119/2026',
+        issuingAgency: { connect: { id: 'agency-1' } },
+        issueDate,
+        expirationDate,
+        status: LicenseStatus.REGULAR,
+        documentUrl: 'https://storage.example.com/new.pdf',
+        previousLicense: { connect: { id: 'old-license' } },
+      },
+      include: { issuingAgency: true },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'old-license' },
+      data: { status: LicenseStatus.ARCHIVED },
     });
   });
 
@@ -66,6 +114,21 @@ describe('PrismaLicenseRepository', () => {
     });
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: 'license-1' },
+      include: { issuingAgency: true },
+    });
+  });
+
+  it('finds a license by id only when it belongs to the authenticated owner', async () => {
+    const findFirst = jest.fn().mockResolvedValue({ id: 'license-1' });
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForOwner('license-1', 'owner-1'),
+    ).resolves.toEqual({ id: 'license-1' });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'license-1', customer: { ownerUserId: 'owner-1' } },
       include: { issuingAgency: true },
     });
   });
@@ -102,6 +165,13 @@ describe('PrismaLicenseRepository', () => {
           status: 'IN_PROGRESS',
         }),
       ],
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'license-1', customerId: 'customer-1' },
+      include: {
+        issuingAgency: true,
+        conditions: { orderBy: { itemNumber: 'asc' } },
+      },
     });
   });
 

@@ -7,6 +7,7 @@ export const STATUS_LABELS: Record<LicenseStatus, string> = {
   [LicenseStatus.REGULAR]: 'Regular',
   [LicenseStatus.ATTENTION]: 'Atenção',
   [LicenseStatus.EXPIRED]: 'Vencida',
+  [LicenseStatus.ARCHIVED]: 'Renovada/Arquivada',
 };
 
 export const LICENSE_TYPE_LABELS: Record<LicenseType, string> = {

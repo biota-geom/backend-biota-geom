@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { LicenseCondition as PrismaLicenseCondition } from '@prisma/client';
+import {
+  LicenseCondition as PrismaLicenseCondition,
+  LicenseStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { AddLicenseConditionData } from '../domain/add-license-condition.data';
 import { LicenseCondition } from '../domain/license-condition.entity';
@@ -34,7 +37,9 @@ export class PrismaLicenseConditionRepository implements LicenseConditionReposit
 
   async findAllByCustomerId(customerId: string): Promise<LicenseCondition[]> {
     const conditions = await this.prisma.licenseCondition.findMany({
-      where: { license: { customerId } },
+      where: {
+        license: { customerId, status: { not: LicenseStatus.ARCHIVED } },
+      },
       include: WITH_CATEGORY,
       orderBy: { dueDate: 'asc' },
     });

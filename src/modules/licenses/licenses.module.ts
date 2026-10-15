@@ -17,11 +17,15 @@ import { LocalDiskLicenseDocumentStorage } from './infra/storage/local-disk-lice
 import { S3LicenseDocumentStorage } from './infra/storage/s3-license-document-storage';
 import { StorageConfigService } from './infra/storage/storage-config.service';
 import { LicenseConditionsController } from './presentation/license-conditions.controller';
-import { LicensesController } from './presentation/licenses.controller';
+import {
+  LicenseRenewalsController,
+  LicensesController,
+} from './presentation/licenses.controller';
 import { CreateLicenseConditionUseCase } from './application/create-license-conditions.use-case';
 import { GetLicenseDetailsUseCase } from './application/get-license-details.use-case';
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
+import { RenewLicenseUseCase } from './application/renew-license.use-case';
 @Module({
   imports: [
     AuthModule,
@@ -29,7 +33,11 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
     EsgMetricsModule,
     IssuingAgenciesModule,
   ],
-  controllers: [LicensesController, LicenseConditionsController],
+  controllers: [
+    LicensesController,
+    LicenseRenewalsController,
+    LicenseConditionsController,
+  ],
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
     {
@@ -43,6 +51,7 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
     GetLicenseDetailsUseCase,
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
+    RenewLicenseUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
     StorageConfigService,

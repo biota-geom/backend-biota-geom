@@ -159,7 +159,6 @@ model CustomerEsgMetric {
   @@map("customer_esg_metrics")
 }
 
-
 // Kept English on purpose (see AGENTS.md: domain/infra stay English-only).
 // The PT-BR labels ("Regular"/"Atenção"/"Vencida") required by the API
 // contract are produced at the presentation layer, not stored here.
@@ -167,6 +166,7 @@ enum LicenseStatus {
   REGULAR
   ATTENTION
   EXPIRED
+  ARCHIVED
 
   @@map("license_status")
 }
@@ -220,33 +220,36 @@ model IssuingAgency {
   acronym   String?  @db.VarChar(20)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-
   @@map("issuing_agencies")
 }
 
 model License {
-  id             String        @id @default(uuid(7)) @db.Uuid
-  type           String        @db.VarChar(50)
-  processNumber  String        @map("process_number") @db.VarChar(255)
-  issueDate      DateTime      @map("issue_date") @db.Timestamptz(3)
-  expirationDate DateTime      @map("expiration_date") @db.Timestamptz(3)
+  id                String        @id @default(uuid(7)) @db.Uuid
+  type              String        @db.VarChar(50)
+  processNumber     String        @map("process_number") @db.VarChar(255)
+  issueDate         DateTime      @map("issue_date") @db.Timestamptz(3)
+  expirationDate    DateTime      @map("expiration_date") @db.Timestamptz(3)
   // Computed server-side at creation time from expirationDate — never
   // accepted from a client. See CreateLicenseUseCase.
-  status         LicenseStatus
+  status            LicenseStatus
   // Absolute URL of the uploaded PDF. Local storage or S3 depending on
   // STORAGE_DRIVER — the column just holds whatever URL that driver returns.
-  documentUrl    String        @map("document_url") @db.VarChar(2048)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  documentUrl       String        @map("document_url") @db.VarChar(2048)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  previousLicenseId String?       @map("previous_license_id") @db.Uuid
 
   customerId String   @map("customer_id") @db.Uuid
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  issuingAgency String        @map("issuing_agency") @db.VarChar(150)
+  issuingAgency String @map("issuing_agency") @db.VarChar(150)
 
-  conditions LicenseCondition[]
+  conditions      LicenseCondition[]
+  previousLicense License?           @relation("LicenseRenewalHistory", fields: [previousLicenseId], references: [id], onDelete: SetNull)
+  renewals        License[]          @relation("LicenseRenewalHistory")
 
   @@index([customerId])
+  @@index([previousLicenseId])
   @@map("licenses")
 }
 

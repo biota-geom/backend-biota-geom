@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { LicenseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
@@ -9,6 +9,7 @@ import { ConditionData } from '../domain/license-condition.data';
 import { LicenseCondition } from '../domain/condition.entity';
 import { UpdateLicenseConditionData } from '../domain/update-license-condition.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
+import { RenewLicenseData } from '../domain/renew-license.data';
 
 function toDomainCondition(
   condition: Prisma.LicenseConditionGetPayload<{
@@ -37,8 +38,40 @@ export class PrismaLicenseRepository implements LicenseRepository {
         expirationDate: data.expirationDate,
         status: data.status,
         documentUrl: data.documentUrl,
+        previousLicense: data.previousLicenseId
+          ? { connect: { id: data.previousLicenseId } }
+          : undefined,
       },
     });
+  }
+
+  async renew(data: RenewLicenseData): Promise<License> {
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const renewed = await transaction.license.create({
+          data: {
+            customer: { connect: { id: data.customerId } },
+            type: data.type,
+            processNumber: data.processNumber,
+            issuingAgency: { connect: { id: data.issuingAgencyId } },
+            issueDate: data.issueDate,
+            expirationDate: data.expirationDate,
+            status: data.status,
+            documentUrl: data.documentUrl,
+            previousLicense: { connect: { id: data.previousLicenseId } },
+          },
+          include: { issuingAgency: true },
+        });
+
+        await transaction.license.update({
+          where: { id: data.previousLicenseId },
+          data: { status: LicenseStatus.ARCHIVED },
+        });
+
+        return renewed;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async createConditions(data: ConditionData[]): Promise<ConditionResponse> {
@@ -52,7 +85,10 @@ export class PrismaLicenseRepository implements LicenseRepository {
   ): Promise<(License & { conditions: LicenseCondition[] }) | null> {
     const license = await this.prisma.license.findFirst({
       where: { id, customerId },
-      include: { conditions: { orderBy: { itemNumber: 'asc' } } },
+      include: {
+        issuingAgency: true,
+        conditions: { orderBy: { itemNumber: 'asc' } },
+      },
     });
 
     return license
@@ -118,6 +154,16 @@ export class PrismaLicenseRepository implements LicenseRepository {
   async findById(id: string): Promise<License | null> {
     return this.prisma.license.findUnique({
       where: { id },
+    });
+  }
+
+  async findByIdForOwner(
+    id: string,
+    ownerUserId: string,
+  ): Promise<License | null> {
+    return this.prisma.license.findFirst({
+      where: { id, customer: { ownerUserId } },
+      include: { issuingAgency: true },
     });
   }
 

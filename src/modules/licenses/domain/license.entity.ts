@@ -10,6 +10,7 @@ export interface License {
   expirationDate: Date;
   status: LicenseStatus;
   documentUrl: string;
+  previousLicenseId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

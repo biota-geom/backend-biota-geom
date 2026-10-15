@@ -46,6 +46,7 @@ import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomersExceptionFilter } from './filters/customers-exception.filter';
+import { CustomerLicenseDetailsResponseDto } from './dto/customer-license-details.dto';
 
 export function invalidCustomerIdException(): BadRequestException {
   return new BadRequestException(AUTH_MESSAGES.INVALID_REQUEST);
@@ -233,5 +234,25 @@ export class CustomerController {
     @CurrentUser() user: { id: string },
   ): Promise<void> {
     await this.service.remove(id, user.id);
+  }
+
+  @Get(':id/dashboard/licenses')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'List licenses associated with a customer in the dashboard.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: CustomerLicenseDetailsResponseDto })
+  async listCustomerDashboardLicenses(
+    @Param('id', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<CustomerLicenseDetailsResponseDto> {
+    const licensesDetails = await this.service.listCustomerDashboardLicenses(
+      customerId,
+      user.id,
+    );
+
+    return licensesDetails;
   }
 }

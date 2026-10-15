@@ -132,4 +132,18 @@ export class PrismaLicenseRepository implements LicenseRepository {
       orderBy: { expirationDate: 'asc' },
     });
   }
+
+  async findCustomerLicenses(
+    customerId: string,
+  ): Promise<Array<License & { conditions: LicenseCondition[] }>> {
+    const licenses = await this.prisma.license.findMany({
+      where: { customerId },
+      include: { conditions: { orderBy: { itemNumber: 'asc' } } },
+    });
+
+    return licenses.map((license) => ({
+      ...license,
+      conditions: license.conditions.map(toDomainCondition),
+    }));
+  }
 }

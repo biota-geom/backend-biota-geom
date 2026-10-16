@@ -790,6 +790,7 @@ describe('Licenses (e2e)', () => {
 
   describe('PATCH /:licenseId/conditions/fulfillment', () => {
     let fulfillmentLicenseId: string;
+    let otherLicenseId: string | undefined;
     let conditionAId: string;
     let conditionBId: string;
     let conditionCId: string;
@@ -804,12 +805,15 @@ describe('Licenses (e2e)', () => {
         .expect(201);
       fulfillmentLicenseId = (licenseResponse.body as { id: string }).id;
 
-      const esgMetric = await prisma.esgMetric.findFirst({
-        where: { customerId },
-      });
-
+      let esgMetric = await prisma.esgMetric.findFirst();
       if (!esgMetric) {
-        throw new Error('No esgMetric found for customer');
+        esgMetric = await prisma.esgMetric.create({
+          data: {
+            name: `Métrica E2E ${uniqueSuffix()}`,
+            unit: 'un',
+            pillar: EsgPillar.AMBIENTAL,
+          },
+        });
       }
 
       const created = await prisma.$transaction([
@@ -895,11 +899,18 @@ describe('Licenses (e2e)', () => {
         })
         .expect(201);
 
-      const otherLicenseId = (otherLicense.body as { id: string }).id;
+      otherLicenseId = (otherLicense.body as { id: string }).id;
 
-      const esgMetric = await prisma.esgMetric.findFirstOrThrow({
-        where: { customerId },
-      });
+      let esgMetric = await prisma.esgMetric.findFirst();
+      if (!esgMetric) {
+        esgMetric = await prisma.esgMetric.create({
+          data: {
+            name: `Métrica E2E ${uniqueSuffix()}`,
+            unit: 'un',
+            pillar: EsgPillar.AMBIENTAL,
+          },
+        });
+      }
 
       const foreignCondition = await prisma.licenseCondition.create({
         data: {
@@ -944,6 +955,20 @@ describe('Licenses (e2e)', () => {
           items: [{ condition_id: conditionAId, fulfilled: true }],
         })
         .expect(404);
+    });
+
+    afterAll(async () => {
+      const licenseIds = [fulfillmentLicenseId, otherLicenseId].filter(
+        (id): id is string => Boolean(id),
+      );
+      if (licenseIds.length > 0) {
+        await prisma.licenseCondition.deleteMany({
+          where: { licenseId: { in: licenseIds } },
+        });
+        await prisma.license.deleteMany({
+          where: { id: { in: licenseIds } },
+        });
+      }
     });
   });
 });

@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { ConditionStatus, LicenseStatus, LicenseType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
@@ -457,5 +457,75 @@ describe('PrismaLicenseRepository', () => {
     await expect(
       repository.deleteCondition('condition-1', 'license-1', 'customer-1'),
     ).resolves.toEqual(expect.objectContaining({ title: 'MTR' }));
+  });
+
+  it('rejects deleting a missing condition', async () => {
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        licenseCondition: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          delete: jest.fn(),
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.deleteCondition(
+        'missing-condition',
+        'license-1',
+        'customer-1',
+      ),
+    ).rejects.toBeInstanceOf(LicenseConditionNotFoundError);
+  });
+
+  it('returns null when license is not found for customer', async () => {
+    const findFirst = jest.fn().mockResolvedValue(null);
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForCustomer('missing-id', 'customer-1'),
+    ).resolves.toBeNull();
+  });
+
+  it('saves conditions fulfillment with FULFILLED and IN_PROGRESS statuses', async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'ok' });
+    const transaction = jest.fn(async (promises: unknown[]) =>
+      Promise.all(promises),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+      licenseCondition: { update },
+    } as unknown as PrismaService);
+
+    await repository.saveConditionsFulfillment({
+      licenseId: 'license-1',
+      customerId: 'customer-1',
+      items: [
+        { conditionId: 'c-1', fulfilled: true },
+        { conditionId: 'c-2', fulfilled: false },
+      ],
+    });
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(update).toHaveBeenNthCalledWith(1, {
+      where: { id: 'c-1' },
+      data: {
+        conditionStatus: ConditionStatus.FULFILLED,
+        completionDate: expect.any(Date) as Date,
+      },
+    });
+    expect(update).toHaveBeenNthCalledWith(2, {
+      where: { id: 'c-2' },
+      data: {
+        conditionStatus: ConditionStatus.IN_PROGRESS,
+        completionDate: null,
+      },
+    });
   });
 });

@@ -35,6 +35,7 @@ describe('validateEnv', () => {
       STORAGE_DRIVER: 'local',
       LOCAL_STORAGE_DIR: './storage',
       AWS_REGION: 'us-east-1',
+      AWS_S3_SIGNED_URL_TTL_SECONDS: 900,
     });
   });
 
@@ -57,6 +58,7 @@ describe('validateEnv', () => {
     expect(result.STORAGE_DRIVER).toBe('local');
     expect(result.LOCAL_STORAGE_DIR).toBe('./storage');
     expect(result.AWS_REGION).toBe('us-east-1');
+    expect(result.AWS_S3_SIGNED_URL_TTL_SECONDS).toBe(900);
   });
 
   it('applies defaults for the remaining optional variables', () => {
@@ -216,6 +218,24 @@ describe('validateEnv', () => {
       }),
     ).not.toThrow();
   });
+
+  it('coerces AWS_S3_SIGNED_URL_TTL_SECONDS from a string', () => {
+    const result = validateEnv({
+      ...VALID_BASE,
+      AWS_S3_SIGNED_URL_TTL_SECONDS: '1800',
+    });
+
+    expect(result.AWS_S3_SIGNED_URL_TTL_SECONDS).toBe(1800);
+  });
+
+  it.each(['59', '3601', 'abc'])(
+    'rejects AWS_S3_SIGNED_URL_TTL_SECONDS=%s (outside 60-3600 seconds)',
+    (value) => {
+      expect(() =>
+        validateEnv({ ...VALID_BASE, AWS_S3_SIGNED_URL_TTL_SECONDS: value }),
+      ).toThrow(/AWS_S3_SIGNED_URL_TTL_SECONDS/);
+    },
+  );
 
   it('rejects an unknown STORAGE_DRIVER value', () => {
     expect(() => validateEnv({ ...VALID_BASE, STORAGE_DRIVER: 'ftp' })).toThrow(

@@ -81,6 +81,7 @@ model Customer {
 
   monitoredEsgMetrics CustomerEsgMetric[]
   licenses            License[]
+  esgIndicatorRecords EsgIndicatorRecord[]
 
   @@unique([ownerUserId, document])
   @@map("customers")
@@ -279,4 +280,30 @@ model LicenseCondition {
   @@index([licenseId])
   @@index([dueDate])
   @@map("license_condition")
+}
+
+enum EsgIndicator {
+  WATER
+  WASTE
+  EMPLOYEES
+  ENERGY
+
+  @@map("esg_indicator")
+}
+
+// Monthly operational indicators a customer reports (US11). One row per
+// customer + indicator + month; saving the same month again updates the row.
+model EsgIndicatorRecord {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  customerId     String       @map("customer_id") @db.Uuid
+  indicator      EsgIndicator
+  // Always the first day of the month (a DATE, no time zone).
+  referenceMonth DateTime     @map("reference_month") @db.Date
+  value          Decimal      @db.Decimal(18, 4)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, indicator, referenceMonth])
+  @@map("esg_indicator_record")
 }

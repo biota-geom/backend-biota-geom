@@ -221,7 +221,7 @@ describe('PrismaLicenseRepository', () => {
     ]);
     expect(findMany).toHaveBeenCalledWith({
       where: { customerId: 'customer-1' },
-      include: { conditions: { orderBy: { itemNumber: 'asc' } } },
+      include: { conditions: { orderBy: { createdAt: 'asc' } } },
     });
   });
 

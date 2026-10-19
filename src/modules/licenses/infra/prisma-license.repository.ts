@@ -226,7 +226,7 @@ export class PrismaLicenseRepository implements LicenseRepository {
   ): Promise<Array<License & { conditions: LicenseCondition[] }>> {
     const licenses = await this.prisma.license.findMany({
       where: { customerId },
-      include: { conditions: { orderBy: { itemNumber: 'asc' } } },
+      include: { conditions: { orderBy: { createdAt: 'asc' } } },
     });
 
     return licenses.map((license) => ({

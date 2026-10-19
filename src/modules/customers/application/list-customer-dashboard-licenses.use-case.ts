@@ -7,11 +7,18 @@ import { CustomerNotFoundError } from '../domain/errors/customer-not-found.error
 import { CustomerRepository } from '../domain/customers.repository';
 import { CustomerLicenseDetailsResponseDto } from '../presentation/dto/customer-license-details.dto';
 
-const CRITICALITY_RANK: Record<LicenseStatus, number> = {
-  [LicenseStatus.EXPIRED]: 0,
-  [LicenseStatus.ATTENTION]: 1,
-  [LicenseStatus.REGULAR]: 2,
-};
+function criticalityRank(status: LicenseStatus): number {
+  switch (status) {
+    case LicenseStatus.EXPIRED:
+      return 0;
+    case LicenseStatus.ATTENTION:
+      return 1;
+    case LicenseStatus.REGULAR:
+      return 2;
+    default:
+      return 3;
+  }
+}
 
 @Injectable()
 export class ListCustomerDashboardLicensesUseCase {
@@ -44,7 +51,7 @@ export class ListCustomerDashboardLicensesUseCase {
       )
       .sort(
         (a, b) =>
-          CRITICALITY_RANK[a.status] - CRITICALITY_RANK[b.status] ||
+          criticalityRank(a.status) - criticalityRank(b.status) ||
           a.license.expirationDate.getTime() -
             b.license.expirationDate.getTime(),
       )

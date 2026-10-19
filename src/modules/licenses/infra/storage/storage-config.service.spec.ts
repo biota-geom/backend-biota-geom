@@ -32,6 +32,7 @@ describe('StorageConfigService', () => {
       AWS_SECRET_ACCESS_KEY: 'secret-example',
       AWS_S3_ENDPOINT: 'http://localhost:9000',
       AWS_S3_PUBLIC_URL_BASE: 'https://cdn.biotageom.com.br',
+      AWS_S3_SIGNED_URL_TTL_SECONDS: 600,
     });
 
     expect(service.driver).toBe('s3');
@@ -41,6 +42,7 @@ describe('StorageConfigService', () => {
     expect(service.s3SecretAccessKey).toBe('secret-example');
     expect(service.s3Endpoint).toBe('http://localhost:9000');
     expect(service.s3PublicUrlBase).toBe('https://cdn.biotageom.com.br');
+    expect(service.s3SignedUrlTtlSeconds).toBe(600);
   });
 
   it('leaves the optional S3 settings undefined when they are not configured', () => {

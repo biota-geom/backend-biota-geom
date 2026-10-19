@@ -10,14 +10,12 @@ import {
 import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
-import { ConditionCategoryNotFoundError } from '../../domain/errors/condition-category-not-found.error';
-import { ConditionCategoryNotLinkedError } from '../../domain/errors/condition-category-not-linked.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
-import { InvalidConditionTargetError } from '../../domain/errors/invalid-condition-target.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
 import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
+import { LicenseAlreadyArchivedError } from '../../domain/errors/license-already-archived.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
@@ -25,25 +23,21 @@ type LicensesDomainError =
   | CustomerNotFoundError
   | IssuingAgencyNotFoundError
   | InvalidLicenseDateRangeError
+  | LicenseAlreadyArchivedError
   | LicenseNotFoundError
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
-  | ConditionCategoryNotFoundError
-  | ConditionCategoryNotLinkedError
-  | InvalidConditionDueDateError
-  | InvalidConditionTargetError;
+  | InvalidConditionDueDateError;
 
 @Catch(
   CustomerNotFoundError,
   IssuingAgencyNotFoundError,
   InvalidLicenseDateRangeError,
+  LicenseAlreadyArchivedError,
   LicenseNotFoundError,
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
-  ConditionCategoryNotFoundError,
-  ConditionCategoryNotLinkedError,
   InvalidConditionDueDateError,
-  InvalidConditionTargetError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -75,6 +69,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
       return new NotFoundException(LICENSES_MESSAGES.LICENSE_NOT_FOUND);
     }
 
+    if (error instanceof LicenseAlreadyArchivedError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.LICENSE_ALREADY_ARCHIVED,
+      );
+    }
+
     if (error instanceof LicenseConditionNotFoundError) {
       return new NotFoundException(LICENSES_MESSAGES.CONDITION_NOT_FOUND);
     }
@@ -85,32 +85,9 @@ export class LicensesExceptionFilter implements ExceptionFilter {
       );
     }
 
-    /*
-     * An unknown GRI parameter and another account's private one share this
-     * 404 on purpose, so the existence of other tenants' parameters is never
-     * revealed.
-     */
-    if (error instanceof ConditionCategoryNotFoundError) {
-      return new NotFoundException(
-        LICENSES_MESSAGES.CONDITION_CATEGORY_NOT_FOUND,
-      );
-    }
-
-    if (error instanceof ConditionCategoryNotLinkedError) {
-      return new UnprocessableEntityException(
-        LICENSES_MESSAGES.CONDITION_CATEGORY_NOT_LINKED,
-      );
-    }
-
     if (error instanceof InvalidConditionDueDateError) {
       return new BadRequestException(
         LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
-      );
-    }
-
-    if (error instanceof InvalidConditionTargetError) {
-      return new BadRequestException(
-        LICENSES_MESSAGES.CONDITION_TARGET_INCOMPLETE,
       );
     }
 

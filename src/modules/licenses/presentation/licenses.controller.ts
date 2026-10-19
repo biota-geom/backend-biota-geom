@@ -68,6 +68,12 @@ import {
   toNullableIsoDate,
 } from './dto/license-details-response.dto';
 import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
+import { RenewLicenseUseCase } from '../application/renew-license.use-case';
+import { RenewLicenseDto } from './dto/renew-license.dto';
+import {
+  LicenseRenewedResponseDto,
+  toLicenseRenewedResponse,
+} from './dto/license-renewed-response.dto';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -275,9 +281,10 @@ export class LicensesController {
       conditionId,
       ownerUserId: user.id,
       data: {
-        itemNumber: dto.item_number,
-        title: dto.title,
+        title: dto.name ?? dto.title,
+        environmentalDescriptor: dto.environmental_descriptor,
         description: dto.description,
+        responsibleAgency: dto.responsible_agency,
         responsibleName: dto.responsible_name,
         conditionType: toConditionType(dto.condition_type),
         periodicity: toConditionPeriodicity(dto.periodicity),
@@ -286,7 +293,8 @@ export class LicensesController {
           dto.due_date === undefined ? undefined : new Date(dto.due_date),
         alertDate: toNullableIsoDate(dto.alert_date),
         completionDate: toNullableIsoDate(dto.completion_date),
-        status: toConditionStatus(dto.status, dto.is_violated),
+        status: toConditionStatus(dto.status),
+        hasDelivery: dto.has_delivery,
         isViolated: dto.is_violated,
       },
     });
@@ -315,5 +323,77 @@ export class LicensesController {
       conditionId,
       user.id,
     );
+  }
+}
+
+@ApiTags('licenses')
+@UseFilters(LicensesExceptionFilter)
+@Controller('licenses')
+export class LicenseRenewalsController {
+  constructor(private readonly renewLicenseUseCase: RenewLicenseUseCase) {}
+
+  @Post(':licenseId/renew')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @UseInterceptors(
+    FileInterceptor('document_file', { storage: memoryStorage() }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [
+        'process_number',
+        'issue_date',
+        'expiration_date',
+        'document_file',
+      ],
+      properties: {
+        process_number: { type: 'string', example: 'LO nº 119/2026' },
+        issue_date: { type: 'string', format: 'date-time' },
+        expiration_date: { type: 'string', format: 'date-time' },
+        document_file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({
+    summary:
+      'Renova uma licença criando um novo registro e arquivando a licença anterior.',
+  })
+  @ApiCreatedResponse({ type: LicenseRenewedResponseDto })
+  @ApiNotFoundResponse({ description: 'License not found.' })
+  async renewLicense(
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @Body() dto: RenewLicenseDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: MAX_FILE_SIZE_BYTES,
+            message: LICENSES_MESSAGES.FILE_TOO_LARGE,
+          }),
+          new PdfFileValidator(LICENSES_MESSAGES.INVALID_FILE_TYPE),
+        ],
+        exceptionFactory: fileValidationExceptionFactory,
+      }),
+    )
+    file: UploadedDocument,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseRenewedResponseDto> {
+    const license = await this.renewLicenseUseCase.execute({
+      licenseId,
+      ownerUserId: user.id,
+      processNumber: dto.process_number,
+      issueDate: new Date(dto.issue_date),
+      expirationDate: new Date(dto.expiration_date),
+      file: {
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      },
+    });
+
+    return toLicenseRenewedResponse(license);
   }
 }

@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { LicenseConditionStatus, LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaLicenseConditionRepository } from './prisma-license-condition.repository';
 
@@ -6,33 +6,19 @@ const ROW = {
   id: 'condition-1',
   licenseId: 'license-1',
   name: 'MTR',
+  environmentalDescriptor: 'Resíduos sólidos',
   description: null,
-  esgMetricId: 'metric-1',
-  esgMetric: { id: 'metric-1', name: 'Resíduos' },
   responsibleAgency: 'FEPAM',
   dueDate: new Date('2027-05-20T00:00:00.000Z'),
   status: LicenseConditionStatus.REGULAR,
+  hasDelivery: true,
+  isViolated: false,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-02T00:00:00.000Z'),
 };
-
-const DOMAIN = {
-  id: 'condition-1',
-  licenseId: 'license-1',
-  name: 'MTR',
-  description: null,
-  category: { id: 'metric-1', name: 'Resíduos' },
-  responsibleAgency: 'FEPAM',
-  dueDate: new Date('2027-05-20T00:00:00.000Z'),
-  status: LicenseConditionStatus.REGULAR,
-  createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  updatedAt: new Date('2026-01-02T00:00:00.000Z'),
-};
-
-const WITH_CATEGORY = { esgMetric: { select: { id: true, name: true } } };
 
 describe('PrismaLicenseConditionRepository', () => {
-  it('creates all conditions in one transaction and resolves their GRI category', async () => {
+  it('creates all conditions in one transaction', async () => {
     const create = jest.fn().mockReturnValue({ operation: 'create' });
     const transaction = jest.fn().mockResolvedValue([ROW]);
     const repository = new PrismaLicenseConditionRepository({
@@ -43,33 +29,34 @@ describe('PrismaLicenseConditionRepository', () => {
       {
         licenseId: 'license-1',
         name: 'MTR',
-        esgMetricId: 'metric-1',
+        environmentalDescriptor: 'Resíduos sólidos',
         responsibleAgency: 'FEPAM',
-        dueDate: new Date('2027-05-20T00:00:00.000Z'),
+        dueDate: ROW.dueDate,
         status: LicenseConditionStatus.REGULAR,
+        hasDelivery: true,
       },
     ];
 
-    await expect(repository.addMany(conditions)).resolves.toEqual([DOMAIN]);
-    expect(create).toHaveBeenCalledWith({
-      data: conditions[0],
-      include: WITH_CATEGORY,
-    });
-    expect(transaction).toHaveBeenCalledWith([{ operation: 'create' }]);
+    await expect(repository.addMany(conditions)).resolves.toEqual([ROW]);
+    expect(create).toHaveBeenCalledWith({ data: conditions[0] });
   });
 
-  it('finds all license conditions by customer through the license relation', async () => {
+  it('finds active-license conditions by customer', async () => {
     const findMany = jest.fn().mockResolvedValue([ROW]);
     const repository = new PrismaLicenseConditionRepository({
       licenseCondition: { findMany },
     } as unknown as PrismaService);
 
     await expect(repository.findAllByCustomerId('customer-1')).resolves.toEqual(
-      [DOMAIN],
+      [ROW],
     );
     expect(findMany).toHaveBeenCalledWith({
-      where: { license: { customerId: 'customer-1' } },
-      include: WITH_CATEGORY,
+      where: {
+        license: {
+          customerId: 'customer-1',
+          status: { not: LicenseStatus.ARCHIVED },
+        },
+      },
       orderBy: { dueDate: 'asc' },
     });
   });

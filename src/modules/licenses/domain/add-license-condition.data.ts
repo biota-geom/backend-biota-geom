@@ -1,17 +1,12 @@
-import {
-  LicenseConditionStatus,
-  LicenseConditionTargetOperator,
-} from '@prisma/client';
+import { LicenseConditionStatus } from '@prisma/client';
 
 export interface AddLicenseConditionData {
   licenseId: string;
   name: string;
-  esgMetricId: string;
+  environmentalDescriptor: string;
   responsibleAgency: string;
   dueDate: Date;
   status: LicenseConditionStatus;
+  hasDelivery: boolean;
   description?: string;
-  targetMetricId?: string;
-  targetOperator?: LicenseConditionTargetOperator;
-  targetValue?: number;
 }

@@ -17,6 +17,27 @@ describe('UpdateLicenseConditionDto', () => {
     ).toHaveLength(0);
   });
 
+  it('accepts the environmental descriptor, delivery and manual violation fields', () => {
+    expect(
+      validate({
+        environmental_descriptor: 'Resíduos sólidos',
+        has_delivery: false,
+        is_violated: true,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it('accepts and ignores legacy numbering and compliance-target fields', () => {
+    expect(
+      validate({
+        item_number: '99.4',
+        target_metric_id: 'legacy',
+        target_operator: 'legacy',
+        target_value: 'legacy',
+      }),
+    ).toHaveLength(0);
+  });
+
   it.each([
     ['title', { title: null }],
     ['an empty title', { title: '' }],

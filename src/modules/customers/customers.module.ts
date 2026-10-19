@@ -41,10 +41,8 @@ import { ListCustomerDashboardLicensesUseCase } from './application/list-custome
     ListCustomerEsgMetricsUseCase,
     CustomersService,
   ],
-  // CustomerRepository is reused by the licenses module (LicensesModule) to
-  // scope license creation to the authenticated owner's own customers, and
-  // CustomerEsgMetricRepository to restrict a condition's category to the GRI
-  // parameters linked to its customer.
+  // CustomerRepository scopes license operations to the authenticated owner's
+  // own customers. CustomerEsgMetricRepository remains used by ESG features.
   exports: [CustomerRepository, CustomerEsgMetricRepository],
 })
 export class CustomerModule {}

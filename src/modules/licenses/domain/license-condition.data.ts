@@ -6,9 +6,7 @@ import {
 
 export interface ConditionData {
   licenseId: string;
-  // GRI parameter (EsgMetric) linked to the license's customer.
-  esgMetricId: string;
-  itemNumber: string;
+  environmentalDescriptor: string;
   name: string;
   description: string;
   responsibleName: string;
@@ -19,4 +17,6 @@ export interface ConditionData {
   alertDate?: Date;
   completionDate?: Date;
   conditionStatus: ConditionStatus;
+  hasDelivery: boolean;
+  createdAt: Date;
 }

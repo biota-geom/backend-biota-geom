@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
-import { EsgMetricsModule } from '../esg-metrics/esg-metrics.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
 import { CreateLicenseUseCase } from './application/create-license.use-case';
 import { AddLicenseConditionsUseCase } from './application/add-license-conditions.use-case';
@@ -17,19 +16,25 @@ import { LocalDiskLicenseDocumentStorage } from './infra/storage/local-disk-lice
 import { S3LicenseDocumentStorage } from './infra/storage/s3-license-document-storage';
 import { StorageConfigService } from './infra/storage/storage-config.service';
 import { LicenseConditionsController } from './presentation/license-conditions.controller';
-import { LicensesController } from './presentation/licenses.controller';
+import { LicenseDocumentsController } from './presentation/license-documents.controller';
+import {
+  LicenseRenewalsController,
+  LicensesController,
+} from './presentation/licenses.controller';
 import { CreateLicenseConditionUseCase } from './application/create-license-conditions.use-case';
 import { GetLicenseDetailsUseCase } from './application/get-license-details.use-case';
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
+import { RenewLicenseUseCase } from './application/renew-license.use-case';
+import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
 @Module({
-  imports: [
-    AuthModule,
-    CustomerModule,
-    EsgMetricsModule,
-    IssuingAgenciesModule,
+  imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
+  controllers: [
+    LicensesController,
+    LicenseRenewalsController,
+    LicenseConditionsController,
+    LicenseDocumentsController,
   ],
-  controllers: [LicensesController, LicenseConditionsController],
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
     {
@@ -43,6 +48,8 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
     GetLicenseDetailsUseCase,
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
+    RenewLicenseUseCase,
+    GetLicenseDocumentUrlUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
     StorageConfigService,

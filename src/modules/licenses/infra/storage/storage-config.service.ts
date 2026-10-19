@@ -41,4 +41,8 @@ export class StorageConfigService {
   get s3PublicUrlBase(): string | undefined {
     return this.config.get('AWS_S3_PUBLIC_URL_BASE', { infer: true });
   }
+
+  get s3SignedUrlTtlSeconds(): number {
+    return this.config.get('AWS_S3_SIGNED_URL_TTL_SECONDS', { infer: true });
+  }
 }

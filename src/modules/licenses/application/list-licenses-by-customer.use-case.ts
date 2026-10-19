@@ -22,6 +22,7 @@ const CRITICALITY_RANK: Record<LicenseStatus, number> = {
   [LicenseStatus.EXPIRED]: 0,
   [LicenseStatus.ATTENTION]: 1,
   [LicenseStatus.REGULAR]: 2,
+  [LicenseStatus.ARCHIVED]: 3,
 };
 
 export interface ListLicensesByCustomerResult {
@@ -60,15 +61,20 @@ export class ListLicensesByCustomerUseCase {
 
     // Re-derived from expirationDate against the server clock rather than
     // trusting the status persisted at creation time, so a license created
-    // long ago still reports its current status on the panel.
+    // long ago still reports its current status on the panel. Archived
+    // licenses are historical records and must never be overwritten by this
+    // live calculation or counted as active compliance.
     const licenses = storedLicenses.map((license) => {
-      const status = calculateLicenseStatus(license.expirationDate, now);
+      const status =
+        license.status === LicenseStatus.ARCHIVED
+          ? LicenseStatus.ARCHIVED
+          : calculateLicenseStatus(license.expirationDate, now);
 
       if (status === LicenseStatus.REGULAR) {
         regular += 1;
       } else if (status === LicenseStatus.ATTENTION) {
         attention += 1;
-      } else {
+      } else if (status === LicenseStatus.EXPIRED) {
         expired += 1;
       }
 

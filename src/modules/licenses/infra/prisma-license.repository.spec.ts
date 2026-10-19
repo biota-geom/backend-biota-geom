@@ -1,6 +1,7 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
+import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
 import { PrismaLicenseRepository } from './prisma-license.repository';
 
 describe('PrismaLicenseRepository', () => {
@@ -34,8 +35,56 @@ describe('PrismaLicenseRepository', () => {
         expirationDate: data.expirationDate,
         status: LicenseStatus.EXPIRED,
         documentUrl: 'https://storage.example.com/license.pdf',
+        previousLicense: undefined,
       },
       include: { issuingAgency: true },
+    });
+  });
+
+  it('renews a license by creating the new one and archiving the previous one in a transaction', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'new-license' });
+    const update = jest.fn().mockResolvedValue({ id: 'old-license' });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ license: { create, update } }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    const issueDate = new Date('2026-01-10T00:00:00.000Z');
+    const expirationDate = new Date('2030-01-10T00:00:00.000Z');
+
+    await expect(
+      repository.renew({
+        previousLicenseId: 'old-license',
+        customerId: 'customer-1',
+        type: LicenseType.LO,
+        processNumber: 'LO nº 119/2026',
+        issuingAgencyId: 'agency-1',
+        issueDate,
+        expirationDate,
+        status: LicenseStatus.REGULAR,
+        documentUrl: 'https://storage.example.com/new.pdf',
+      }),
+    ).resolves.toEqual({ id: 'new-license' });
+
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        customer: { connect: { id: 'customer-1' } },
+        type: LicenseType.LO,
+        processNumber: 'LO nº 119/2026',
+        issuingAgency: { connect: { id: 'agency-1' } },
+        issueDate,
+        expirationDate,
+        status: LicenseStatus.REGULAR,
+        documentUrl: 'https://storage.example.com/new.pdf',
+        previousLicense: { connect: { id: 'old-license' } },
+      },
+      include: { issuingAgency: true },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'old-license' },
+      data: { status: LicenseStatus.ARCHIVED },
     });
   });
 
@@ -66,6 +115,21 @@ describe('PrismaLicenseRepository', () => {
     });
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: 'license-1' },
+      include: { issuingAgency: true },
+    });
+  });
+
+  it('finds a license by id only when it belongs to the authenticated owner', async () => {
+    const findFirst = jest.fn().mockResolvedValue({ id: 'license-1' });
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForOwner('license-1', 'owner-1'),
+    ).resolves.toEqual({ id: 'license-1' });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'license-1', customer: { ownerUserId: 'owner-1' } },
       include: { issuingAgency: true },
     });
   });
@@ -102,6 +166,13 @@ describe('PrismaLicenseRepository', () => {
           status: 'IN_PROGRESS',
         }),
       ],
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'license-1', customerId: 'customer-1' },
+      include: {
+        issuingAgency: true,
+        conditions: { orderBy: { createdAt: 'asc' } },
+      },
     });
   });
 
@@ -236,6 +307,183 @@ describe('PrismaLicenseRepository', () => {
       where: { id: 'condition-1' },
       data: { conditionStatus: 'OVERDUE', isViolated: true },
     });
+  });
+
+  it('moves a condition to the end of a new environmental descriptor', async () => {
+    const update = jest.fn((updateArguments: unknown) => {
+      void updateArguments;
+      return Promise.resolve({
+        name: 'Atualizada',
+        conditionStatus: 'IN_PROGRESS',
+      });
+    });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        licenseCondition: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'condition-1',
+            environmentalDescriptor: 'Água',
+          }),
+          update,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await repository.updateCondition({
+      id: 'condition-1',
+      licenseId: 'license-1',
+      customerId: 'customer-1',
+      data: { environmentalDescriptor: 'Resíduos' },
+    });
+
+    const updateArguments: unknown = update.mock.calls[0]?.[0];
+    expect(updateArguments).toMatchObject({
+      where: { id: 'condition-1' },
+      data: {
+        environmentalDescriptor: 'Resíduos',
+      },
+    });
+    expect(
+      (updateArguments as { data: { createdAt: unknown } }).data.createdAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('updates a condition that belongs to the authenticated owner', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'condition-1',
+      environmentalDescriptor: 'Water',
+    });
+    const update = jest.fn((updateArguments: unknown) => {
+      void updateArguments;
+      return Promise.resolve({
+        name: 'Updated condition',
+        conditionStatus: 'OVERDUE',
+        environmentalDescriptor: 'Waste',
+        isViolated: true,
+      });
+    });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ licenseCondition: { findFirst, update } }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.updateConditionForOwner('condition-1', 'owner-1', {
+        title: 'Updated condition',
+        status: 'OVERDUE',
+        isViolated: true,
+        environmentalDescriptor: 'Waste',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        title: 'Updated condition',
+        status: 'OVERDUE',
+      }),
+    );
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'condition-1',
+        license: { customer: { ownerUserId: 'owner-1' } },
+      },
+    });
+    const updateArguments: unknown = update.mock.calls[0]?.[0];
+    expect(updateArguments).toMatchObject({
+      where: { id: 'condition-1' },
+      data: {
+        name: 'Updated condition',
+        conditionStatus: 'OVERDUE',
+        isViolated: true,
+        environmentalDescriptor: 'Waste',
+      },
+    });
+    expect(
+      (updateArguments as { data: { createdAt: unknown } }).data.createdAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('does not reorder a condition when its environmental descriptor is unchanged', async () => {
+    const update = jest.fn().mockResolvedValue({
+      name: 'Condition',
+      conditionStatus: 'IN_PROGRESS',
+      environmentalDescriptor: 'Water',
+    });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        licenseCondition: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'condition-1',
+            environmentalDescriptor: 'Water',
+          }),
+          update,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await repository.updateConditionForOwner('condition-1', 'owner-1', {
+      environmentalDescriptor: 'Water',
+    });
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'condition-1' },
+      data: { environmentalDescriptor: 'Water' },
+    });
+  });
+
+  it('updates a condition for an owner when no optional field is provided', async () => {
+    const update = jest.fn().mockResolvedValue({
+      name: 'Condition',
+      conditionStatus: 'IN_PROGRESS',
+      environmentalDescriptor: 'Water',
+    });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        licenseCondition: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'condition-1',
+            environmentalDescriptor: 'Water',
+          }),
+          update,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await repository.updateConditionForOwner('condition-1', 'owner-1', {});
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'condition-1' },
+      data: {},
+    });
+  });
+
+  it('rejects updating an owner condition that does not exist', async () => {
+    const update = jest.fn();
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        licenseCondition: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          update,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.updateConditionForOwner('condition-1', 'owner-1', {}),
+    ).rejects.toThrow(LicenseConditionNotFoundError);
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('deletes an owned condition inside a transaction', async () => {

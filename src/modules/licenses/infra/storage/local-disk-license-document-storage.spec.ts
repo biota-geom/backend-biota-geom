@@ -77,4 +77,14 @@ describe('LocalDiskLicenseDocumentStorage', () => {
 
     expect(first.url).not.toBe(second.url);
   });
+
+  it('hands out the stored URL as-is, with no expiration', async () => {
+    const storedUrl =
+      'http://localhost:3000/uploads/licenses/customer-1/doc.pdf';
+
+    await expect(buildStorage().getAccessUrl(storedUrl)).resolves.toEqual({
+      url: storedUrl,
+      expiresInSeconds: null,
+    });
+  });
 });

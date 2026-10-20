@@ -16,6 +16,7 @@ import { LocalDiskLicenseDocumentStorage } from './infra/storage/local-disk-lice
 import { S3LicenseDocumentStorage } from './infra/storage/s3-license-document-storage';
 import { StorageConfigService } from './infra/storage/storage-config.service';
 import { LicenseConditionsController } from './presentation/license-conditions.controller';
+import { LicenseDocumentsController } from './presentation/license-documents.controller';
 import {
   LicenseRenewalsController,
   LicensesController,
@@ -25,12 +26,14 @@ import { GetLicenseDetailsUseCase } from './application/get-license-details.use-
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
+import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
 @Module({
   imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
   controllers: [
     LicensesController,
     LicenseRenewalsController,
     LicenseConditionsController,
+    LicenseDocumentsController,
   ],
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
@@ -46,6 +49,7 @@ import { RenewLicenseUseCase } from './application/renew-license.use-case';
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
     RenewLicenseUseCase,
+    GetLicenseDocumentUrlUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
     StorageConfigService,

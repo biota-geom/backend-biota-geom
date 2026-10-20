@@ -11,6 +11,7 @@ import { CustomerModule } from './modules/customers/customers.module';
 import { IssuingAgenciesModule } from './modules/issuing-agencies/issuing-agencies.module';
 import { LicensesModule } from './modules/licenses/licenses.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
+import { EsgIndicatorsModule } from './modules/esg-indicators/esg-indicators.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SectorsModule } from './modules/sectors/sectors.module';
     CustomerModule,
     SectorsModule,
     EsgMetricsModule,
+    EsgIndicatorsModule,
     IssuingAgenciesModule,
     LicensesModule,
   ],

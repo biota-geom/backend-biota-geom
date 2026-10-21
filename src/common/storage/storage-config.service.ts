@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EnvVars } from '../../../../config/env.validation';
+import { EnvVars } from '../../config/env.validation';
 
 @Injectable()
 export class StorageConfigService {

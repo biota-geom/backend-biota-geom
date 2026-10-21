@@ -12,6 +12,7 @@ import { IssuingAgenciesModule } from './modules/issuing-agencies/issuing-agenci
 import { LicensesModule } from './modules/licenses/licenses.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
 import { EsgIndicatorsModule } from './modules/esg-indicators/esg-indicators.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { EsgIndicatorsModule } from './modules/esg-indicators/esg-indicators.mod
     EsgIndicatorsModule,
     IssuingAgenciesModule,
     LicensesModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,18 +1,17 @@
-import { CustomerDocumentType } from '../domain/customer-document-type';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerDocument } from '../domain/document.entity';
 import {
   documentFileValidationExceptionFactory,
   DocumentsController,
-  invalidDocumentCustomerIdException,
+  invalidDocumentRouteIdException,
 } from './documents.controller';
 
 const document: CustomerDocument = {
   id: 'document-1',
   customerId: 'customer-1',
   title: 'Report',
-  type: CustomerDocumentType.LAUDO,
   documentDate: new Date('2026-08-15T00:00:00.000Z'),
+  folderId: null,
   fileUrl: 'https://files/report.pdf',
   fileName: 'report.pdf',
   mimeType: 'application/pdf',
@@ -26,9 +25,25 @@ const document: CustomerDocument = {
 describe('DocumentsController', () => {
   const create = jest.fn().mockResolvedValue(document);
   const list = jest.fn().mockResolvedValue([document]);
+  const getUrl = jest.fn().mockResolvedValue({
+    url: 'https://signed.example/document.pdf',
+    expiresInSeconds: 900,
+  });
+  const folder = {
+    id: 'folder-1',
+    customerId: 'customer-1',
+    parentId: null,
+    name: 'Ambiental',
+    createdAt: new Date('2026-10-21T18:00:00.000Z'),
+  };
+  const createFolder = jest.fn().mockResolvedValue(folder);
+  const listFolders = jest.fn().mockResolvedValue([folder]);
   const controller = new DocumentsController(
     { execute: create } as never,
     { execute: list } as never,
+    { execute: getUrl } as never,
+    { execute: createFolder } as never,
+    { execute: listFolders } as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -38,8 +53,8 @@ describe('DocumentsController', () => {
       'customer-1',
       {
         title: 'Report',
-        type: CustomerDocumentType.LAUDO,
         document_date: '2026-08-15',
+        folder_id: undefined,
       },
       {
         buffer: Buffer.from('%PDF-'),
@@ -62,6 +77,7 @@ describe('DocumentsController', () => {
       customerId: 'customer-1',
       ownerUserId: 'user-1',
       documentDate: new Date('2026-08-15T00:00:00.000Z'),
+      folderId: null,
       file: {
         originalName: 'report.pdf',
         mimeType: 'application/pdf',
@@ -81,6 +97,44 @@ describe('DocumentsController', () => {
         document_date: '2026-08-15',
       }),
     ]);
+  });
+
+  it('returns an access URL after passing both route ids and the owner', async () => {
+    const response = await controller.getUrl('customer-1', 'document-1', {
+      id: 'user-1',
+    });
+
+    expect(getUrl).toHaveBeenCalledWith('document-1', 'customer-1', 'user-1');
+    expect(response).toEqual({
+      document_url: 'https://signed.example/document.pdf',
+      expires_in: 900,
+    });
+  });
+
+  it('creates and lists user-defined folders', async () => {
+    const created = await controller.createFolder(
+      'customer-1',
+      { name: 'Ambiental', parent_id: undefined },
+      { id: 'user-1' },
+    );
+    const listed = await controller.listFolders('customer-1', {
+      id: 'user-1',
+    });
+
+    expect(createFolder).toHaveBeenCalledWith({
+      customerId: 'customer-1',
+      ownerUserId: 'user-1',
+      parentId: null,
+      name: 'Ambiental',
+    });
+    expect(listFolders).toHaveBeenCalledWith('customer-1', 'user-1');
+    expect(created).toEqual({
+      id: 'folder-1',
+      name: 'Ambiental',
+      parent_id: null,
+      created_at: '2026-10-21T18:00:00.000Z',
+    });
+    expect(listed).toEqual([created]);
   });
 });
 
@@ -105,9 +159,9 @@ describe('documentFileValidationExceptionFactory', () => {
   });
 });
 
-describe('invalidDocumentCustomerIdException', () => {
+describe('invalidDocumentRouteIdException', () => {
   it('uses the generic safe request message', () => {
-    expect(invalidDocumentCustomerIdException().getResponse()).toEqual(
+    expect(invalidDocumentRouteIdException().getResponse()).toEqual(
       expect.objectContaining({ message: AUTH_MESSAGES.INVALID_REQUEST }),
     );
   });

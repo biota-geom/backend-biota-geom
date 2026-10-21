@@ -39,6 +39,25 @@ describe('PrismaDocumentRepository', () => {
     });
   });
 
+  it('connects the document to the selected folder', async () => {
+    create.mockResolvedValue({ id: 'document-1' });
+
+    await repository.create({
+      customerId: 'customer-1',
+      uploadedById: 'user-1',
+      title: 'Report',
+      documentDate: new Date('2026-08-15T00:00:00.000Z'),
+      fileUrl: 'https://files/report.pdf',
+      fileName: 'report.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 100,
+      folderId: 'folder-1',
+    });
+
+    const [query] = create.mock.calls[0] as [{ data: { folder: unknown } }];
+    expect(query.data.folder).toEqual({ connect: { id: 'folder-1' } });
+  });
+
   it('finds only an active document belonging to the requested customer and owner', async () => {
     findFirst.mockResolvedValue({ id: 'document-1' });
 

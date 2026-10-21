@@ -1,16 +1,14 @@
-import {
-  INestApplication,
-  RequestMethod,
-  ValidationPipe,
-} from '@nestjs/common';
+import { join } from 'node:path';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import { DocumentType } from '@prisma/client';
-import { CustomerDocumentType } from '../src/modules/documents/domain/customer-document-type';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
 import { AUTH_MESSAGES } from '../src/modules/auth/presentation/messages/auth.messages.pt-br';
+import { LOCAL_STORAGE_URL_PREFIX } from '../src/common/storage/local-disk-file-storage';
+import { StorageConfigService } from '../src/common/storage/storage-config.service';
 import { MAX_DOCUMENT_SIZE_BYTES } from '../src/modules/documents/presentation/documents.controller';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -18,7 +16,7 @@ const PASSWORD = 'Senha@1234';
 const PDF = Buffer.from('%PDF-1.7 document content');
 
 describe('Customer documents (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
   let ownerId: string;
   let customerId: string;
@@ -48,21 +46,23 @@ describe('Customer documents (e2e)', () => {
     file = PDF,
     filename = 'report.pdf',
     contentType = 'application/pdf',
+    folderId?: string,
   ) {
-    return request(app.getHttpServer())
+    const uploadRequest = request(app.getHttpServer())
       .post(`/api/customers/${targetCustomerId}/documents`)
       .set('Authorization', `Bearer ${token}`)
       .field('title', title)
-      .field('type', CustomerDocumentType.LAUDO)
-      .field('document_date', date)
-      .attach('file', file, { filename, contentType });
+      .field('document_date', date);
+
+    if (folderId) uploadRequest.field('folder_id', folderId);
+    return uploadRequest.attach('file', file, { filename, contentType });
   }
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = module.createNestApplication();
+    app = module.createNestApplication<NestExpressApplication>();
     app.setGlobalPrefix('api', {
       exclude: [{ path: '/', method: RequestMethod.GET }],
     });
@@ -73,11 +73,15 @@ describe('Customer documents (e2e)', () => {
         transform: true,
       }),
     );
+    const storageConfig = app.get(StorageConfigService);
+    app.useStaticAssets(join(storageConfig.localStorageDir, 'documents'), {
+      prefix: `/${LOCAL_STORAGE_URL_PREFIX}/documents`,
+    });
     await app.init();
 
     prisma = app.get(PrismaService);
     await prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE "document", "customer_esg_metrics", "licenses", "customers", "customer_address", "esg_metric", "sectors", "users" RESTART IDENTITY CASCADE',
+      'TRUNCATE TABLE "document", "document_folder", "customer_esg_metrics", "licenses", "customers", "customer_address", "esg_metric", "sectors", "users" RESTART IDENTITY CASCADE',
     );
 
     const owner = await createUser(
@@ -125,7 +129,6 @@ describe('Customer documents (e2e)', () => {
 
       expect(response.body).toMatchObject({
         title,
-        type: 'LAUDO',
         document_date: date,
         file_name: 'report.pdf',
         size_bytes: PDF.length,
@@ -150,7 +153,6 @@ describe('Customer documents (e2e)', () => {
         customerId,
         uploadedById: ownerId,
         title: 'Deleted report',
-        type: CustomerDocumentType.LAUDO,
         documentDate: new Date('2026-10-01T00:00:00.000Z'),
         fileUrl: 'https://files.example/deleted.pdf',
         fileName: 'deleted.pdf',
@@ -168,6 +170,100 @@ describe('Customer documents (e2e)', () => {
     expect(
       (response.body as Array<{ id: string }>).map(({ id }) => id),
     ).not.toContain(hidden.id);
+  });
+
+  it('creates nested folders and uploads a document into the selected folder', async () => {
+    const root = await request(app.getHttpServer())
+      .post(`/api/customers/${customerId}/documents/folders`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'Ambiental' })
+      .expect(201);
+    const rootId = (root.body as { id: string }).id;
+
+    const child = await request(app.getHttpServer())
+      .post(`/api/customers/${customerId}/documents/folders`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'Licenças 2026', parent_id: rootId })
+      .expect(201);
+    const childId = (child.body as { id: string }).id;
+
+    const created = await upload(
+      ownerToken,
+      customerId,
+      '2026-10-21',
+      'Licença ambiental',
+      PDF,
+      'licenca.pdf',
+      'application/pdf',
+      childId,
+    ).expect(201);
+    expect(created.body).toMatchObject({ folder_id: childId });
+
+    const folders = await request(app.getHttpServer())
+      .get(`/api/customers/${customerId}/documents/folders`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(folders.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: rootId,
+          name: 'Ambiental',
+          parent_id: null,
+        }),
+        expect.objectContaining({
+          id: childId,
+          name: 'Licenças 2026',
+          parent_id: rootId,
+        }),
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .post(`/api/customers/${customerId}/documents/folders`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'licenças 2026', parent_id: rootId })
+      .expect(409);
+  });
+
+  it('returns a usable access URL only to the owning tenant', async () => {
+    const created = await upload(
+      ownerToken,
+      customerId,
+      '2026-08-15',
+      'Accessible report',
+    ).expect(201);
+    const documentId = (created.body as { id: string }).id;
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/customers/${customerId}/documents/${documentId}/url`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    const access = response.body as {
+      document_url: string;
+      expires_in: number | null;
+    };
+
+    expect(access.expires_in).toBeNull();
+    const served = await request(app.getHttpServer())
+      .get(new URL(access.document_url).pathname)
+      .expect(200);
+    expect(served.body).toEqual(PDF);
+
+    const foreign = await request(app.getHttpServer())
+      .get(`/api/customers/${customerId}/documents/${documentId}/url`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    const unknown = await request(app.getHttpServer())
+      .get(
+        `/api/customers/${customerId}/documents/00000000-0000-4000-8000-000000000000/url`,
+      )
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+
+    expect(foreign.body).toEqual(unknown.body);
+    expect((foreign.body as { message: string }).message).toBe(
+      AUTH_MESSAGES.DOCUMENT_NOT_FOUND,
+    );
   });
 
   it('rejects an executable and a file over 20 MB with friendly messages', async () => {

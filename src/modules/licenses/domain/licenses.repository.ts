@@ -40,4 +40,7 @@ export abstract class LicenseRepository {
    * on the live-derived status, since the stored status can be stale.
    */
   abstract findAllByCustomerId(customerId: string): Promise<License[]>;
+  abstract findCustomerLicenses(
+    customerId: string,
+  ): Promise<Array<License & { conditions: LicenseCondition[] }>>;
 }

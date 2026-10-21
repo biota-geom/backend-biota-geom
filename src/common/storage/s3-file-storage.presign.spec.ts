@@ -33,4 +33,16 @@ describe('S3FileStorage pre-signed URL (real signer)', () => {
     expect(url.searchParams.get('response-content-disposition')).toBe('inline');
     expect(result.expiresInSeconds).toBe(900);
   });
+
+  it('signs a customer document key through a CDN URL with a path', async () => {
+    const storage = new S3FileStorage(config);
+
+    const result = await storage.getAccessUrl(
+      'https://cdn.example.com/private/documents/customer-1/report.pdf',
+    );
+
+    const url = new URL(result.url);
+    expect(url.pathname).toBe('/documents/customer-1/report.pdf');
+    expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
+  });
 });

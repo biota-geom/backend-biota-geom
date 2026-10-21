@@ -1,5 +1,3 @@
-import { CustomerDocumentType } from './customer-document-type';
-
 export interface DocumentUploader {
   id: string;
   name: string;
@@ -9,7 +7,6 @@ export interface CustomerDocument {
   id: string;
   customerId: string;
   title: string;
-  type: CustomerDocumentType;
   documentDate: Date;
   fileUrl: string;
   fileName: string;
@@ -17,6 +14,7 @@ export interface CustomerDocument {
   sizeBytes: number;
   uploadedById: string;
   uploadedBy: DocumentUploader;
+  folderId: string | null;
   createdAt: Date;
   deletedAt: Date | null;
 }

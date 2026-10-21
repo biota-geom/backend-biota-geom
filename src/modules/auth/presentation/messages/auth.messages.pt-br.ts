@@ -29,4 +29,8 @@ export const AUTH_MESSAGES = {
   DOCUMENT_FILE_TOO_LARGE: 'O arquivo não pode ultrapassar 20 MB.',
   DOCUMENT_INVALID_FILE_TYPE:
     'Envie um arquivo válido nos formatos PDF, JPG, PNG ou DOCX.',
+  DOCUMENT_NOT_FOUND: 'Documento não encontrado.',
+  DOCUMENT_FOLDER_NOT_FOUND: 'Pasta não encontrada.',
+  DOCUMENT_FOLDER_ALREADY_EXISTS:
+    'Já existe uma pasta com este nome neste local.',
 } as const;

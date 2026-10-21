@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CustomerDocumentType } from '../../domain/customer-document-type';
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
-  IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
@@ -22,12 +22,13 @@ export class CreateDocumentDto {
   @MaxLength(255)
   title!: string;
 
-  @ApiProperty({ enum: CustomerDocumentType, example: 'LAUDO' })
-  @IsEnum(CustomerDocumentType)
-  type!: CustomerDocumentType;
-
   @ApiProperty({ type: String, format: 'date', example: '2026-08-15' })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   @IsDateString({ strict: true, strictSeparator: true })
   document_date!: string;
+
+  @ApiProperty({ format: 'uuid', nullable: true, required: false })
+  @IsOptional()
+  @IsUUID()
+  folder_id?: string;
 }

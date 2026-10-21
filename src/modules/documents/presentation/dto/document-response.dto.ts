@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CustomerDocumentType } from '../../domain/customer-document-type';
 import { CustomerDocument } from '../../domain/document.entity';
 
 export class DocumentUploaderResponseDto {
@@ -17,9 +16,6 @@ export class DocumentResponseDto {
   @ApiProperty({ example: 'Noise Report 2026' })
   title!: string;
 
-  @ApiProperty({ enum: CustomerDocumentType })
-  type!: CustomerDocumentType;
-
   @ApiProperty({ type: String, format: 'date' })
   document_date!: string;
 
@@ -34,6 +30,9 @@ export class DocumentResponseDto {
 
   @ApiProperty({ type: String, format: 'date-time' })
   created_at!: string;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  folder_id!: string | null;
 }
 
 export function toDocumentResponse(
@@ -42,11 +41,11 @@ export function toDocumentResponse(
   return {
     id: document.id,
     title: document.title,
-    type: document.type,
     document_date: document.documentDate.toISOString().slice(0, 10),
     file_name: document.fileName,
     size_bytes: document.sizeBytes,
     uploaded_by: document.uploadedBy,
     created_at: document.createdAt.toISOString(),
+    folder_id: document.folderId,
   };
 }

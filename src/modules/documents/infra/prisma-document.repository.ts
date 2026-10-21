@@ -16,12 +16,31 @@ export class PrismaDocumentRepository implements DocumentsRepository {
         customer: { connect: { id: data.customerId } },
         uploadedBy: { connect: { id: data.uploadedById } },
         title: data.title,
-        type: data.type,
         documentDate: data.documentDate,
         fileUrl: data.fileUrl,
         fileName: data.fileName,
         mimeType: data.mimeType,
         sizeBytes: data.sizeBytes,
+        folder:
+          data.folderId === null
+            ? undefined
+            : { connect: { id: data.folderId } },
+      },
+      include: { uploadedBy: { select: UPLOADER_SELECT } },
+    });
+  }
+
+  async findByIdForOwner(
+    id: string,
+    customerId: string,
+    ownerUserId: string,
+  ): Promise<CustomerDocument | null> {
+    return this.prisma.document.findFirst({
+      where: {
+        id,
+        customerId,
+        deletedAt: null,
+        customer: { ownerUserId },
       },
       include: { uploadedBy: { select: UPLOADER_SELECT } },
     });

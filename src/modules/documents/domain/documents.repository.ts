@@ -5,6 +5,11 @@ import { CustomerDocument } from './document.entity';
 @Injectable()
 export abstract class DocumentsRepository {
   abstract create(data: CreateDocumentData): Promise<CustomerDocument>;
+  abstract findByIdForOwner(
+    id: string,
+    customerId: string,
+    ownerUserId: string,
+  ): Promise<CustomerDocument | null>;
   abstract findActiveByCustomerId(
     customerId: string,
   ): Promise<CustomerDocument[]>;

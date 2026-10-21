@@ -20,6 +20,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiConflictResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -32,9 +33,20 @@ import { CurrentUser } from '../../auth/presentation/decorators/current-user.dec
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateDocumentUseCase } from '../application/create-document.use-case';
+import { CreateDocumentFolderUseCase } from '../application/create-document-folder.use-case';
+import { GetDocumentUrlUseCase } from '../application/get-document-url.use-case';
+import { ListDocumentFoldersUseCase } from '../application/list-document-folders.use-case';
 import { ListDocumentsUseCase } from '../application/list-documents.use-case';
-import { CustomerDocumentType } from '../domain/customer-document-type';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { CreateDocumentFolderDto } from './dto/create-document-folder.dto';
+import {
+  DocumentFolderResponseDto,
+  toDocumentFolderResponse,
+} from './dto/document-folder-response.dto';
+import {
+  DocumentUrlResponseDto,
+  toDocumentUrlResponse,
+} from './dto/document-url-response.dto';
 import {
   DocumentResponseDto,
   toDocumentResponse,
@@ -51,12 +63,12 @@ interface UploadedDocument {
   size: number;
 }
 
-export function invalidDocumentCustomerIdException(): BadRequestException {
+export function invalidDocumentRouteIdException(): BadRequestException {
   return new BadRequestException(AUTH_MESSAGES.INVALID_REQUEST);
 }
 
-const uuidPipe = new ParseUUIDPipe({
-  exceptionFactory: invalidDocumentCustomerIdException,
+const routeUuidPipe = new ParseUUIDPipe({
+  exceptionFactory: invalidDocumentRouteIdException,
 });
 
 export function documentFileValidationExceptionFactory(
@@ -83,6 +95,9 @@ export class DocumentsController {
   constructor(
     private readonly createDocumentUseCase: CreateDocumentUseCase,
     private readonly listDocumentsUseCase: ListDocumentsUseCase,
+    private readonly getDocumentUrlUseCase: GetDocumentUrlUseCase,
+    private readonly createDocumentFolderUseCase: CreateDocumentFolderUseCase,
+    private readonly listDocumentFoldersUseCase: ListDocumentFoldersUseCase,
   ) {}
 
   @Post()
@@ -91,16 +106,16 @@ export class DocumentsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'title', 'type', 'document_date'],
+      required: ['file', 'title', 'document_date'],
       properties: {
         file: { type: 'string', format: 'binary' },
         title: { type: 'string', example: 'Noise Report 2026' },
-        type: { type: 'string', enum: Object.values(CustomerDocumentType) },
         document_date: {
           type: 'string',
           format: 'date',
           example: '2026-08-15',
         },
+        folder_id: { type: 'string', format: 'uuid', nullable: true },
       },
     },
   })
@@ -115,7 +130,7 @@ export class DocumentsController {
     }),
   )
   async create(
-    @Param('customerId', uuidPipe) customerId: string,
+    @Param('customerId', routeUuidPipe) customerId: string,
     @Body() dto: CreateDocumentDto,
     @UploadedFile(
       new ParseFilePipe({
@@ -136,8 +151,8 @@ export class DocumentsController {
       customerId,
       ownerUserId: user.id,
       title: dto.title,
-      type: dto.type,
       documentDate: new Date(`${dto.document_date}T00:00:00.000Z`),
+      folderId: dto.folder_id ?? null,
       file: {
         buffer: file.buffer,
         originalName: file.originalname,
@@ -155,7 +170,7 @@ export class DocumentsController {
   @ApiOkResponse({ type: DocumentResponseDto, isArray: true })
   @ApiNotFoundResponse({ description: 'Company not found.' })
   async list(
-    @Param('customerId', uuidPipe) customerId: string,
+    @Param('customerId', routeUuidPipe) customerId: string,
     @CurrentUser() user: { id: string },
   ): Promise<DocumentResponseDto[]> {
     const documents = await this.listDocumentsUseCase.execute(
@@ -164,5 +179,65 @@ export class DocumentsController {
     );
 
     return documents.map(toDocumentResponse);
+  }
+
+  @Post('folders')
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiOperation({ summary: 'Create a folder for company documents.' })
+  @ApiCreatedResponse({ type: DocumentFolderResponseDto })
+  @ApiNotFoundResponse({ description: 'Company or parent folder not found.' })
+  @ApiConflictResponse({ description: 'Folder name already exists.' })
+  async createFolder(
+    @Param('customerId', routeUuidPipe) customerId: string,
+    @Body() dto: CreateDocumentFolderDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<DocumentFolderResponseDto> {
+    const folder = await this.createDocumentFolderUseCase.execute({
+      customerId,
+      ownerUserId: user.id,
+      parentId: dto.parent_id ?? null,
+      name: dto.name,
+    });
+
+    return toDocumentFolderResponse(folder);
+  }
+
+  @Get('folders')
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiOperation({ summary: 'List the company document folders.' })
+  @ApiOkResponse({ type: DocumentFolderResponseDto, isArray: true })
+  @ApiNotFoundResponse({ description: 'Company not found.' })
+  async listFolders(
+    @Param('customerId', routeUuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<DocumentFolderResponseDto[]> {
+    const folders = await this.listDocumentFoldersUseCase.execute(
+      customerId,
+      user.id,
+    );
+
+    return folders.map(toDocumentFolderResponse);
+  }
+
+  @Get(':documentId/url')
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiParam({ name: 'documentId', format: 'uuid' })
+  @ApiOperation({ summary: 'Generate an access URL for a company document.' })
+  @ApiOkResponse({ type: DocumentUrlResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Document not found or owned by another user.',
+  })
+  async getUrl(
+    @Param('customerId', routeUuidPipe) customerId: string,
+    @Param('documentId', routeUuidPipe) documentId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<DocumentUrlResponseDto> {
+    const accessUrl = await this.getDocumentUrlUseCase.execute(
+      documentId,
+      customerId,
+      user.id,
+    );
+
+    return toDocumentUrlResponse(accessUrl);
   }
 }

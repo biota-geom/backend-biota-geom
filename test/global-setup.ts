@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import { config as loadEnvFile } from 'dotenv';
 import { Client } from 'pg';
 
@@ -58,7 +59,15 @@ async function ensureDatabaseExists(databaseUrl: string): Promise<void> {
  * um schema inexistente.
  */
 function applyMigrations(databaseUrl: string): void {
-  execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
+  const prismaCli = join(
+    process.cwd(),
+    'node_modules',
+    'prisma',
+    'build',
+    'index.js',
+  );
+
+  execFileSync(process.execPath, [prismaCli, 'migrate', 'deploy'], {
     // Só a URL muda: o prisma.config.ts lê DATABASE_URL do ambiente.
     env: { ...process.env, DATABASE_URL: databaseUrl },
     stdio: 'inherit',

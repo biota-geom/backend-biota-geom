@@ -5,7 +5,7 @@ import { Injectable } from '@nestjs/common';
 import {
   FileStorage,
   FileToStore,
-  DocumentAccessUrl,
+  FileAccessUrl,
   StoredFile,
   StoreFileOptions,
 } from './file-storage';
@@ -44,7 +44,7 @@ export class LocalDiskFileStorage implements FileStorage {
     return { url: url.toString() };
   }
 
-  getAccessUrl(storedUrl: string): Promise<DocumentAccessUrl> {
+  getAccessUrl(storedUrl: string): Promise<FileAccessUrl> {
     return Promise.resolve({ url: storedUrl, expiresInSeconds: null });
   }
 }

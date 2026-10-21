@@ -8,9 +8,10 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
-  DocumentAccessUrl,
+  FileAccessUrl,
   FileStorage,
   FileToStore,
+  STORAGE_CATEGORIES,
   StoredFile,
   StoreFileOptions,
 } from './file-storage';
@@ -26,7 +27,9 @@ function joinUrl(base: string, path: string): string {
 
 export function extractObjectKey(storedUrl: string): string {
   const path = decodeURIComponent(new URL(storedUrl).pathname);
-  const keyStart = path.lastIndexOf('/licenses/');
+  const keyStart = Math.max(
+    ...STORAGE_CATEGORIES.map((category) => path.lastIndexOf(`/${category}/`)),
+  );
 
   if (keyStart !== -1) return path.slice(keyStart + 1);
 
@@ -77,7 +80,7 @@ export class S3FileStorage implements FileStorage {
     return { url };
   }
 
-  async getAccessUrl(storedUrl: string): Promise<DocumentAccessUrl> {
+  async getAccessUrl(storedUrl: string): Promise<FileAccessUrl> {
     const bucket = this.requireBucket();
     const expiresInSeconds = this.config.s3SignedUrlTtlSeconds;
 

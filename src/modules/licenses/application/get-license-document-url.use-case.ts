@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
-  DocumentAccessUrl,
+  FileAccessUrl,
   FileStorage,
 } from '../../../common/storage/file-storage';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -21,7 +21,7 @@ export class GetLicenseDocumentUrlUseCase {
   async execute(
     licenseId: string,
     ownerUserId: string,
-  ): Promise<DocumentAccessUrl> {
+  ): Promise<FileAccessUrl> {
     const license = await this.licenseRepository.findByIdForOwner(
       licenseId,
       ownerUserId,

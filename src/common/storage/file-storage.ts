@@ -6,7 +6,9 @@ export interface FileToStore {
   mimeType: string;
 }
 
-export type StorageCategory = 'licenses' | 'documents';
+export const STORAGE_CATEGORIES = ['licenses', 'documents'] as const;
+
+export type StorageCategory = (typeof STORAGE_CATEGORIES)[number];
 
 export interface StoreFileOptions {
   category: StorageCategory;
@@ -17,7 +19,7 @@ export interface StoredFile {
   url: string;
 }
 
-export interface DocumentAccessUrl {
+export interface FileAccessUrl {
   url: string;
   expiresInSeconds: number | null;
 }
@@ -29,5 +31,5 @@ export abstract class FileStorage {
     options: StoreFileOptions,
   ): Promise<StoredFile>;
 
-  abstract getAccessUrl(storedUrl: string): Promise<DocumentAccessUrl>;
+  abstract getAccessUrl(storedUrl: string): Promise<FileAccessUrl>;
 }

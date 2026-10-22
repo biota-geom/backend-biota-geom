@@ -805,23 +805,12 @@ describe('Licenses (e2e)', () => {
         .expect(201);
       fulfillmentLicenseId = (licenseResponse.body as { id: string }).id;
 
-      let esgMetric = await prisma.esgMetric.findFirst();
-      if (!esgMetric) {
-        esgMetric = await prisma.esgMetric.create({
-          data: {
-            name: `Métrica E2E ${uniqueSuffix()}`,
-            unit: 'un',
-            pillar: EsgPillar.AMBIENTAL,
-          },
-        });
-      }
-
       const created = await prisma.$transaction([
         prisma.licenseCondition.create({
           data: {
             licenseId: fulfillmentLicenseId,
             name: 'Condicionante A',
-            esgMetricId: esgMetric.id,
+            environmentalDescriptor: 'Recursos Hídricos',
             responsibleAgency: 'FEPAM',
             dueDate: new Date('2030-01-01'),
           },
@@ -830,7 +819,7 @@ describe('Licenses (e2e)', () => {
           data: {
             licenseId: fulfillmentLicenseId,
             name: 'Condicionante B',
-            esgMetricId: esgMetric.id,
+            environmentalDescriptor: 'Recursos Hídricos',
             responsibleAgency: 'FEPAM',
             dueDate: new Date('2030-06-01'),
           },
@@ -839,7 +828,7 @@ describe('Licenses (e2e)', () => {
           data: {
             licenseId: fulfillmentLicenseId,
             name: 'Condicionante C',
-            esgMetricId: esgMetric.id,
+            environmentalDescriptor: 'Recursos Hídricos',
             responsibleAgency: 'IBAMA',
             dueDate: new Date('2031-01-01'),
           },
@@ -901,22 +890,11 @@ describe('Licenses (e2e)', () => {
 
       otherLicenseId = (otherLicense.body as { id: string }).id;
 
-      let esgMetric = await prisma.esgMetric.findFirst();
-      if (!esgMetric) {
-        esgMetric = await prisma.esgMetric.create({
-          data: {
-            name: `Métrica E2E ${uniqueSuffix()}`,
-            unit: 'un',
-            pillar: EsgPillar.AMBIENTAL,
-          },
-        });
-      }
-
       const foreignCondition = await prisma.licenseCondition.create({
         data: {
           licenseId: otherLicenseId,
           name: 'Condicionante Alheia',
-          esgMetricId: esgMetric.id,
+          environmentalDescriptor: 'Recursos Hídricos',
           responsibleAgency: 'FEPAM',
           dueDate: new Date('2030-01-01'),
         },

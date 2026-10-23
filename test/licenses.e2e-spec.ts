@@ -922,7 +922,7 @@ describe('Licenses (e2e)', () => {
     });
 
     it('returns 404 when the license belongs to another customer', async () => {
-      const otherToken = await createUserAndLogin();
+      const otherToken = await getOtherOwnerToken();
 
       await request(app.getHttpServer())
         .patch(

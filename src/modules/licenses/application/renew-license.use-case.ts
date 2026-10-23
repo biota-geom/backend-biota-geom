@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { LicenseStatus } from '@prisma/client';
-import {
-  FileToStore,
-  LicenseDocumentStorage,
-} from '../domain/license-document-storage';
+import { FileStorage, FileToStore } from '../../../common/storage/file-storage';
 import { calculateLicenseStatus } from '../domain/license-status.calculator';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -28,7 +25,7 @@ export interface RenewLicenseInput {
 export class RenewLicenseUseCase {
   constructor(
     private readonly licenseRepository: LicenseRepository,
-    private readonly documentStorage: LicenseDocumentStorage,
+    private readonly documentStorage: FileStorage,
   ) {}
 
   async execute(input: RenewLicenseInput): Promise<License> {
@@ -50,10 +47,10 @@ export class RenewLicenseUseCase {
 
     await this.assertConditionsDecided(previousLicense.id, input.conditions);
 
-    const { url: documentUrl } = await this.documentStorage.upload(
-      input.file,
-      previousLicense.customerId,
-    );
+    const { url: documentUrl } = await this.documentStorage.upload(input.file, {
+      category: 'licenses',
+      customerId: previousLicense.customerId,
+    });
 
     return this.licenseRepository.renew({
       previousLicenseId: previousLicense.id,

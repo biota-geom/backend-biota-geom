@@ -12,8 +12,8 @@ import {
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
-import { LOCAL_STORAGE_URL_PREFIX } from '../src/modules/licenses/infra/storage/local-disk-license-document-storage';
-import { StorageConfigService } from '../src/modules/licenses/infra/storage/storage-config.service';
+import { LOCAL_STORAGE_URL_PREFIX } from '../src/common/storage/local-disk-file-storage';
+import { StorageConfigService } from '../src/common/storage/storage-config.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /*
@@ -68,6 +68,14 @@ describe('Licenses (e2e)', () => {
     return (response.body as { access_token: string }).access_token;
   }
 
+  // /auth/login is rate limited, so suites that only need "some other owner"
+  // share one login instead of each burning a request against the limit.
+  let otherOwnerToken: string | undefined;
+  async function getOtherOwnerToken(): Promise<string> {
+    otherOwnerToken ??= await createUserAndLogin();
+    return otherOwnerToken;
+  }
+
   function createLicenseRequest(overrides: Record<string, string> = {}) {
     const fields = {
       type: LicenseType.LO,
@@ -109,7 +117,7 @@ describe('Licenses (e2e)', () => {
     // returned by the local storage driver to actually be servable.
     const storageConfig = app.get(StorageConfigService);
     app.useStaticAssets(join(storageConfig.localStorageDir, 'licenses'), {
-      prefix: `/${LOCAL_STORAGE_URL_PREFIX}`,
+      prefix: `/${LOCAL_STORAGE_URL_PREFIX}/licenses`,
     });
     await app.init();
 
@@ -210,6 +218,71 @@ describe('Licenses (e2e)', () => {
     expect(Buffer.compare(fileResponse.body as Buffer, PDF_HEADER)).toBe(0);
   });
 
+  describe('GET /licenses/:licenseId/document/url', () => {
+    async function createLicenseWithDocument(): Promise<{
+      id: string;
+      document_url: string;
+    }> {
+      const response = await createLicenseRequest({
+        process_number: `LO nº ${uniqueSuffix()}`,
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'licenca.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      return response.body as { id: string; document_url: string };
+    }
+
+    it('returns a URL that serves the license PDF', async () => {
+      const license = await createLicenseWithDocument();
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/licenses/${license.id}/document/url`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      // Local driver: nothing to sign, so the stored URL comes back as-is.
+      expect(response.body).toEqual({
+        document_url: license.document_url,
+        expires_in: null,
+      });
+
+      const fileResponse = await request(app.getHttpServer())
+        .get(new URL(license.document_url).pathname)
+        .expect(200);
+      expect(Buffer.compare(fileResponse.body as Buffer, PDF_HEADER)).toBe(0);
+    });
+
+    it("answers 404 for another owner's license (tenant isolation)", async () => {
+      const license = await createLicenseWithDocument();
+      const otherToken = await getOtherOwnerToken();
+
+      const response = await request(app.getHttpServer())
+        .get(`/api/licenses/${license.id}/document/url`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .expect(404);
+
+      expect((response.body as { message: string }).message).toBe(
+        'Licença não encontrada.',
+      );
+    });
+
+    it('answers 401 without a token', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/licenses/${randomUUID()}/document/url`)
+        .expect(401);
+    });
+
+    it('answers 400 for a malformed license id', async () => {
+      await request(app.getHttpServer())
+        .get('/api/licenses/not-a-uuid/document/url')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+    });
+  });
+
   it('rejects a non-PDF file with a friendly 422', async () => {
     const response = await createLicenseRequest()
       .attach('document_file', Buffer.from('not a pdf'), {
@@ -239,7 +312,7 @@ describe('Licenses (e2e)', () => {
   });
 
   it('answers 404 for a customer owned by another account', async () => {
-    const otherToken = await createUserAndLogin();
+    const otherToken = await getOtherOwnerToken();
 
     await createLicenseRequest()
       .set('Authorization', `Bearer ${otherToken}`)

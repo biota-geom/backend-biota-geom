@@ -1,8 +1,8 @@
 import { LicenseStatus, LicenseType } from '@prisma/client';
+import { FileStorage } from '../../../common/storage/file-storage';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
 import { IssuingAgencyRepository } from '../../issuing-agencies/domain/issuing-agencies.repository';
-import { LicenseDocumentStorage } from '../domain/license-document-storage';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
 import { IssuingAgencyNotFoundError } from '../domain/errors/issuing-agency-not-found.error';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -12,7 +12,7 @@ function buildUseCase(overrides?: {
   customerRepository?: Partial<CustomerRepository>;
   issuingAgencyRepository?: Partial<IssuingAgencyRepository>;
   licenseRepository?: Partial<LicenseRepository>;
-  documentStorage?: Partial<LicenseDocumentStorage>;
+  documentStorage?: Partial<FileStorage>;
 }) {
   const customerRepository: Partial<CustomerRepository> = {
     findOne: jest.fn().mockResolvedValue({ id: 'customer-1' }),
@@ -26,7 +26,7 @@ function buildUseCase(overrides?: {
     create: jest.fn().mockResolvedValue({ id: 'license-1' }),
     ...overrides?.licenseRepository,
   };
-  const documentStorage: Partial<LicenseDocumentStorage> = {
+  const documentStorage: Partial<FileStorage> = {
     upload: jest
       .fn()
       .mockResolvedValue({ url: 'https://storage.example.com/license.pdf' }),
@@ -37,7 +37,7 @@ function buildUseCase(overrides?: {
     licenseRepository as LicenseRepository,
     customerRepository as CustomerRepository,
     issuingAgencyRepository as IssuingAgencyRepository,
-    documentStorage as LicenseDocumentStorage,
+    documentStorage as FileStorage,
   );
 
   return {
@@ -118,10 +118,10 @@ describe('CreateLicenseUseCase', () => {
 
     const result = await useCase.execute(baseInput);
 
-    expect(documentStorage.upload).toHaveBeenCalledWith(
-      baseInput.file,
-      baseInput.customerId,
-    );
+    expect(documentStorage.upload).toHaveBeenCalledWith(baseInput.file, {
+      category: 'licenses',
+      customerId: baseInput.customerId,
+    });
     expect(licenseRepository.create).toHaveBeenCalledWith({
       customerId: baseInput.customerId,
       type: baseInput.type,

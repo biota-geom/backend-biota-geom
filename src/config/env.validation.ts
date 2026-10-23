@@ -37,6 +37,13 @@ export const envSchema = z
     // domain to use instead of the default *.s3.amazonaws.com object URL.
     AWS_S3_ENDPOINT: z.url().optional(),
     AWS_S3_PUBLIC_URL_BASE: z.url().optional(),
+    // Lifetime of the pre-signed URLs handed out to view private documents.
+    AWS_S3_SIGNED_URL_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(3600)
+      .default(900),
   })
   .superRefine((data, ctx) => {
     if (data.JWT_ACCESS_SECRET === data.JWT_REFRESH_SECRET) {

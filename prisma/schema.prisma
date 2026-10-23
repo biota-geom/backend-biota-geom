@@ -22,10 +22,11 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
 
-  esgMetrics EsgMetric[]
+  esgMetrics        EsgMetric[]
   // Companies this account owns. A User is the consultancy that subscribes to
   // the system (the tenant); a Customer is a company/site it looks after.
-  customers  Customer[]
+  customers         Customer[]
+  uploadedDocuments Document[]  @relation("DocumentUploader")
 
   @@map("users")
 }
@@ -81,6 +82,9 @@ model Customer {
 
   monitoredEsgMetrics CustomerEsgMetric[]
   licenses            License[]
+  esgIndicatorRecords EsgIndicatorRecord[]
+  documents           Document[]
+  documentFolders     DocumentFolder[]
 
   @@unique([ownerUserId, document])
   @@map("customers")
@@ -163,6 +167,50 @@ enum LicenseType {
   LO
 
   @@map("license_type")
+}
+
+model Document {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  title        String    @db.VarChar(255)
+  documentDate DateTime  @map("document_date") @db.Date
+  fileUrl      String    @map("file_url") @db.VarChar(2048)
+  fileName     String    @map("file_name") @db.VarChar(255)
+  mimeType     String    @map("mime_type") @db.VarChar(255)
+  sizeBytes    Int       @map("size_bytes")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  uploadedById String @map("uploaded_by") @db.Uuid
+  uploadedBy   User   @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  folderId String?         @map("folder_id") @db.Uuid
+  folder   DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([customerId, deletedAt, documentDate(sort: Desc), createdAt(sort: Desc)])
+  @@index([folderId, deletedAt, documentDate(sort: Desc), createdAt(sort: Desc)])
+  @@index([uploadedById])
+  @@map("document")
+}
+
+model DocumentFolder {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  parentId  String?          @map("parent_id") @db.Uuid
+  parent    DocumentFolder?  @relation("DocumentFolderChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  DocumentFolder[] @relation("DocumentFolderChildren")
+  documents Document[]
+
+  @@unique([customerId, parentId, name])
+  @@index([customerId, parentId, name])
+  @@map("document_folder")
 }
 
 // Kept English on purpose (see AGENTS.md: domain/infra stay English-only).
@@ -279,4 +327,30 @@ model LicenseCondition {
   @@index([licenseId])
   @@index([dueDate])
   @@map("license_condition")
+}
+
+enum EsgIndicator {
+  WATER
+  WASTE
+  EMPLOYEES
+  ENERGY
+
+  @@map("esg_indicator")
+}
+
+// Monthly operational indicators a customer reports (US11). One row per
+// customer + indicator + month; saving the same month again updates the row.
+model EsgIndicatorRecord {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  customerId     String       @map("customer_id") @db.Uuid
+  indicator      EsgIndicator
+  // Always the first day of the month (a DATE, no time zone).
+  referenceMonth DateTime     @map("reference_month") @db.Date
+  value          Decimal      @db.Decimal(18, 4)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, indicator, referenceMonth])
+  @@map("esg_indicator_record")
 }

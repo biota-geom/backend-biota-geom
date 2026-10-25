@@ -54,7 +54,7 @@ export class RenewLicenseUseCase {
       customerId: previousLicense.customerId,
       type: previousLicense.type,
       processNumber: input.processNumber,
-      issuingAgencyId: previousLicense.issuingAgencyId,
+      issuingAgency: previousLicense.issuingAgency,
       issueDate: input.issueDate,
       expirationDate: input.expirationDate,
       status: calculateLicenseStatus(input.expirationDate),

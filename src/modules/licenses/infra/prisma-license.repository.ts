@@ -53,14 +53,13 @@ export class PrismaLicenseRepository implements LicenseRepository {
             customer: { connect: { id: data.customerId } },
             type: data.type,
             processNumber: data.processNumber,
-            issuingAgency: { connect: { id: data.issuingAgencyId } },
+            issuingAgency: data.issuingAgency,
             issueDate: data.issueDate,
             expirationDate: data.expirationDate,
             status: data.status,
             documentUrl: data.documentUrl,
             previousLicense: { connect: { id: data.previousLicenseId } },
           },
-          include: { issuingAgency: true },
         });
 
         await transaction.license.update({
@@ -86,7 +85,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
     const license = await this.prisma.license.findFirst({
       where: { id, customerId },
       include: {
-        issuingAgency: true,
         conditions: { orderBy: { itemNumber: 'asc' } },
       },
     });
@@ -163,7 +161,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
   ): Promise<License | null> {
     return this.prisma.license.findFirst({
       where: { id, customer: { ownerUserId } },
-      include: { issuingAgency: true },
     });
   }
 

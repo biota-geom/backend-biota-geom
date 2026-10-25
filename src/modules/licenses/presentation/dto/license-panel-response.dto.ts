@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ListLicensesByCustomerResult } from '../../application/list-licenses-by-customer.use-case';
 import { License } from '../../domain/license.entity';
-import { LICENSE_TYPE_LABELS, STATUS_LABELS } from './license-labels';
+import { STATUS_LABELS } from './license-labels';
 
 export class LicenseSummaryDto {
   @ApiProperty({ example: 6 })
@@ -59,9 +59,9 @@ export class LicensePanelResponseDto {
 function toLicensePanelItem(license: License): LicensePanelItemDto {
   return {
     id: license.id,
-    type: LICENSE_TYPE_LABELS[license.type],
+    type: license.type,
     process_number: license.processNumber,
-    issuing_agency: license.issuingAgency?.name ?? null,
+    issuing_agency: license.issuingAgency,
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: STATUS_LABELS[license.status],

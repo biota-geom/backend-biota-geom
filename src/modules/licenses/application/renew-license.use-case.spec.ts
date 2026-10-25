@@ -2,13 +2,13 @@ import { LicenseStatus, LicenseType } from '@prisma/client';
 import { LicenseAlreadyArchivedError } from '../domain/errors/license-already-archived.error';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
-import { LicenseDocumentStorage } from '../domain/license-document-storage';
+import { FileStorage } from '../../../common/storage/file-storage';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { RenewLicenseUseCase } from './renew-license.use-case';
 
 function buildUseCase(overrides?: {
   licenseRepository?: Partial<LicenseRepository>;
-  documentStorage?: Partial<LicenseDocumentStorage>;
+  documentStorage?: Partial<FileStorage>;
 }) {
   const licenseRepository: Partial<LicenseRepository> = {
     findByIdForOwner: jest.fn().mockResolvedValue({
@@ -34,7 +34,7 @@ function buildUseCase(overrides?: {
     ),
     ...overrides?.licenseRepository,
   };
-  const documentStorage: Partial<LicenseDocumentStorage> = {
+  const documentStorage: Partial<FileStorage> = {
     upload: jest.fn().mockResolvedValue({
       url: 'https://storage.example.com/new.pdf',
     }),
@@ -43,7 +43,7 @@ function buildUseCase(overrides?: {
 
   const useCase = new RenewLicenseUseCase(
     licenseRepository as LicenseRepository,
-    documentStorage as LicenseDocumentStorage,
+    documentStorage as FileStorage,
   );
 
   return { useCase, licenseRepository, documentStorage };
@@ -72,7 +72,10 @@ describe('RenewLicenseUseCase', () => {
       'old-license',
       'owner-1',
     );
-    expect(documentStorage.upload).toHaveBeenCalledWith(FILE, 'customer-1');
+    expect(documentStorage.upload).toHaveBeenCalledWith(FILE, {
+      category: 'licenses',
+      customerId: 'customer-1',
+    });
     expect(licenseRepository.renew).toHaveBeenCalledWith(
       expect.objectContaining({
         previousLicenseId: 'old-license',

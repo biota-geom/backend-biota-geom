@@ -1,13 +1,10 @@
 name: Deploy Backend to EC2
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-    paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend.yml'
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -35,16 +32,20 @@ jobs:
               "docker build -t backend-api .",
               "docker stop backend-api || true",
               "docker rm backend-api || true",
-              "SECRETS=$(aws secretsmanager get-secret-value --secret-id Biota-Geom-app-secrets-EFMnK2 --region ${{ secrets.AWS_REGION }} --query SecretString --output text)",
+              "SECRETS=$(aws secretsmanager get-secret-value --secret-id biota-geom-app-secrets --region ${{ secrets.AWS_REGION }} --query SecretString --output text)",
               "DATABASE_URL=$(echo $SECRETS | jq -r .DATABASE_URL)",
               "JWT_SECRET=$(echo $SECRETS | jq -r .JWT_SECRET)",
               "FRONTEND_URL=$(echo $SECRETS | jq -r .FRONTEND_URL)",
-              "docker run -d --name backend-api --restart always -p 3000:3000 -e PORT=3000 -e NODE_ENV=production -e DATABASE_URL=\"$DATABASE_URL\" -e JWT_SECRET=\"$JWT_SECRET\" -e CORS_ORIGINS=\"$FRONTEND_URL\" -e FRONTEND_URL=\"$FRONTEND_URL\" -e STORAGE_DRIVER=s3 -e S3_BUCKET_NAME=\"biota-geom-private-docs-prod\" -e AWS_REGION=\"${{ secrets.AWS_REGION }}\" backend-api"
+              "docker run --rm -e DATABASE_URL=\"$DATABASE_URL\" backend-api npx prisma migrate deploy",
+              "docker stop backend-api || true",
+              "docker rm backend-api || true",
+              "docker run -d --name backend-api --restart always -p 3000:3000 -e PORT=3000 -e NODE_ENV=production -e DATABASE_URL=\"$DATABASE_URL\" -e JWT_ACCESS_SECRET=\"${JWT_SECRET}_access\" -e JWT_REFRESH_SECRET=\"${JWT_SECRET}_refresh\" -e CORS_ORIGINS=\"$FRONTEND_URL\" -e FRONTEND_URL=\"$FRONTEND_URL\" -e STORAGE_DRIVER=s3 -e AWS_S3_BUCKET=\"biota-geom-private-docs-prod\" -e AWS_REGION=\"${{ secrets.AWS_REGION }}\" -e AWS_ACCESS_KEY_ID=\"instance-profile-managed\" -e AWS_SECRET_ACCESS_KEY=\"instance-profile-managed\" backend-api"
             ]' \
             --query "Command.CommandId" \
             --output text)
 
           echo "Comando enviado para a instância. ID: $COMMAND_ID. A aguardar conclusão..."
+
 
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \

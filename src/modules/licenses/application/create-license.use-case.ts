@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { FileStorage, FileToStore } from '../../../common/storage/file-storage';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
-import {
-  FileToStore,
-  LicenseDocumentStorage,
-} from '../domain/license-document-storage';
 import { calculateLicenseStatus } from '../domain/license-status.calculator';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
 import { License } from '../domain/license.entity';
@@ -28,7 +25,8 @@ export class CreateLicenseUseCase {
   constructor(
     private readonly licenseRepository: LicenseRepository,
     private readonly customerRepository: CustomerRepository,
-    private readonly documentStorage: LicenseDocumentStorage,
+  
+  private readonly documentStorage: FileStorage,
   ) {}
 
   async execute(input: CreateLicenseInput): Promise<License> {
@@ -51,10 +49,10 @@ export class CreateLicenseUseCase {
 
     // Uploaded last, only once every other check has passed, so a rejected
     // request never leaves an orphaned file in storage.
-    const { url: documentUrl } = await this.documentStorage.upload(
-      input.file,
-      input.customerId,
-    );
+    const { url: documentUrl } = await this.documentStorage.upload(input.file, {
+      category: 'licenses',
+      customerId: input.customerId,
+    });
 
     // Never trust a client-supplied status (see the ticket): always derived
     // from expirationDate at insert time.

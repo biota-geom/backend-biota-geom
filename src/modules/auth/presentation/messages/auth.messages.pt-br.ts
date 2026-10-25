@@ -22,9 +22,15 @@ export const AUTH_MESSAGES = {
     'Não é possível atualizar o endereço: esta empresa ainda não possui um endereço cadastrado.',
   ESG_METRICS_NOT_FOUND:
     'Uma ou mais métricas informadas não foram encontradas.',
-  ESG_METRICS_IN_USE:
-    'Não é possível desvincular parâmetros GRI usados como categoria de condicionantes desta empresa.',
   CUSTOMER_DOCUMENT_ALREADY_EXISTS:
     'Já existe uma empresa cadastrada com este CNPJ.',
   SECTOR_NOT_FOUND: 'O segmento informado não existe.',
+  DOCUMENT_FILE_REQUIRED: 'Selecione um arquivo para enviar.',
+  DOCUMENT_FILE_TOO_LARGE: 'O arquivo não pode ultrapassar 20 MB.',
+  DOCUMENT_INVALID_FILE_TYPE:
+    'Envie um arquivo válido nos formatos PDF, JPG, PNG ou DOCX.',
+  DOCUMENT_NOT_FOUND: 'Documento não encontrado.',
+  DOCUMENT_FOLDER_NOT_FOUND: 'Pasta não encontrada.',
+  DOCUMENT_FOLDER_ALREADY_EXISTS:
+    'Já existe uma pasta com este nome neste local.',
 } as const;

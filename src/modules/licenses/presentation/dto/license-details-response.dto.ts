@@ -9,17 +9,26 @@ import { License } from '../../domain/license.entity';
 import { LicenseCondition } from '../../domain/condition.entity';
 
 export class LicenseConditionDetailsResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+  @ApiProperty({ format: 'uuid', nullable: true })
+  id!: string | null;
 
   @ApiProperty({ example: '1.1' })
   item_number!: string;
 
-  @ApiProperty({ example: 'Refere-se à atividade de estacionamento...' })
-  description!: string;
+  @ApiProperty({ type: Boolean })
+  is_environmental_descriptor!: boolean;
 
-  @ApiProperty({ enum: ['Informativo', 'Periódico'] })
-  condition_type!: string;
+  @ApiProperty({ example: 'Resíduos sólidos' })
+  environmental_descriptor!: string;
+
+  @ApiProperty({ example: 'MTR mensal', nullable: true })
+  name!: string | null;
+
+  @ApiProperty({ nullable: true })
+  description!: string | null;
+
+  @ApiProperty({ enum: ['Informativo', 'Periódico'], nullable: true })
+  condition_type!: string | null;
 
   @ApiProperty({ example: 'NA' })
   periodicity!: string;
@@ -27,14 +36,17 @@ export class LicenseConditionDetailsResponseDto {
   @ApiProperty({ format: 'date-time', nullable: true })
   deadline!: string | null;
 
-  @ApiProperty({ enum: ['Atendida', 'Em andamento', 'Atrasada'] })
-  status!: string;
+  @ApiProperty({ nullable: true })
+  status!: string | null;
 
   @ApiProperty({ format: 'date-time', nullable: true })
   completion_date!: string | null;
 
-  @ApiProperty({ example: 'Lucas Silva' })
-  responsible_name!: string;
+  @ApiProperty({ nullable: true })
+  responsible_name!: string | null;
+
+  @ApiProperty({ type: Boolean, nullable: true })
+  has_delivery!: boolean | null;
 
   @ApiProperty({ type: Boolean })
   is_violated!: boolean;
@@ -97,52 +109,112 @@ export function toLicenseDetailsResponse(
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: LICENSE_STATUS_LABELS[license.status],
-    conditions: license.conditions.map(toLicenseConditionDetailsResponse),
+    conditions: toNumberedEnvironmentalDescriptorRows(license.conditions),
   };
 }
 
 export function toLicenseConditionDetailsResponse(
   condition: LicenseCondition,
+  itemNumber = '',
 ): LicenseConditionDetailsResponseDto {
   return {
     id: condition.id,
-    item_number: condition.itemNumber,
+    item_number: itemNumber,
+    is_environmental_descriptor: false,
+    environmental_descriptor: condition.environmentalDescriptor,
+    name: condition.title,
     description: condition.description,
-    condition_type: CONDITION_TYPE_LABELS[condition.conditionType],
+    condition_type:
+      condition.conditionType === null
+        ? null
+        : CONDITION_TYPE_LABELS[condition.conditionType],
     periodicity: condition.periodicity ?? 'NA',
     deadline: condition.deadline?.toISOString() ?? null,
     status: CONDITION_STATUS_LABELS[condition.status],
     completion_date: condition.completionDate?.toISOString() ?? null,
     responsible_name: condition.responsibleName,
-    is_violated: condition.status === ConditionStatus.OVERDUE,
+    has_delivery: condition.hasDelivery,
+    is_violated: condition.isViolated,
   };
+}
+
+function toNumberedEnvironmentalDescriptorRows(
+  conditions: LicenseCondition[],
+): LicenseConditionDetailsResponseDto[] {
+  const orderedConditions = [...conditions].sort(
+    (left, right) =>
+      left.createdAt.getTime() - right.createdAt.getTime() ||
+      left.id.localeCompare(right.id),
+  );
+  const conditionsByEnvironmentalDescriptor = new Map<
+    string,
+    LicenseCondition[]
+  >();
+
+  orderedConditions.forEach((condition) => {
+    const descriptorConditions =
+      conditionsByEnvironmentalDescriptor.get(
+        condition.environmentalDescriptor,
+      ) ?? [];
+    descriptorConditions.push(condition);
+    conditionsByEnvironmentalDescriptor.set(
+      condition.environmentalDescriptor,
+      descriptorConditions,
+    );
+  });
+
+  return [...conditionsByEnvironmentalDescriptor.entries()].flatMap(
+    ([environmentalDescriptor, descriptorConditions], descriptorIndex) => {
+      const descriptorNumber = String(descriptorIndex + 1);
+      const descriptorRow: LicenseConditionDetailsResponseDto = {
+        id: null,
+        item_number: descriptorNumber,
+        is_environmental_descriptor: true,
+        environmental_descriptor: environmentalDescriptor,
+        name: null,
+        description: null,
+        condition_type: null,
+        periodicity: 'NA',
+        deadline: null,
+        status: null,
+        completion_date: null,
+        responsible_name: null,
+        has_delivery: null,
+        is_violated: false,
+      };
+
+      return [
+        descriptorRow,
+        ...descriptorConditions.map((condition, conditionIndex) =>
+          toLicenseConditionDetailsResponse(
+            condition,
+            `${descriptorNumber}.${conditionIndex + 1}`,
+          ),
+        ),
+      ];
+    },
+  );
 }
 
 export function toConditionStatus(
   status: string | undefined,
-  isViolated: boolean | undefined,
 ): ConditionStatus | undefined {
-  if (status !== undefined) {
-    if (Object.values(ConditionStatus).includes(status as ConditionStatus)) {
-      return status as ConditionStatus;
-    }
-
-    switch (status) {
-      case 'Atendida':
-        return ConditionStatus.FULFILLED;
-      case 'Em atendimento':
-      case 'Em andamento':
-        return ConditionStatus.IN_PROGRESS;
-      case 'Atrasada':
-        return ConditionStatus.OVERDUE;
-    }
+  if (status === undefined) return undefined;
+  if (Object.values(ConditionStatus).includes(status as ConditionStatus)) {
+    return status as ConditionStatus;
   }
 
-  if (isViolated !== undefined) {
-    return isViolated ? ConditionStatus.OVERDUE : ConditionStatus.IN_PROGRESS;
+  switch (status) {
+    case 'Atendida':
+      return ConditionStatus.FULFILLED;
+    case 'Em atendimento':
+    case 'Em andamento':
+      return ConditionStatus.IN_PROGRESS;
+    case 'Atrasada':
+      return ConditionStatus.OVERDUE;
+    default:
+      return undefined;
   }
-
-  return undefined;
 }
 
 export function toNullableIsoDate(

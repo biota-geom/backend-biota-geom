@@ -20,6 +20,7 @@ const document: CustomerDocument = {
   uploadedBy: { id: 'user-1', name: 'Consultancy' },
   createdAt: new Date('2026-10-04T14:00:00.000Z'),
   deletedAt: null,
+  deletedById: null,
 };
 
 describe('DocumentsController', () => {
@@ -36,12 +37,14 @@ describe('DocumentsController', () => {
     name: 'Ambiental',
     createdAt: new Date('2026-10-21T18:00:00.000Z'),
   };
+  const remove = jest.fn().mockResolvedValue(undefined);
   const createFolder = jest.fn().mockResolvedValue(folder);
   const listFolders = jest.fn().mockResolvedValue([folder]);
   const controller = new DocumentsController(
     { execute: create } as never,
     { execute: list } as never,
     { execute: getUrl } as never,
+    { execute: remove } as never,
     { execute: createFolder } as never,
     { execute: listFolders } as never,
   );
@@ -109,6 +112,14 @@ describe('DocumentsController', () => {
       document_url: 'https://signed.example/document.pdf',
       expires_in: 900,
     });
+  });
+
+  it('forwards both route ids and the owner when deleting', async () => {
+    await expect(
+      controller.remove('customer-1', 'document-1', { id: 'user-1' }),
+    ).resolves.toBeUndefined();
+
+    expect(remove).toHaveBeenCalledWith('document-1', 'customer-1', 'user-1');
   });
 
   it('creates and lists user-defined folders', async () => {

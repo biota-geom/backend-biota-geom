@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { LicensesModule } from '../licenses/licenses.module';
 import { SectorsModule } from '../sectors/sectors.module';
 import { CreateCustomerUseCase } from './application/create-customer.use-case';
 import { FindCustomerUseCase } from './application/find-a-customer.use-case';
+import { GetCustomerDashboardConditionsUseCase } from './application/get-customer-dashboard-conditions.use-case';
 import { LinkCustomerEsgMetricsUseCase } from './application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from './application/list-customer-esg-metrics.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
@@ -16,7 +18,7 @@ import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
 import { CustomerController } from './presentation/customers.controller';
 
 @Module({
-  imports: [AuthModule, SectorsModule],
+  imports: [AuthModule, SectorsModule, forwardRef(() => LicensesModule)],
   controllers: [CustomerController],
   providers: [
     { provide: CustomerRepository, useClass: PrismaCustomerRepository },
@@ -31,6 +33,7 @@ import { CustomerController } from './presentation/customers.controller';
     UpdateCustomerUseCase,
     LinkCustomerEsgMetricsUseCase,
     ListCustomerEsgMetricsUseCase,
+    GetCustomerDashboardConditionsUseCase,
     CustomersService,
   ],
   // CustomerRepository scopes license operations to the authenticated owner's

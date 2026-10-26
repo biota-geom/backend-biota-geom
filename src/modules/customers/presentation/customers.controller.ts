@@ -34,6 +34,7 @@ import {
 } from '../../esg-metrics/presentation/dtos/esg-metric-response.dto';
 import { LinkCustomerEsgMetricsUseCase } from '../application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from '../application/list-customer-esg-metrics.use-case';
+import { GetCustomerDashboardConditionsUseCase } from '../application/get-customer-dashboard-conditions.use-case';
 import { CustomersService } from '../infra/customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import {
@@ -43,6 +44,10 @@ import {
 import { CustomerDetailResponseDto } from './dto/customer-detail-response.dto';
 import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
 import { CustomerResponseDTO } from './dto/customer-response.dto';
+import {
+  CustomerDashboardConditionsResponseDto,
+  toCustomerDashboardConditionsResponse,
+} from './dto/customer-dashboard-conditions-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomersExceptionFilter } from './filters/customers-exception.filter';
@@ -69,6 +74,7 @@ export class CustomerController {
     private readonly service: CustomersService,
     private readonly linkCustomerEsgMetricsUseCase: LinkCustomerEsgMetricsUseCase,
     private readonly listCustomerEsgMetricsUseCase: ListCustomerEsgMetricsUseCase,
+    private readonly getCustomerDashboardConditionsUseCase: GetCustomerDashboardConditionsUseCase,
   ) {}
 
   @Get()
@@ -142,6 +148,27 @@ export class CustomerController {
     @CurrentUser() user: { id: string },
   ): Promise<CustomerResponseDTO> {
     return this.service.findOne(id, user.id);
+  }
+
+  @Get(':customerId/dashboard/conditions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Returns condition compliance and critical conditions for a customer dashboard.',
+  })
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiOkResponse({ type: CustomerDashboardConditionsResponseDto })
+  async getCustomerDashboardConditions(
+    @Param('customerId', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<CustomerDashboardConditionsResponseDto> {
+    const dashboard = await this.getCustomerDashboardConditionsUseCase.execute(
+      customerId,
+      user.id,
+    );
+
+    return toCustomerDashboardConditionsResponse(dashboard);
   }
 
   @Put(':id')

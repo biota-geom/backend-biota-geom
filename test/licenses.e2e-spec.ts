@@ -12,8 +12,8 @@ import {
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
-import { LOCAL_STORAGE_URL_PREFIX } from '../src/modules/licenses/infra/storage/local-disk-license-document-storage';
-import { StorageConfigService } from '../src/modules/licenses/infra/storage/storage-config.service';
+import { LOCAL_STORAGE_URL_PREFIX } from '../src/common/storage/local-disk-file-storage';
+import { StorageConfigService } from '../src/common/storage/storage-config.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /*
@@ -117,7 +117,7 @@ describe('Licenses (e2e)', () => {
     // returned by the local storage driver to actually be servable.
     const storageConfig = app.get(StorageConfigService);
     app.useStaticAssets(join(storageConfig.localStorageDir, 'licenses'), {
-      prefix: `/${LOCAL_STORAGE_URL_PREFIX}`,
+      prefix: `/${LOCAL_STORAGE_URL_PREFIX}/licenses`,
     });
     await app.init();
 

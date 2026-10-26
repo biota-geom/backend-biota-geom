@@ -3,24 +3,21 @@ import { LicenseRepository } from '../licenses/domain/licenses.repository';
 import { PrismaLicenseRepository } from '../licenses/infra/prisma-license.repository';
 import { ListCustomerDashboardLicensesUseCase } from './application/list-customer-dashboard-licenses.use-case';
 import { CustomerModule } from './customers.module';
-import { CustomersService } from './infra/customers.service';
+import { LicensesModule } from '../licenses/licenses.module';
 
 describe('CustomerModule', () => {
   it('is defined', () => {
     expect(CustomerModule).toBeDefined();
   });
 
-  it('registers the dependencies for customer dashboard license lookup', () => {
-    const providers = Reflect.getMetadata(
-      MODULE_METADATA.PROVIDERS,
-      CustomerModule,
-    ) as unknown[];
+  it('resolves the licenses module forward reference', () => {
+    const imports = Reflect.getMetadata('imports', CustomerModule) as Array<{
+      forwardRef?: () => unknown;
+    }>;
+    const licensesModuleReference = imports.find(
+      (moduleReference) => moduleReference.forwardRef,
+    );
 
-    expect(providers).toContain(ListCustomerDashboardLicensesUseCase);
-    expect(providers).toContain(CustomersService);
-    expect(providers).toContainEqual({
-      provide: LicenseRepository,
-      useClass: PrismaLicenseRepository,
-    });
+    expect(licensesModuleReference?.forwardRef?.()).toBe(LicensesModule);
   });
 });

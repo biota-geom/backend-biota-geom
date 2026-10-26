@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { DocumentAccessUrl } from '../../domain/license-document-storage';
+import { FileAccessUrl } from '../../../../common/storage/file-storage';
 
 export class LicenseDocumentUrlResponseDto {
   @ApiProperty({
@@ -19,7 +19,7 @@ export class LicenseDocumentUrlResponseDto {
 }
 
 export function toLicenseDocumentUrlResponse(
-  accessUrl: DocumentAccessUrl,
+  accessUrl: FileAccessUrl,
 ): LicenseDocumentUrlResponseDto {
   return {
     document_url: accessUrl.url,

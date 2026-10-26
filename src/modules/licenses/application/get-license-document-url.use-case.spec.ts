@@ -1,4 +1,4 @@
-import { LicenseDocumentStorage } from '../domain/license-document-storage';
+import { FileStorage } from '../../../common/storage/file-storage';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { GetLicenseDocumentUrlUseCase } from './get-license-document-url.use-case';
@@ -16,7 +16,7 @@ describe('GetLicenseDocumentUrlUseCase', () => {
     const getAccessUrl = jest.fn().mockResolvedValue(accessUrl);
     const useCase = new GetLicenseDocumentUrlUseCase(
       { findByIdForOwner } as unknown as LicenseRepository,
-      { getAccessUrl } as unknown as LicenseDocumentStorage,
+      { getAccessUrl } as unknown as FileStorage,
     );
 
     return { useCase, findByIdForOwner, getAccessUrl };

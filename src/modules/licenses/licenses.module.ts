@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
+import { FileStorageModule } from '../../common/storage/file-storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
@@ -11,10 +12,6 @@ import { LicenseConditionRepository } from './domain/license-conditions.reposito
 import { LicenseRepository } from './domain/licenses.repository';
 import { PrismaLicenseConditionRepository } from './infra/prisma-license-condition.repository';
 import { PrismaLicenseRepository } from './infra/prisma-license.repository';
-import { licenseDocumentStorageProvider } from './infra/storage/license-document-storage.provider';
-import { LocalDiskLicenseDocumentStorage } from './infra/storage/local-disk-license-document-storage';
-import { S3LicenseDocumentStorage } from './infra/storage/s3-license-document-storage';
-import { StorageConfigService } from './infra/storage/storage-config.service';
 import { LicenseConditionsController } from './presentation/license-conditions.controller';
 import { LicenseDocumentsController } from './presentation/license-documents.controller';
 import {
@@ -28,7 +25,12 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
 import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
 @Module({
-  imports: [AuthModule, CustomerModule, IssuingAgenciesModule],
+  imports: [
+    AuthModule,
+    forwardRef(() => CustomerModule),
+    IssuingAgenciesModule,
+    FileStorageModule,
+  ],
   controllers: [
     LicensesController,
     LicenseRenewalsController,
@@ -52,10 +54,10 @@ import { GetLicenseDocumentUrlUseCase } from './application/get-license-document
     GetLicenseDocumentUrlUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
-    StorageConfigService,
-    LocalDiskLicenseDocumentStorage,
-    S3LicenseDocumentStorage,
-    licenseDocumentStorageProvider,
+  ],
+  exports: [
+    GetLicenseConditionsComplianceUseCase,
+    ListLicenseConditionsByCustomerUseCase,
   ],
 })
 export class LicensesModule {}

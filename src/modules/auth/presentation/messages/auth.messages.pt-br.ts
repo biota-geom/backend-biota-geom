@@ -25,4 +25,12 @@ export const AUTH_MESSAGES = {
   CUSTOMER_DOCUMENT_ALREADY_EXISTS:
     'Já existe uma empresa cadastrada com este CNPJ.',
   SECTOR_NOT_FOUND: 'O segmento informado não existe.',
+  DOCUMENT_FILE_REQUIRED: 'Selecione um arquivo para enviar.',
+  DOCUMENT_FILE_TOO_LARGE: 'O arquivo não pode ultrapassar 20 MB.',
+  DOCUMENT_INVALID_FILE_TYPE:
+    'Envie um arquivo válido nos formatos PDF, JPG, PNG ou DOCX.',
+  DOCUMENT_NOT_FOUND: 'Documento não encontrado.',
+  DOCUMENT_FOLDER_NOT_FOUND: 'Pasta não encontrada.',
+  DOCUMENT_FOLDER_ALREADY_EXISTS:
+    'Já existe uma pasta com este nome neste local.',
 } as const;

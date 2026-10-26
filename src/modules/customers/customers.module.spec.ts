@@ -1,7 +1,3 @@
-import { MODULE_METADATA } from '@nestjs/common/constants';
-import { LicenseRepository } from '../licenses/domain/licenses.repository';
-import { PrismaLicenseRepository } from '../licenses/infra/prisma-license.repository';
-import { ListCustomerDashboardLicensesUseCase } from './application/list-customer-dashboard-licenses.use-case';
 import { CustomerModule } from './customers.module';
 import { LicensesModule } from '../licenses/licenses.module';
 

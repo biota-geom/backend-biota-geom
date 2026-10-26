@@ -1,26 +1,19 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { FileStorage } from '../../../common/storage/file-storage';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
-import { IssuingAgencyRepository } from '../../issuing-agencies/domain/issuing-agencies.repository';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
-import { IssuingAgencyNotFoundError } from '../domain/errors/issuing-agency-not-found.error';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { CreateLicenseUseCase } from './create-license.use-case';
 
 function buildUseCase(overrides?: {
   customerRepository?: Partial<CustomerRepository>;
-  issuingAgencyRepository?: Partial<IssuingAgencyRepository>;
   licenseRepository?: Partial<LicenseRepository>;
   documentStorage?: Partial<FileStorage>;
 }) {
   const customerRepository: Partial<CustomerRepository> = {
     findOne: jest.fn().mockResolvedValue({ id: 'customer-1' }),
     ...overrides?.customerRepository,
-  };
-  const issuingAgencyRepository: Partial<IssuingAgencyRepository> = {
-    existsById: jest.fn().mockResolvedValue(true),
-    ...overrides?.issuingAgencyRepository,
   };
   const licenseRepository: Partial<LicenseRepository> = {
     create: jest.fn().mockResolvedValue({ id: 'license-1' }),
@@ -36,14 +29,12 @@ function buildUseCase(overrides?: {
   const useCase = new CreateLicenseUseCase(
     licenseRepository as LicenseRepository,
     customerRepository as CustomerRepository,
-    issuingAgencyRepository as IssuingAgencyRepository,
     documentStorage as FileStorage,
   );
 
   return {
     useCase,
     customerRepository,
-    issuingAgencyRepository,
     licenseRepository,
     documentStorage,
   };
@@ -52,9 +43,9 @@ function buildUseCase(overrides?: {
 const baseInput = {
   customerId: 'customer-1',
   ownerUserId: 'owner-1',
-  type: LicenseType.LO,
+  type: 'LO',
   processNumber: 'LO nº 118/2020',
-  issuingAgencyId: 'agency-1',
+  issuingAgency: 'FEPAM',
   issueDate: new Date('2020-01-10T00:00:00.000Z'),
   expirationDate: new Date('2099-01-10T00:00:00.000Z'),
   file: {
@@ -79,18 +70,6 @@ describe('CreateLicenseUseCase', () => {
     );
   });
 
-  it('throws IssuingAgencyNotFoundError when the issuing agency does not exist', async () => {
-    const { useCase } = buildUseCase({
-      issuingAgencyRepository: {
-        existsById: jest.fn().mockResolvedValue(false),
-      },
-    });
-
-    await expect(useCase.execute(baseInput)).rejects.toThrow(
-      IssuingAgencyNotFoundError,
-    );
-  });
-
   it('throws InvalidLicenseDateRangeError when expirationDate is not after issueDate', async () => {
     const { useCase } = buildUseCase();
 
@@ -104,9 +83,7 @@ describe('CreateLicenseUseCase', () => {
 
   it('never uploads the file when a prior validation fails', async () => {
     const { useCase, documentStorage } = buildUseCase({
-      issuingAgencyRepository: {
-        existsById: jest.fn().mockResolvedValue(false),
-      },
+      customerRepository: { findOne: jest.fn().mockResolvedValue(null) },
     });
 
     await expect(useCase.execute(baseInput)).rejects.toThrow();
@@ -126,13 +103,30 @@ describe('CreateLicenseUseCase', () => {
       customerId: baseInput.customerId,
       type: baseInput.type,
       processNumber: baseInput.processNumber,
-      issuingAgencyId: baseInput.issuingAgencyId,
+      issuingAgency: baseInput.issuingAgency,
       issueDate: baseInput.issueDate,
       expirationDate: baseInput.expirationDate,
       status: LicenseStatus.REGULAR,
       documentUrl: 'https://storage.example.com/license.pdf',
     });
     expect(result).toEqual({ id: 'license-1' });
+  });
+
+  it('persists free-text type and issuing agency exactly as given', async () => {
+    const { useCase, licenseRepository } = buildUseCase();
+
+    await useCase.execute({
+      ...baseInput,
+      type: 'LAO',
+      issuingAgency: 'Secretaria Municipal do Meio Ambiente',
+    });
+
+    expect(licenseRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'LAO',
+        issuingAgency: 'Secretaria Municipal do Meio Ambiente',
+      }),
+    );
   });
 
   it('computes EXPIRED for a past expiration date', async () => {

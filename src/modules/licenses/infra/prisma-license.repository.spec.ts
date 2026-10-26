@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
@@ -13,9 +13,9 @@ describe('PrismaLicenseRepository', () => {
 
     const data: CreateLicenseData = {
       customerId: 'customer-1',
-      type: LicenseType.LO,
+      type: 'LO',
       processNumber: 'LO nº 118/2020',
-      issuingAgencyId: 'agency-1',
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2020-01-10T00:00:00.000Z'),
       expirationDate: new Date('2025-01-10T00:00:00.000Z'),
       status: LicenseStatus.EXPIRED,
@@ -28,9 +28,9 @@ describe('PrismaLicenseRepository', () => {
     expect(create).toHaveBeenCalledWith({
       data: {
         customer: { connect: { id: 'customer-1' } },
-        type: LicenseType.LO,
+        type: 'LO',
         processNumber: 'LO nº 118/2020',
-        issuingAgency: { connect: { id: 'agency-1' } },
+        issuingAgency: 'FEPAM',
         issueDate: data.issueDate,
         expirationDate: data.expirationDate,
         status: LicenseStatus.EXPIRED,
@@ -58,9 +58,9 @@ describe('PrismaLicenseRepository', () => {
       repository.renew({
         previousLicenseId: 'old-license',
         customerId: 'customer-1',
-        type: LicenseType.LO,
+        type: 'LO',
         processNumber: 'LO nº 119/2026',
-        issuingAgencyId: 'agency-1',
+        issuingAgency: 'FEPAM',
         issueDate,
         expirationDate,
         status: LicenseStatus.REGULAR,
@@ -71,9 +71,9 @@ describe('PrismaLicenseRepository', () => {
     expect(create).toHaveBeenCalledWith({
       data: {
         customer: { connect: { id: 'customer-1' } },
-        type: LicenseType.LO,
+        type: 'LO',
         processNumber: 'LO nº 119/2026',
-        issuingAgency: { connect: { id: 'agency-1' } },
+        issuingAgency: 'FEPAM',
         issueDate,
         expirationDate,
         status: LicenseStatus.REGULAR,

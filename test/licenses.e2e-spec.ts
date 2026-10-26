@@ -3,12 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import {
-  AddressType,
-  DocumentType,
-  EsgPillar,
-  LicenseType,
-} from '@prisma/client';
+import { AddressType, DocumentType, EsgPillar } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
@@ -78,7 +73,7 @@ describe('Licenses (e2e)', () => {
 
   function createLicenseRequest(overrides: Record<string, string> = {}) {
     const fields = {
-      type: LicenseType.LO,
+      type: 'LO',
       process_number: 'LO nº 118/2020',
       issuing_agency_id: issuingAgencyId,
       issue_date: '2015-01-10T00:00:00.000Z',
@@ -663,7 +658,7 @@ describe('Licenses (e2e)', () => {
           .post(`/api/customers/${panelCustomerId}/licenses`)
           .set('Authorization', `Bearer ${panelToken}`);
         const fields = {
-          type: LicenseType.LO,
+          type: 'LO',
           process_number: processNumber,
           issuing_agency_id: issuingAgencyId,
           issue_date: '2015-01-10T00:00:00.000Z',

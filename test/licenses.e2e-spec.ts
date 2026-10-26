@@ -41,7 +41,6 @@ describe('Licenses (e2e)', () => {
   let prisma: PrismaService;
   let token: string;
   let customerId: string;
-  let issuingAgencyId: string;
 
   async function createUserAndLogin(): Promise<string> {
     const email = `owner-${uniqueSuffix()}@biotageom.com.br`;
@@ -75,7 +74,7 @@ describe('Licenses (e2e)', () => {
     const fields = {
       type: 'LO',
       process_number: 'LO nº 118/2020',
-      issuing_agency_id: issuingAgencyId,
+      issuing_agency: 'FEPAM',
       issue_date: '2015-01-10T00:00:00.000Z',
       expiration_date: '2099-01-10T00:00:00.000Z',
       ...overrides,
@@ -121,11 +120,6 @@ describe('Licenses (e2e)', () => {
     const sector = await prisma.sector.create({
       data: { name: `Setor Licenças ${uniqueSuffix()}` },
     });
-    const issuingAgency = await prisma.issuingAgency.create({
-      data: { name: `Órgão Licenças ${uniqueSuffix()}`, acronym: 'TEST' },
-    });
-    issuingAgencyId = issuingAgency.id;
-
     token = await createUserAndLogin();
 
     const customerResponse = await request(app.getHttpServer())
@@ -318,7 +312,33 @@ describe('Licenses (e2e)', () => {
       .expect(404);
   });
 
-  it('answers 422 for an unknown issuing agency', async () => {
+  it('creates a license with free-text type and issuing agency', async () => {
+    const response = await createLicenseRequest({
+      type: 'LAO',
+      issuing_agency: 'Secretaria Municipal do Meio Ambiente',
+    })
+      .attach('document_file', PDF_HEADER, {
+        filename: 'licenca.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      type: 'LAO',
+      issuing_agency: 'Secretaria Municipal do Meio Ambiente',
+    });
+  });
+
+  it('answers 400 for a whitespace-only issuing_agency', async () => {
+    await createLicenseRequest({ issuing_agency: '   ' })
+      .attach('document_file', PDF_HEADER, {
+        filename: 'licenca.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+  });
+
+  it('answers 400 when the legacy issuing_agency_id field is sent', async () => {
     await createLicenseRequest({
       issuing_agency_id: '00000000-0000-4000-8000-000000000000',
     })
@@ -326,9 +346,8 @@ describe('Licenses (e2e)', () => {
         filename: 'licenca.pdf',
         contentType: 'application/pdf',
       })
-      .expect(422);
+      .expect(400);
   });
-
   it('answers 400 when expiration_date is not after issue_date', async () => {
     await createLicenseRequest({
       issue_date: '2025-01-10T00:00:00.000Z',
@@ -660,7 +679,7 @@ describe('Licenses (e2e)', () => {
         const fields = {
           type: 'LO',
           process_number: processNumber,
-          issuing_agency_id: issuingAgencyId,
+          issuing_agency: 'FEPAM',
           issue_date: '2015-01-10T00:00:00.000Z',
           expiration_date: expirationDate,
         };

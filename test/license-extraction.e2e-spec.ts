@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AddressType, ConditionStatus, DocumentType } from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { FileStorage } from '../src/common/storage/file-storage';
+import { StorageConfigService } from '../src/common/storage/storage-config.service';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
 import { LicenseExtractionUnavailableError } from '../src/modules/licenses/domain/errors/license-extraction-unavailable.error';
 import { UnreadableLicenseDocumentError } from '../src/modules/licenses/domain/errors/unreadable-license-document.error';
@@ -68,6 +72,17 @@ describe('License extraction (e2e)', () => {
     return request(app.getHttpServer())
       .post('/api/licenses/extract')
       .set('Authorization', `Bearer ${token}`);
+  }
+
+  // Every file under the local storage dir, so a stray write is detectable.
+  async function listStoredFiles(): Promise<string[]> {
+    const root = app.get(StorageConfigService).localStorageDir;
+    try {
+      const entries = await readdir(root, { recursive: true });
+      return entries.map((entry) => join(root, entry)).sort();
+    } catch {
+      return [];
+    }
   }
 
   async function countRecords() {
@@ -138,6 +153,8 @@ describe('License extraction (e2e)', () => {
 
   it('returns the suggestions in the snake_case contract without persisting anything', async () => {
     const before = await countRecords();
+    const filesBefore = await listStoredFiles();
+    const upload = jest.spyOn(app.get(FileStorage), 'upload');
 
     const response = await postExtract()
       .attach('document', PDF, {
@@ -172,7 +189,12 @@ describe('License extraction (e2e)', () => {
       ],
     });
     expect(extract).toHaveBeenCalledWith(PDF);
+    // The PDF only lives in memory: no DB rows, no storage upload (local or
+    // S3), no file written.
     await expect(countRecords()).resolves.toEqual(before);
+    expect(upload).not.toHaveBeenCalled();
+    await expect(listStoredFiles()).resolves.toEqual(filesBefore);
+    upload.mockRestore();
   });
 
   it('rejects a request without the document field with 422', async () => {

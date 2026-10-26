@@ -7,6 +7,16 @@ const INSECURE_PLACEHOLDER_SECRETS = new Set([
   'replace-with-a-random-secret-at-least-32-characters-refresh',
 ]);
 
+/*
+ * Docker Compose (`${VAR:-}`) and an `.env` copied from `.env.example`
+ * (`VAR=`) hand an unset optional variable over as an empty string; treat it
+ * as absent instead of failing the boot.
+ */
+const optionalSecret = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -47,7 +57,7 @@ export const envSchema = z
     // Amazon Bedrock (AI-assisted license extraction). Optional so the rest
     // of the API boots without it; the extraction endpoint answers 503 then.
     // Reuses AWS_REGION above and authenticates with a Bedrock API key.
-    AWS_BEARER_TOKEN_BEDROCK: z.string().min(1).optional(),
+    AWS_BEARER_TOKEN_BEDROCK: optionalSecret,
     BEDROCK_MODEL_ID: z.string().min(1).default('us.amazon.nova-2-lite-v1:0'),
     BEDROCK_TIMEOUT_MS: z.coerce
       .number()

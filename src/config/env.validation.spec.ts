@@ -247,6 +247,13 @@ describe('validateEnv', () => {
     ).toBe('api-key');
   });
 
+  it('treats an empty Bedrock API key (VAR= / ${VAR:-}) as not configured', () => {
+    expect(
+      validateEnv({ ...VALID_BASE, AWS_BEARER_TOKEN_BEDROCK: '' })
+        .AWS_BEARER_TOKEN_BEDROCK,
+    ).toBeUndefined();
+  });
+
   it('coerces BEDROCK_TIMEOUT_MS from a string', () => {
     const result = validateEnv({ ...VALID_BASE, BEDROCK_TIMEOUT_MS: '30000' });
 

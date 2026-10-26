@@ -16,6 +16,14 @@ services:
       JWT_AUDIENCE: ${JWT_AUDIENCE:-biota-geom-web}
       AUTH_ALLOWED_EMAIL_DOMAIN: ${AUTH_ALLOWED_EMAIL_DOMAIN:-biotageom.com.br}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      # Amazon Bedrock (POST /api/licenses/extract). Values come from the
+      # host shell or the gitignored .env next to this file — never commit the
+      # key. Without it the API still boots and the endpoint answers 503.
+      # The PDF is read in memory only, so no volume is needed for it.
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.amazon.nova-2-lite-v1:0}
+      BEDROCK_TIMEOUT_MS: ${BEDROCK_TIMEOUT_MS:-60000}
     ports:
       - '3000:3000'
     depends_on:

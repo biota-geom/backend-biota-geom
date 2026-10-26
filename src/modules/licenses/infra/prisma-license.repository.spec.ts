@@ -5,7 +5,7 @@ import { LicenseConditionNotFoundError } from '../domain/errors/license-conditio
 import { PrismaLicenseRepository } from './prisma-license.repository';
 
 describe('PrismaLicenseRepository', () => {
-  it('creates a license connected to its customer and issuing agency', async () => {
+  it('creates a license connected to its customer', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'license-1' });
     const repository = new PrismaLicenseRepository({
       license: { create },
@@ -37,7 +37,6 @@ describe('PrismaLicenseRepository', () => {
         documentUrl: 'https://storage.example.com/license.pdf',
         previousLicense: undefined,
       },
-      include: { issuingAgency: true },
     });
   });
 
@@ -80,7 +79,6 @@ describe('PrismaLicenseRepository', () => {
         documentUrl: 'https://storage.example.com/new.pdf',
         previousLicense: { connect: { id: 'old-license' } },
       },
-      include: { issuingAgency: true },
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: 'old-license' },
@@ -99,12 +97,11 @@ describe('PrismaLicenseRepository', () => {
     );
     expect(findMany).toHaveBeenCalledWith({
       where: { customerId: 'customer-1' },
-      include: { issuingAgency: true },
       orderBy: { expirationDate: 'asc' },
     });
   });
 
-  it('finds a license by id with its issuing agency', async () => {
+  it('finds a license by id', async () => {
     const findUnique = jest.fn().mockResolvedValue({ id: 'license-1' });
     const repository = new PrismaLicenseRepository({
       license: { findUnique },
@@ -115,7 +112,6 @@ describe('PrismaLicenseRepository', () => {
     });
     expect(findUnique).toHaveBeenCalledWith({
       where: { id: 'license-1' },
-      include: { issuingAgency: true },
     });
   });
 
@@ -130,7 +126,6 @@ describe('PrismaLicenseRepository', () => {
     ).resolves.toEqual({ id: 'license-1' });
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 'license-1', customer: { ownerUserId: 'owner-1' } },
-      include: { issuingAgency: true },
     });
   });
 
@@ -170,7 +165,6 @@ describe('PrismaLicenseRepository', () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 'license-1', customerId: 'customer-1' },
       include: {
-        issuingAgency: true,
         conditions: { orderBy: { createdAt: 'asc' } },
       },
     });

@@ -21,7 +21,7 @@ export class LicensePanelItemDto {
   @ApiProperty({ format: 'uuid', example: 'uuid-licenca-1' })
   id!: string;
 
-  @ApiProperty({ example: 'Licença Prévia (LP)' })
+  @ApiProperty({ example: 'LP' })
   type!: string;
 
   @ApiProperty({ example: 'LP nº 482/2024' })

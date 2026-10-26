@@ -175,14 +175,14 @@ describe('LicensesController', () => {
         licenses: [
           expect.objectContaining({
             id: 'license-1',
-            type: 'Licença Prévia (LP)',
+            type: 'LP',
             process_number: 'LP nº 482/2024',
             issuing_agency: 'FEPAM',
             status: 'Regular',
           }),
           expect.objectContaining({
             id: 'license-2',
-            type: 'Licença de Operação (LO)',
+            type: 'LO',
             process_number: 'LO nº 118/2020',
             issuing_agency: 'FEPAM',
             status: 'Vencida',

@@ -59,7 +59,7 @@ export class LicenseDetailsResponseDto {
   @ApiProperty({ example: 'LP nº 482/2024' })
   process_number!: string;
 
-  @ApiProperty({ example: 'Licença Prévia (LP)' })
+  @ApiProperty({ example: 'LP' })
   type!: string;
 
   @ApiProperty({ example: 'FEPAM', nullable: true })

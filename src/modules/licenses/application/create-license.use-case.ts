@@ -25,8 +25,8 @@ export class CreateLicenseUseCase {
   constructor(
     private readonly licenseRepository: LicenseRepository,
     private readonly customerRepository: CustomerRepository,
-  
-  private readonly documentStorage: FileStorage,
+
+    private readonly documentStorage: FileStorage,
   ) {}
 
   async execute(input: CreateLicenseInput): Promise<License> {

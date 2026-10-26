@@ -19,4 +19,10 @@ export const LICENSES_MESSAGES = {
     'A data de vencimento deve ser uma data futura.',
   CONDITION_DUE_DATE_REQUIRED:
     'A data de vencimento é obrigatória para registar a condicionante.',
+  EXTRACTION_UNREADABLE:
+    'Não foi possível ler os dados deste documento. Preencha os campos manualmente.',
+  EXTRACTION_UNAVAILABLE:
+    'A leitura automática do documento está indisponível no momento. Preencha os campos manualmente.',
+  EXTRACTION_TIMEOUT:
+    'A leitura do documento demorou mais que o esperado. Tente novamente ou preencha os campos manualmente.',
 } as const;

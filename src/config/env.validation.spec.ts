@@ -36,6 +36,8 @@ describe('validateEnv', () => {
       LOCAL_STORAGE_DIR: './storage',
       AWS_REGION: 'us-east-1',
       AWS_S3_SIGNED_URL_TTL_SECONDS: 900,
+      BEDROCK_MODEL_ID: 'us.amazon.nova-2-lite-v1:0',
+      BEDROCK_TIMEOUT_MS: 60_000,
     });
   });
 
@@ -234,6 +236,29 @@ describe('validateEnv', () => {
       expect(() =>
         validateEnv({ ...VALID_BASE, AWS_S3_SIGNED_URL_TTL_SECONDS: value }),
       ).toThrow(/AWS_S3_SIGNED_URL_TTL_SECONDS/);
+    },
+  );
+
+  it('keeps the Bedrock API key optional so the API boots without it', () => {
+    expect(validateEnv(VALID_BASE).AWS_BEARER_TOKEN_BEDROCK).toBeUndefined();
+    expect(
+      validateEnv({ ...VALID_BASE, AWS_BEARER_TOKEN_BEDROCK: 'api-key' })
+        .AWS_BEARER_TOKEN_BEDROCK,
+    ).toBe('api-key');
+  });
+
+  it('coerces BEDROCK_TIMEOUT_MS from a string', () => {
+    const result = validateEnv({ ...VALID_BASE, BEDROCK_TIMEOUT_MS: '30000' });
+
+    expect(result.BEDROCK_TIMEOUT_MS).toBe(30_000);
+  });
+
+  it.each(['999', '120001', 'abc'])(
+    'rejects BEDROCK_TIMEOUT_MS=%s (outside 1s-120s)',
+    (value) => {
+      expect(() =>
+        validateEnv({ ...VALID_BASE, BEDROCK_TIMEOUT_MS: value }),
+      ).toThrow(/BEDROCK_TIMEOUT_MS/);
     },
   );
 

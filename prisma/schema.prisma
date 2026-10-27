@@ -160,7 +160,8 @@ model EsgMetric {
   createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customerLinks CustomerEsgMetric[]
+  customerLinks    CustomerEsgMetric[]
+  indicatorRecords EsgIndicatorRecord[]
 
   @@unique([customerId, name])
   @@index([griStandardId])
@@ -444,31 +445,26 @@ model Alert {
   @@map("alert")
 }
 
-enum EsgIndicator {
-  WATER
-  WASTE
-  EMPLOYEES
-  ENERGY
-
-  @@map("esg_indicator")
-}
-
 // Monthly operational indicators a customer reports (US11). One row per
 // customer + indicator + month; saving the same month again updates the row.
+// The indicator is a catalog entry (EsgMetric); the ones a customer reports
+// are the ones linked to it through CustomerEsgMetric.
 model EsgIndicatorRecord {
-  id             String       @id @default(uuid(7)) @db.Uuid
-  customerId     String       @map("customer_id") @db.Uuid
-  indicator      EsgIndicator
+  id             String   @id @default(uuid(7)) @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  indicatorId    String   @map("indicator_id") @db.Uuid
   // Always the first day of the month (a DATE, no time zone).
-  referenceMonth DateTime     @map("reference_month") @db.Date
-  value          Decimal      @db.Decimal(18, 4)
+  referenceMonth DateTime @map("reference_month") @db.Date
+  value          Decimal  @db.Decimal(18, 4)
   // Where the value came from (e.g. a utility bill or meter reading).
-  source         String?      @db.VarChar(255)
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  source         String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  indicator EsgMetric @relation(fields: [indicatorId], references: [id], onDelete: Restrict)
 
-  @@unique([customerId, indicator, referenceMonth])
+  @@unique([customerId, indicatorId, referenceMonth], map: "esg_indicator_record_customer_indicator_month_key")
+  @@index([indicatorId])
   @@map("esg_indicator_record")
 }

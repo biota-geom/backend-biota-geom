@@ -1,42 +1,54 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  EsgIndicatorChanges,
-  EsgIndicatorValues,
+  type IndicatorCategory,
+  IndicatorDefinition,
+  IndicatorRecordChange,
+  INDICATOR_CATEGORIES,
+  MonthlyIndicator,
 } from '../../domain/esg-indicator';
 import { SaveEsgIndicatorsDto } from './save-esg-indicators.dto';
 
-export class EsgIndicatorsResponseDto {
+export class MonthlyIndicatorResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  indicator_id!: string;
+
+  @ApiProperty({ example: 'Consumo de Água' })
+  name!: string;
+
+  @ApiProperty({ example: 'm³' })
+  unit!: string;
+
+  @ApiProperty({ enum: INDICATOR_CATEGORIES, example: 'Ambiental' })
+  category!: IndicatorCategory;
+
   @ApiProperty({ type: Number, nullable: true, example: 1250.5 })
-  water!: number | null;
-
-  @ApiProperty({ type: Number, nullable: true, example: 12.3 })
-  waste!: number | null;
-
-  @ApiProperty({ type: Number, nullable: true, example: 148 })
-  employees!: number | null;
-
-  @ApiProperty({ type: Number, nullable: true, example: 53200 })
-  energy!: number | null;
+  value!: number | null;
 }
 
-export function toEsgIndicatorsResponse(
-  values: EsgIndicatorValues,
-): EsgIndicatorsResponseDto {
+export function toMonthlyIndicatorResponse(
+  indicator: MonthlyIndicator,
+): MonthlyIndicatorResponseDto {
   return {
-    water: values.WATER,
-    waste: values.WASTE,
-    employees: values.EMPLOYEES,
-    energy: values.ENERGY,
+    indicator_id: indicator.id,
+    name: indicator.name,
+    unit: indicator.unit,
+    category: indicator.category,
+    value: indicator.value,
   };
 }
 
-export function toEsgIndicatorChanges(
+// A freshly created indicator has no value yet: same shape as the list items.
+export function toNewIndicatorResponse(
+  indicator: IndicatorDefinition,
+): MonthlyIndicatorResponseDto {
+  return toMonthlyIndicatorResponse({ ...indicator, value: null });
+}
+
+export function toIndicatorRecordChanges(
   dto: SaveEsgIndicatorsDto,
-): EsgIndicatorChanges {
-  return {
-    WATER: dto.water,
-    WASTE: dto.waste,
-    EMPLOYEES: dto.employees,
-    ENERGY: dto.energy,
-  };
+): IndicatorRecordChange[] {
+  return dto.records.map((record) => ({
+    indicatorId: record.indicator_id,
+    value: record.value,
+  }));
 }

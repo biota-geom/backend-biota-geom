@@ -15,6 +15,10 @@ export abstract class EsgIndicatorRecordRepository {
     referenceMonth: Date,
   ): Promise<Map<string, number>>;
 
+  // The most recent month with a record of an indicator still linked to the
+  // customer, or null when there is none.
+  abstract findLatestMonth(customerId: string): Promise<Date | null>;
+
   /*
    * Applies every change in one transaction (all or nothing). Saving an
    * indicator that already has a record for the month corrects it; it never

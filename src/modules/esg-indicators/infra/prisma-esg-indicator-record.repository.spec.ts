@@ -8,20 +8,45 @@ function buildRepository() {
   const upsert = jest.fn().mockResolvedValue(undefined);
   const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
   const findMany = jest.fn();
+  const findFirst = jest.fn();
   const tx = { esgIndicatorRecord: { upsert, deleteMany } };
   const $transaction = jest.fn((callback: (client: typeof tx) => unknown) =>
     callback(tx),
   );
 
   const repository = new PrismaEsgIndicatorRecordRepository({
-    esgIndicatorRecord: { findMany },
+    esgIndicatorRecord: { findMany, findFirst },
     $transaction,
   } as unknown as PrismaService);
 
-  return { repository, upsert, deleteMany, findMany, $transaction };
+  return { repository, upsert, deleteMany, findMany, findFirst, $transaction };
 }
 
 describe('PrismaEsgIndicatorRecordRepository', () => {
+  it('returns the most recent month of an indicator still linked to the customer', async () => {
+    const { repository, findFirst } = buildRepository();
+    findFirst.mockResolvedValue({ referenceMonth: MONTH });
+
+    await expect(repository.findLatestMonth('customer-1')).resolves.toEqual(
+      MONTH,
+    );
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        customerId: 'customer-1',
+        indicator: { customerLinks: { some: { customerId: 'customer-1' } } },
+      },
+      orderBy: { referenceMonth: 'desc' },
+      select: { referenceMonth: true },
+    });
+  });
+
+  it('returns null as the latest month when there is no record', async () => {
+    const { repository, findFirst } = buildRepository();
+    findFirst.mockResolvedValue(null);
+
+    await expect(repository.findLatestMonth('customer-1')).resolves.toBeNull();
+  });
+
   it('maps the stored values by indicator id', async () => {
     const { repository, findMany } = buildRepository();
     findMany.mockResolvedValue([

@@ -3,10 +3,12 @@ import { AddressType, DocumentType } from '@prisma/client';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateCustomerUseCase } from '../application/create-customer.use-case';
 import { FindCustomerUseCase } from '../application/find-a-customer.use-case';
+import { ListCustomerDashboardLicensesUseCase } from '../application/list-customer-dashboard-licenses.use-case';
 import { ListCustomersUseCase } from '../application/list-customers.use-case';
 import { RemoveCustomerUseCase } from '../application/remove-customer.use-case';
 import { UpdateCustomerUseCase } from '../application/update-customer.use-case';
 import { CreateCustomerData } from '../domain/create-customer.data';
+import { CustomerLicenseDetailsResponseDto } from '../presentation/dto/customer-license-details.dto';
 import { UpdateCustomerDto } from '../presentation/dto/update-customer.dto';
 import { CustomersService } from './customers.service';
 
@@ -18,6 +20,7 @@ function buildService(overrides: {
   findCustomer?: jest.Mock;
   updateCustomerUseCase?: Pick<UpdateCustomerUseCase, 'execute'>;
   removeCustomer?: jest.Mock;
+  listCustomerDashboardLicenses?: jest.Mock;
 }): CustomersService {
   const listCustomersUseCase = {
     listCustomers: overrides.listCustomers ?? jest.fn(),
@@ -34,6 +37,9 @@ function buildService(overrides: {
   const removeCustomerUseCase = {
     removeCustomer: overrides.removeCustomer ?? jest.fn(),
   };
+  const listCustomerDashboardLicensesUseCase = {
+    execute: overrides.listCustomerDashboardLicenses ?? jest.fn(),
+  };
 
   return new CustomersService(
     listCustomersUseCase as unknown as ListCustomersUseCase,
@@ -41,6 +47,7 @@ function buildService(overrides: {
     findCustomerUseCase as unknown as FindCustomerUseCase,
     updateCustomerUseCase as unknown as UpdateCustomerUseCase,
     removeCustomerUseCase as unknown as RemoveCustomerUseCase,
+    listCustomerDashboardLicensesUseCase as unknown as ListCustomerDashboardLicensesUseCase,
   );
 }
 
@@ -202,5 +209,24 @@ describe('CustomersService', () => {
     await expect(
       buildService({ removeCustomer }).remove('missing-id', OWNER),
     ).rejects.toEqual(new NotFoundException(AUTH_MESSAGES.CUSTOMER_NOT_FOUND));
+  });
+
+  it('delegates the customer dashboard license lookup to its use case', async () => {
+    const result: CustomerLicenseDetailsResponseDto = {
+      header: { active_licenses: 1, pending_items: 0 },
+      counts: { regular: 1, pending: 0, expired: 0 },
+      critical: [],
+    };
+    const listCustomerDashboardLicenses = jest.fn().mockResolvedValue(result);
+
+    await expect(
+      buildService({
+        listCustomerDashboardLicenses,
+      }).listCustomerDashboardLicenses('customer-1', OWNER),
+    ).resolves.toBe(result);
+    expect(listCustomerDashboardLicenses).toHaveBeenCalledWith(
+      'customer-1',
+      OWNER,
+    );
   });
 });

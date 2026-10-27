@@ -203,7 +203,7 @@ export class LicensesController {
   })
   @ApiCreatedResponse({ type: LicenseCreatedResponseDto })
   @ApiUnprocessableEntityResponse({
-    description: 'Órgão emissor inexistente ou arquivo inválido.',
+    description: 'Arquivo inválido: não é PDF ou excede 5 MB.',
   })
   async createLicense(
     @Param('customerId', uuidPipe) customerId: string,

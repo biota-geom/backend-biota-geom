@@ -22,6 +22,17 @@ describe('CreateCustomerIndicatorDto', () => {
     expect(dto.unit).toBe('L');
   });
 
+  it('leaves non-string name and unit values unchanged', () => {
+    const dto = plainToInstance(CreateCustomerIndicatorDto, {
+      name: 123,
+      unit: null,
+      category: 'Ambiental',
+    });
+
+    expect(dto.name).toBe(123);
+    expect(dto.unit).toBeNull();
+  });
+
   it.each(['Ambiental', 'Social', 'Governança'])(
     'accepts %s',
     async (category) => {

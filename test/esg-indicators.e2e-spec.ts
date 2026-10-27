@@ -209,9 +209,9 @@ describe('ESG indicators (e2e)', () => {
     const itemsB = b.body as IndicatorItem[];
 
     expect(itemsA.map((item) => item.name).sort()).toEqual([
-      `${METRIC_PREFIX} Água`,
       `${METRIC_PREFIX} Colaboradores`,
       `${METRIC_PREFIX} Resíduos`,
+      `${METRIC_PREFIX} Água`,
     ]);
     expect(itemsB.map((item) => item.name).sort()).toEqual([
       `${METRIC_PREFIX} CO2`,

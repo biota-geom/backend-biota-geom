@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { FileStorageModule } from '../../common/storage/file-storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
@@ -27,7 +27,7 @@ import { GetLicenseDocumentUrlUseCase } from './application/get-license-document
 @Module({
   imports: [
     AuthModule,
-    CustomerModule,
+    forwardRef(() => CustomerModule),
     IssuingAgenciesModule,
     FileStorageModule,
   ],
@@ -54,6 +54,10 @@ import { GetLicenseDocumentUrlUseCase } from './application/get-license-document
     GetLicenseDocumentUrlUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
+  ],
+  exports: [
+    GetLicenseConditionsComplianceUseCase,
+    ListLicenseConditionsByCustomerUseCase,
   ],
 })
 export class LicensesModule {}

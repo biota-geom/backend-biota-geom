@@ -85,6 +85,7 @@ model Customer {
   esgIndicatorRecords EsgIndicatorRecord[]
   documents           Document[]
   documentFolders     DocumentFolder[]
+  alerts              Alert[]
 
   @@unique([ownerUserId, document])
   @@map("customers")
@@ -127,19 +128,37 @@ model Sector {
   @@map("sectors")
 }
 
+// GRI catalog (e.g. "GRI 303-3 Water withdrawal"). Global, not per tenant.
+model GriStandard {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  code        String    @unique @db.VarChar(30)
+  name        String    @db.VarChar(255)
+  pillar      EsgPillar
+  description String?   @db.VarChar(1000)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  esgMetrics EsgMetric[]
+
+  @@map("gri_standard")
+}
+
 model EsgMetric {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  griStandardId String?   @map("gri_standard_id") @db.Uuid
+  id            String       @id @default(uuid(7)) @db.Uuid
+  griStandardId String?      @map("gri_standard_id") @db.Uuid
+  // onDelete: SetNull — removing a GRI entry from the catalog must not drop
+  // the metrics already in use; they just lose the reference.
+  griStandard   GriStandard? @relation(fields: [griStandardId], references: [id], onDelete: SetNull)
   // Nulo = métrica global (visível a todos). Preenchido = métrica do cliente.
   // TODO: ao habilitar métricas por cliente, migrar `name @unique` para
   // único-por-cliente (índice parcial nas globais + @@unique([customerId, name])).
-  customerId    String?   @map("customer_id") @db.Uuid
-  customer      User?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  name          String    @db.VarChar(120)
-  unit          String    @db.VarChar(30)
+  customerId    String?      @map("customer_id") @db.Uuid
+  customer      User?        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  name          String       @db.VarChar(120)
+  unit          String       @db.VarChar(30)
   pillar        EsgPillar
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   customerLinks    CustomerEsgMetric[]
   indicatorRecords EsgIndicatorRecord[]
@@ -297,8 +316,16 @@ model License {
   previousLicense License?           @relation("LicenseRenewalHistory", fields: [previousLicenseId], references: [id], onDelete: SetNull)
   renewals        License[]          @relation("LicenseRenewalHistory")
 
+  // Legislation the license is grounded on. Optional: licenses registered
+  // before the legislation catalog existed have none.
+  legislationId String?      @map("legislation_id") @db.Uuid
+  legislation   Legislation? @relation(fields: [legislationId], references: [id], onDelete: SetNull)
+
+  alerts Alert[]
+
   @@index([customerId])
   @@index([previousLicenseId])
+  @@index([legislationId])
   @@map("licenses")
 }
 
@@ -325,9 +352,97 @@ model LicenseCondition {
   licenseId String  @map("license_id") @db.Uuid
   license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 
+  alerts Alert[]
+
   @@index([licenseId])
   @@index([dueDate])
   @@map("license_condition")
+}
+
+enum GovernmentSphere {
+  FEDERAL
+  STATE
+  MUNICIPAL
+
+  @@map("government_sphere")
+}
+
+// Global legislation catalog fed by the Biota-Geom staff (Epic 7 — Radar).
+model Legislation {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  title           String           @db.VarChar(255)
+  // Official act number, e.g. "491/2018". Free text: formats vary by sphere.
+  number          String           @db.VarChar(50)
+  sphere          GovernmentSphere
+  publicationDate DateTime         @map("publication_date") @db.Date
+  summary         String?          @db.VarChar(4095)
+  sourceUrl       String?          @map("source_url") @db.VarChar(2048)
+  // Highlights recently published acts in the radar feed.
+  isNew           Boolean          @default(true) @map("is_new")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  licenses License[]
+  alerts   Alert[]
+
+  @@index([publicationDate(sort: Desc)])
+  @@map("legislation")
+}
+
+enum AlertType {
+  LICENSE_EXPIRATION
+  CONDITION_DUE
+  NEW_LEGISLATION
+
+  @@map("alert_type")
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("alert_severity")
+}
+
+enum AlertStatus {
+  OPEN
+  READ
+  RESOLVED
+
+  @@map("alert_status")
+}
+
+// Notification about a customer. Always scoped to the customer; the optional
+// license / condition / legislation say which record raised it.
+model Alert {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  type      AlertType
+  severity  AlertSeverity
+  title     String        @db.VarChar(160)
+  message   String        @db.VarChar(1000)
+  dueDate   DateTime?     @map("due_date") @db.Timestamptz(3)
+  status    AlertStatus   @default(OPEN)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  licenseId String?  @map("license_id") @db.Uuid
+  license   License? @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  licenseConditionId String?           @map("license_condition_id") @db.Uuid
+  licenseCondition   LicenseCondition? @relation(fields: [licenseConditionId], references: [id], onDelete: Cascade)
+
+  legislationId String?      @map("legislation_id") @db.Uuid
+  legislation   Legislation? @relation(fields: [legislationId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, status])
+  @@index([licenseId])
+  @@index([licenseConditionId])
+  @@index([legislationId])
+  @@map("alert")
 }
 
 // Monthly operational indicators a customer reports (US11). One row per
@@ -341,6 +456,9 @@ model EsgIndicatorRecord {
   // Always the first day of the month (a DATE, no time zone).
   referenceMonth DateTime @map("reference_month") @db.Date
   value          Decimal  @db.Decimal(18, 4)
+  // Where the value came from (e.g. a utility bill or meter reading).
+  source         String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)

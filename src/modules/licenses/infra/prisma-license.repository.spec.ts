@@ -170,6 +170,55 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
+  it('finds all customer licenses and maps their ordered conditions', async () => {
+    const licenses = [
+      {
+        id: 'license-1',
+        conditions: [
+          {
+            id: 'condition-1',
+            name: 'MTR',
+            conditionStatus: 'IN_PROGRESS',
+            itemNumber: '1',
+          },
+        ],
+      },
+      {
+        id: 'license-2',
+        conditions: [],
+      },
+    ];
+    const findMany = jest.fn().mockResolvedValue(licenses);
+    const repository = new PrismaLicenseRepository({
+      license: { findMany },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findCustomerLicenses('customer-1'),
+    ).resolves.toEqual([
+      {
+        id: 'license-1',
+        conditions: [
+          expect.objectContaining({
+            id: 'condition-1',
+            name: 'MTR',
+            title: 'MTR',
+            conditionStatus: 'IN_PROGRESS',
+            status: 'IN_PROGRESS',
+          }),
+        ],
+      },
+      {
+        id: 'license-2',
+        conditions: [],
+      },
+    ]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: { customerId: 'customer-1' },
+      include: { conditions: { orderBy: { createdAt: 'asc' } } },
+    });
+  });
+
   it('updates an owned condition inside a transaction', async () => {
     const update = jest.fn().mockResolvedValue({
       name: 'Atualizada',

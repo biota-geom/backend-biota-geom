@@ -16,6 +16,9 @@ import { CustomersService } from './infra/customers.service';
 import { PrismaCustomerEsgMetricRepository } from './infra/prisma-customer-esg-metric.repository';
 import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
 import { CustomerController } from './presentation/customers.controller';
+import { LicenseRepository } from '../licenses/domain/licenses.repository';
+import { PrismaLicenseRepository } from '../licenses/infra/prisma-license.repository';
+import { ListCustomerDashboardLicensesUseCase } from './application/list-customer-dashboard-licenses.use-case';
 
 @Module({
   imports: [AuthModule, SectorsModule, forwardRef(() => LicensesModule)],
@@ -26,6 +29,11 @@ import { CustomerController } from './presentation/customers.controller';
       provide: CustomerEsgMetricRepository,
       useClass: PrismaCustomerEsgMetricRepository,
     },
+    {
+      provide: LicenseRepository,
+      useClass: PrismaLicenseRepository,
+    },
+    ListCustomerDashboardLicensesUseCase,
     ListCustomersUseCase,
     CreateCustomerUseCase,
     FindCustomerUseCase,

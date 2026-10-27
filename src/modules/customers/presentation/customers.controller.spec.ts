@@ -19,6 +19,7 @@ import {
 } from './customers.controller';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerDetailResponseDto } from './dto/customer-detail-response.dto';
+import { CustomerLicenseDetailsResponseDto } from './dto/customer-license-details.dto';
 import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
 import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
@@ -54,6 +55,8 @@ describe('CustomerController', () => {
       remove: jest
         .fn<(id: string, ownerUserId: string) => Promise<boolean>>()
         .mockResolvedValue(true),
+      listCustomerDashboardLicenses:
+        jest.fn<CustomersService['listCustomerDashboardLicenses']>(),
     };
     const linkExecute =
       jest.fn<
@@ -173,6 +176,24 @@ describe('CustomerController', () => {
     );
     // The owner comes from the token, so the list cannot be widened by input.
     expect(service.findAll).toHaveBeenCalledWith(AUTHENTICATED_USER.id);
+  });
+
+  it('delegates the dashboard license lookup with the authenticated user id', async () => {
+    const { controller, service } = buildController();
+    const result: CustomerLicenseDetailsResponseDto = {
+      header: { active_licenses: 1, pending_items: 1 },
+      counts: { regular: 0, pending: 1, expired: 0 },
+      critical: [],
+    };
+    service.listCustomerDashboardLicenses.mockResolvedValue(result);
+
+    await expect(
+      controller.listCustomerDashboardLicenses(CUSTOMER_ID, AUTHENTICATED_USER),
+    ).resolves.toBe(result);
+    expect(service.listCustomerDashboardLicenses).toHaveBeenCalledWith(
+      CUSTOMER_ID,
+      AUTHENTICATED_USER.id,
+    );
   });
 
   it('maps linked metrics to the response dto', async () => {

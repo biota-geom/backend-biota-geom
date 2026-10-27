@@ -4,6 +4,8 @@ import {
   ConditionType,
   LicenseStatus,
 } from '@prisma/client';
+import { LicenseCondition } from '../../domain/condition.entity';
+import { License } from '../../domain/license.entity';
 import {
   toConditionPeriodicity,
   toConditionStatus,
@@ -18,13 +20,14 @@ function condition(
   environmentalDescriptor: string,
   createdAt: string,
   isViolated = false,
-) {
+): LicenseCondition {
   return {
     id,
     licenseId: 'license-1',
-    title: id,
     environmentalDescriptor,
     description: 'Relatório',
+    title: 'Relatório',
+    responsibleName: 'Ana',
     conditionType: ConditionType.PERIODIC,
     periodicity: ConditionPeriodicity.MONTHLY,
     deadline: new Date('2027-01-02T00:00:00.000Z'),
@@ -32,7 +35,6 @@ function condition(
     alertDate: null,
     completionDate: null,
     status: ConditionStatus.IN_PROGRESS,
-    responsibleName: 'Ana',
     hasDelivery: true,
     isViolated,
     createdAt: new Date(createdAt),
@@ -59,7 +61,7 @@ describe('license details response mappers', () => {
         condition('waste-2', 'Resíduos', '2026-01-02T00:00:00.000Z'),
         condition('waste-1', 'Resíduos', '2026-01-01T00:00:00.000Z'),
       ],
-    });
+    } satisfies License & { conditions: LicenseCondition[] });
 
     expect(
       response.conditions.map((row) => ({

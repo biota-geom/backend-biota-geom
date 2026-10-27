@@ -91,8 +91,16 @@ describe('ListLicenseConditionsByCustomerUseCase', () => {
             dueDate: new Date('2026-01-04T00:00:00.000Z'),
           }),
           buildCondition({
+            id: 'condition-risk-later',
+            dueDate: new Date('2026-01-06T00:00:00.000Z'),
+          }),
+          buildCondition({
             id: 'condition-attention',
             dueDate: new Date('2026-01-16T00:00:00.000Z'),
+          }),
+          buildCondition({
+            id: 'condition-attention-later',
+            dueDate: new Date('2026-01-22T00:00:00.000Z'),
           }),
         ]),
       },
@@ -103,14 +111,18 @@ describe('ListLicenseConditionsByCustomerUseCase', () => {
     expect(licenseConditionRepository.findAllByCustomerId).toHaveBeenCalledWith(
       'customer-1',
     );
-    expect(result.total).toBe(3);
+    expect(result.total).toBe(5);
     expect(result.data.map((condition) => condition.id)).toEqual([
       'condition-risk',
+      'condition-risk-later',
       'condition-attention',
+      'condition-attention-later',
       'condition-regular',
     ]);
     expect(result.data.map((condition) => condition.riskLevel)).toEqual([
       LicenseConditionRiskLevel.RISK,
+      LicenseConditionRiskLevel.RISK,
+      LicenseConditionRiskLevel.ATTENTION,
       LicenseConditionRiskLevel.ATTENTION,
       LicenseConditionRiskLevel.REGULAR,
     ]);

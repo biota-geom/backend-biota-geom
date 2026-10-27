@@ -8,6 +8,7 @@ import {
   ConditionType,
   DocumentType,
   EsgPillar,
+  GovernmentSphere,
   LicenseStatus,
   PrismaClient,
 } from '@prisma/client';
@@ -116,6 +117,87 @@ const seedEsgMetrics = [
     name: 'Não Conformidades Ambientais',
     unit: 'ocorrências',
     pillar: EsgPillar.GOVERNANCA,
+  },
+];
+
+/*
+ * Catálogo GRI. `metric` é a métrica global de `seedEsgMetrics` que passa a
+ * apontar para o padrão (esg_metric.gri_standard_id).
+ */
+const seedGriStandards = [
+  {
+    code: 'GRI 303-5',
+    name: 'Consumo de água',
+    pillar: EsgPillar.AMBIENTAL,
+    metric: 'Consumo de Água',
+  },
+  {
+    code: 'GRI 305-1',
+    name: 'Emissões diretas (Escopo 1) de gases de efeito estufa',
+    pillar: EsgPillar.AMBIENTAL,
+    metric: 'Emissão de CO2 Equivalente',
+  },
+  {
+    code: 'GRI 306-3',
+    name: 'Resíduos gerados',
+    pillar: EsgPillar.AMBIENTAL,
+    metric: 'Resíduos Sólidos Gerados',
+  },
+  {
+    code: 'GRI 302-1',
+    name: 'Consumo de energia dentro da organização',
+    pillar: EsgPillar.AMBIENTAL,
+    metric: 'Consumo de Energia',
+  },
+  {
+    code: 'GRI 403-5',
+    name: 'Capacitação de trabalhadores em saúde e segurança do trabalho',
+    pillar: EsgPillar.SOCIAL,
+    metric: 'Horas de Treinamento em Segurança',
+  },
+  {
+    code: 'GRI 2-7',
+    name: 'Empregados',
+    pillar: EsgPillar.SOCIAL,
+    metric: 'Número de Funcionários',
+  },
+  {
+    code: 'GRI 2-27',
+    name: 'Conformidade com leis e regulamentos',
+    pillar: EsgPillar.GOVERNANCA,
+    metric: 'Não Conformidades Ambientais',
+  },
+];
+
+const seedLegislations = [
+  {
+    title: 'Resolução CONAMA nº 237 — Licenciamento ambiental',
+    number: '237/1997',
+    sphere: GovernmentSphere.FEDERAL,
+    publicationDate: new Date('1997-12-22'),
+    summary:
+      'Dispõe sobre os procedimentos e critérios do licenciamento ambiental.',
+    sourceUrl: 'https://conama.mma.gov.br/',
+    isNew: false,
+  },
+  {
+    title: 'Lei nº 12.305 — Política Nacional de Resíduos Sólidos',
+    number: '12.305/2010',
+    sphere: GovernmentSphere.FEDERAL,
+    publicationDate: new Date('2010-08-03'),
+    summary: 'Institui a Política Nacional de Resíduos Sólidos.',
+    sourceUrl:
+      'https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2010/lei/l12305.htm',
+    isNew: false,
+  },
+  {
+    title: 'Resolução CONAMA nº 491 — Padrões de qualidade do ar',
+    number: '491/2018',
+    sphere: GovernmentSphere.FEDERAL,
+    publicationDate: new Date('2018-11-21'),
+    summary: 'Dispõe sobre os padrões de qualidade do ar.',
+    sourceUrl: 'https://conama.mma.gov.br/',
+    isNew: true,
   },
 ];
 
@@ -723,6 +805,47 @@ async function seedEsgMetricsTable() {
   return metrics;
 }
 
+async function seedGriStandardsTable(metrics: Map<string, string>) {
+  for (const { metric, ...standard } of seedGriStandards) {
+    const metricId = metrics.get(metric);
+
+    if (!metricId) {
+      throw new Error(
+        `Padrão "${standard.code}" referencia a métrica "${metric}", que não está em seedEsgMetrics.`,
+      );
+    }
+
+    const created = await prisma.griStandard.upsert({
+      where: { code: standard.code },
+      update: { name: standard.name, pillar: standard.pillar },
+      create: standard,
+    });
+
+    await prisma.esgMetric.update({
+      where: { id: metricId },
+      data: { griStandardId: created.id },
+    });
+  }
+}
+
+async function seedLegislationsTable() {
+  for (const legislation of seedLegislations) {
+    // Sem índice único: a identidade no seed é (esfera, número).
+    const existing = await prisma.legislation.findFirst({
+      where: { sphere: legislation.sphere, number: legislation.number },
+    });
+
+    if (existing) {
+      await prisma.legislation.update({
+        where: { id: existing.id },
+        data: legislation,
+      });
+    } else {
+      await prisma.legislation.create({ data: legislation });
+    }
+  }
+}
+
 async function seedCompaniesTable(
   users: Map<string, string>,
   sectors: Map<string, string>,
@@ -939,6 +1062,8 @@ async function main() {
   const users = await seedUsersTable();
   const sectors = await seedSectorsTable();
   const metrics = await seedEsgMetricsTable();
+  await seedGriStandardsTable(metrics);
+  await seedLegislationsTable();
   await seedIssuingAgenciesTable();
   const companies = await seedCompaniesTable(users, sectors, metrics);
   await seedLicensesTable(companies);
@@ -985,6 +1110,9 @@ async function main() {
   );
   console.log(
     `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
+  );
+  console.log(
+    `Padrões GRI: ${seedGriStandards.length} · Legislações: ${seedLegislations.length}`,
   );
 }
 

@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Put,
+  Query,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -16,11 +17,13 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
+import { GetEsgIndicatorsSummaryUseCase } from '../application/get-esg-indicators-summary.use-case';
 import { GetEsgIndicatorsUseCase } from '../application/get-esg-indicators.use-case';
 import { SaveEsgIndicatorsUseCase } from '../application/save-esg-indicators.use-case';
 import {
@@ -28,6 +31,10 @@ import {
   toIndicatorRecordChanges,
   toMonthlyIndicatorResponse,
 } from './dto/esg-indicators-response.dto';
+import {
+  EsgIndicatorsSummaryResponseDto,
+  toEsgIndicatorsSummaryResponse,
+} from './dto/esg-indicators-summary-response.dto';
 import { SaveEsgIndicatorsDto } from './dto/save-esg-indicators.dto';
 import { EsgIndicatorsExceptionFilter } from './filters/esg-indicators-exception.filter';
 
@@ -48,7 +55,41 @@ export class EsgIndicatorsController {
   constructor(
     private readonly getEsgIndicatorsUseCase: GetEsgIndicatorsUseCase,
     private readonly saveEsgIndicatorsUseCase: SaveEsgIndicatorsUseCase,
+    private readonly getEsgIndicatorsSummaryUseCase: GetEsgIndicatorsSummaryUseCase,
   ) {}
+
+  // Declared before ':month' so "summary" is not read as a month.
+  @Get('summary')
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiQuery({
+    name: 'month',
+    required: false,
+    example: '2026-09',
+    description:
+      'Formato AAAA-MM. Sem ele, usa o mês mais recente que tiver registro.',
+  })
+  @ApiOperation({
+    summary:
+      'Resumo dos indicadores da empresa no mês, com a variação % em relação ao mês anterior.',
+  })
+  @ApiOkResponse({ type: EsgIndicatorsSummaryResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Mês ou empresa com formato inválido.',
+  })
+  @ApiNotFoundResponse({ description: 'Empresa não encontrada.' })
+  async getSummary(
+    @Param('customerId', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+    @Query('month') month?: string,
+  ): Promise<EsgIndicatorsSummaryResponseDto> {
+    const summary = await this.getEsgIndicatorsSummaryUseCase.execute(
+      customerId,
+      user.id,
+      month,
+    );
+
+    return toEsgIndicatorsSummaryResponse(summary);
+  }
 
   @Get(':month')
   @ApiParam({ name: 'customerId', format: 'uuid' })

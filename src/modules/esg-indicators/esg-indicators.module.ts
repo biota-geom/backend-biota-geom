@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { CreateCustomerIndicatorUseCase } from './application/create-customer-indicator.use-case';
+import { GetEsgIndicatorsSummaryUseCase } from './application/get-esg-indicators-summary.use-case';
 import { GetEsgIndicatorsUseCase } from './application/get-esg-indicators.use-case';
 import { SaveEsgIndicatorsUseCase } from './application/save-esg-indicators.use-case';
 import { CustomerIndicatorRepository } from './domain/customer-indicators.repository';
@@ -26,6 +27,7 @@ import { EsgIndicatorsController } from './presentation/esg-indicators.controlle
     GetEsgIndicatorsUseCase,
     SaveEsgIndicatorsUseCase,
     CreateCustomerIndicatorUseCase,
+    GetEsgIndicatorsSummaryUseCase,
   ],
 })
 export class EsgIndicatorsModule {}

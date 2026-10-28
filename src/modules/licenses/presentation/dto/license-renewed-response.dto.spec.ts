@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { License } from '../../domain/license.entity';
 import { toLicenseRenewedResponse } from './license-renewed-response.dto';
 
@@ -7,9 +7,9 @@ function buildLicense(overrides: Partial<License> = {}): License {
     id: 'new-license',
     previousLicenseId: 'old-license',
     customerId: 'customer-1',
-    type: LicenseType.LO,
+    type: 'LO',
     processNumber: 'LO nº 119/2026',
-    issuingAgencyId: 'agency-1',
+    issuingAgency: 'FEPAM',
     issueDate: new Date('2026-01-10T00:00:00.000Z'),
     expirationDate: new Date('2030-01-10T00:00:00.000Z'),
     status: LicenseStatus.REGULAR,

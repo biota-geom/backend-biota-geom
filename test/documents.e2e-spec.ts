@@ -313,4 +313,65 @@ describe('Customer documents (e2e)', () => {
       404,
     );
   });
+
+  it('hides a deleted document from the listing and from its file URL', async () => {
+    const created = await upload(
+      ownerToken,
+      customerId,
+      '2026-10-20',
+      'Laudo a remover',
+    ).expect(201);
+    const documentId = (created.body as { id: string }).id;
+
+    await request(app.getHttpServer())
+      .delete(`/api/customers/${customerId}/documents/${documentId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(204);
+
+    const listing = await request(app.getHttpServer())
+      .get(`/api/customers/${customerId}/documents`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(
+      (listing.body as Array<{ id: string }>).map(({ id }) => id),
+    ).not.toContain(documentId);
+
+    // Exclusão lógica: a linha continua no banco, com quem removeu e quando.
+    const stored = await prisma.document.findUnique({
+      where: { id: documentId },
+    });
+    expect(stored?.deletedAt).toBeInstanceOf(Date);
+    expect(stored?.deletedById).toBe(ownerId);
+
+    await request(app.getHttpServer())
+      .get(`/api/customers/${customerId}/documents/${documentId}/url`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(404);
+
+    // Repetir a remoção não distingue "já removido" de "nunca existiu".
+    await request(app.getHttpServer())
+      .delete(`/api/customers/${customerId}/documents/${documentId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(404);
+  });
+
+  it('refuses to delete a document that belongs to another tenant', async () => {
+    const created = await upload(
+      ownerToken,
+      customerId,
+      '2026-10-21',
+      'Laudo de outro cliente',
+    ).expect(201);
+    const documentId = (created.body as { id: string }).id;
+
+    await request(app.getHttpServer())
+      .delete(`/api/customers/${customerId}/documents/${documentId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+
+    const stored = await prisma.document.findUnique({
+      where: { id: documentId },
+    });
+    expect(stored?.deletedAt).toBeNull();
+  });
 });

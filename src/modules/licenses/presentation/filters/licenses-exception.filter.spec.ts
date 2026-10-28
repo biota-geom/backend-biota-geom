@@ -3,7 +3,6 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
-import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
 import { RenewalConditionsIncompleteError } from '../../domain/errors/renewal-conditions-incomplete.error';
@@ -35,19 +34,6 @@ describe('LicensesExceptionFilter', () => {
     expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ message: AUTH_MESSAGES.CUSTOMER_NOT_FOUND }),
-    );
-  });
-
-  it('maps IssuingAgencyNotFoundError to 422', () => {
-    const { host, status, json } = buildHost();
-
-    filter.catch(new IssuingAgencyNotFoundError('agency-1'), host);
-
-    expect(status).toHaveBeenCalledWith(HttpStatus.UNPROCESSABLE_ENTITY);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: LICENSES_MESSAGES.ISSUING_AGENCY_NOT_FOUND,
-      }),
     );
   });
 

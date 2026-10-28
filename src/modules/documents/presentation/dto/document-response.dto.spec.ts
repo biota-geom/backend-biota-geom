@@ -17,6 +17,7 @@ describe('toDocumentResponse', () => {
       uploadedBy: { id: 'user-1', name: 'Consultancy' },
       createdAt: new Date('2026-10-04T14:00:00.000Z'),
       deletedAt: null,
+      deletedById: null,
     } satisfies CustomerDocument;
 
     expect(toDocumentResponse(document)).toEqual({

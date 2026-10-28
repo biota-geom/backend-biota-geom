@@ -17,4 +17,5 @@ export interface CustomerDocument {
   folderId: string | null;
   createdAt: Date;
   deletedAt: Date | null;
+  deletedById: string | null;
 }

@@ -32,6 +32,7 @@ export class ListLicenseConditionsByCustomerUseCase {
     customerId: string,
     ownerUserId: string,
     riskLevel?: LicenseConditionRiskLevel,
+    now: Date = new Date(),
   ): Promise<LicenseConditionListWithRisk> {
     const customer = await this.customerRepository.findOne(
       customerId,
@@ -41,7 +42,6 @@ export class ListLicenseConditionsByCustomerUseCase {
       throw new CustomerNotFoundError(customerId);
     }
 
-    const now = new Date();
     const conditions =
       await this.licenseConditionRepository.findAllByCustomerId(customerId);
 

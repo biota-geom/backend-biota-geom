@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { LicenseAlreadyArchivedError } from '../domain/errors/license-already-archived.error';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
@@ -16,9 +16,9 @@ function buildUseCase(overrides?: {
     findByIdForOwner: jest.fn().mockResolvedValue({
       id: 'old-license',
       customerId: 'customer-1',
-      type: LicenseType.LO,
+      type: 'LO',
       processNumber: 'LO nº 118/2020',
-      issuingAgencyId: 'agency-1',
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2020-01-10T00:00:00.000Z'),
       expirationDate: new Date('2025-01-10T00:00:00.000Z'),
       status: LicenseStatus.EXPIRED,
@@ -84,9 +84,9 @@ describe('RenewLicenseUseCase', () => {
       expect.objectContaining({
         previousLicenseId: 'old-license',
         customerId: 'customer-1',
-        type: LicenseType.LO,
+        type: 'LO',
         processNumber: 'LO nº 119/2026',
-        issuingAgencyId: 'agency-1',
+        issuingAgency: 'FEPAM',
         status: LicenseStatus.REGULAR,
         documentUrl: 'https://storage.example.com/new.pdf',
       }),

@@ -27,6 +27,7 @@ model User {
   // the system (the tenant); a Customer is a company/site it looks after.
   customers         Customer[]
   uploadedDocuments Document[]  @relation("DocumentUploader")
+  deletedDocuments  Document[]  @relation("DocumentDeleter")
 
   @@map("users")
 }
@@ -197,6 +198,9 @@ model Document {
 
   uploadedById String @map("uploaded_by") @db.Uuid
   uploadedBy   User   @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  deletedById String? @map("deleted_by") @db.Uuid
+  deletedBy   User?   @relation("DocumentDeleter", fields: [deletedById], references: [id], onDelete: Restrict)
 
   folderId String?         @map("folder_id") @db.Uuid
   folder   DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)

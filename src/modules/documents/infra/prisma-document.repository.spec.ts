@@ -5,8 +5,9 @@ describe('PrismaDocumentRepository', () => {
   const create = jest.fn();
   const findFirst = jest.fn();
   const findMany = jest.fn();
+  const update = jest.fn();
   const repository = new PrismaDocumentRepository({
-    document: { create, findFirst, findMany },
+    document: { create, findFirst, findMany, update },
   } as unknown as PrismaService);
 
   beforeEach(() => jest.clearAllMocks());
@@ -84,5 +85,19 @@ describe('PrismaDocumentRepository', () => {
       include: { uploadedBy: { select: { id: true, name: true } } },
       orderBy: [{ documentDate: 'desc' }, { createdAt: 'desc' }],
     });
+  });
+
+  it('stamps the removal instead of deleting the row', async () => {
+    update.mockResolvedValue({ id: 'document-1' });
+    const before = Date.now();
+
+    await repository.softDelete('document-1', 'user-1');
+
+    const [query] = update.mock.calls[0] as [
+      { where: { id: string }; data: { deletedAt: Date; deletedById: string } },
+    ];
+    expect(query.where).toEqual({ id: 'document-1' });
+    expect(query.data.deletedById).toBe('user-1');
+    expect(query.data.deletedAt.getTime()).toBeGreaterThanOrEqual(before);
   });
 });

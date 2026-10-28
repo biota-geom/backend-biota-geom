@@ -22,10 +22,16 @@ export class CreateDocumentDto {
   @MaxLength(255)
   title!: string;
 
-  @ApiProperty({ type: String, format: 'date', example: '2026-08-15' })
+  @ApiProperty({
+    type: String,
+    format: 'date',
+    example: '2026-08-15',
+    required: false,
+  })
+  @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   @IsDateString({ strict: true, strictSeparator: true })
-  document_date!: string;
+  document_date?: string;
 
   @ApiProperty({ format: 'uuid', nullable: true, required: false })
   @IsOptional()

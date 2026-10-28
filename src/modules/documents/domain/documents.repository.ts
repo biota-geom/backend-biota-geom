@@ -13,4 +13,5 @@ export abstract class DocumentsRepository {
   abstract findActiveByCustomerId(
     customerId: string,
   ): Promise<CustomerDocument[]>;
+  abstract softDelete(id: string, deletedById: string): Promise<void>;
 }

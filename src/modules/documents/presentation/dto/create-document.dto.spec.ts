@@ -13,6 +13,15 @@ describe('CreateDocumentDto', () => {
     expect(dto.title).toBe('Annual report');
   });
 
+  it('accepts metadata without a document date', async () => {
+    const dto = plainToInstance(CreateDocumentDto, {
+      title: 'Annual report',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto.document_date).toBeUndefined();
+  });
+
   it.each([
     [{ title: '', document_date: '2026-08-15' }],
     [{ title: 'Report', document_date: '2026-02-31' }],

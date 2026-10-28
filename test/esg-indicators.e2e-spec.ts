@@ -9,6 +9,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
+import { EsgIndicatorsSummaryResponseDto } from '../src/modules/esg-indicators/presentation/dto/esg-indicators-summary-response.dto';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /*
@@ -441,6 +442,105 @@ describe('ESG indicators (e2e)', () => {
         where: { name: `${METRIC_PREFIX} Intruso` },
       }),
     ).toBe(0);
+  });
+
+  describe('summary', () => {
+    const summaryA = (query = '') =>
+      `/customers/${customerAId}/esg-indicators/summary${query}`;
+
+    async function getSummary(query: string, token = aliceToken) {
+      const response = await get(summaryA(query), token).expect(200);
+      return response.body as EsgIndicatorsSummaryResponseDto;
+    }
+
+    // Every indicator linked to company A (other tests may add one inline).
+    async function linkedIds(): Promise<string[]> {
+      const response = await get(monthA('2026-09'), aliceToken).expect(200);
+      return (response.body as IndicatorItem[])
+        .map((item) => item.indicator_id)
+        .sort();
+    }
+
+    const idsOf = (summary: EsgIndicatorsSummaryResponseDto) =>
+      summary.indicators.map((item) => item.indicator_id).sort();
+
+    const byId = (summary: EsgIndicatorsSummaryResponseDto, id: string) =>
+      summary.indicators.find((item) => item.indicator_id === id);
+
+    it('shows water going from 1000 in August to 1100 in September as +10.0%', async () => {
+      await put(monthA('2026-08'), aliceToken, {
+        records: [
+          { indicator_id: water.id, value: 1000 },
+          { indicator_id: staff.id, value: 150 },
+        ],
+      }).expect(200);
+      await put(monthA('2026-09'), aliceToken, {
+        records: [
+          { indicator_id: water.id, value: 1100 },
+          { indicator_id: waste.id, value: 12.3 },
+          { indicator_id: staff.id, value: 148 },
+        ],
+      }).expect(200);
+
+      const summary = await getSummary('?month=2026-09');
+
+      expect(summary.reference_month).toBe('2026-09');
+      expect(idsOf(summary)).toEqual(await linkedIds());
+      expect(byId(summary, water.id)).toEqual({
+        indicator_id: water.id,
+        name: `${METRIC_PREFIX} Água`,
+        unit: 'm³',
+        category: 'Ambiental',
+        current: 1100,
+        previous: 1000,
+        variation_pct: 10,
+      });
+      expect(byId(summary, waste.id)?.variation_pct).toBeNull();
+      expect(byId(summary, staff.id)?.variation_pct).toBe(-1.3);
+    });
+
+    it('uses the latest month with a record when no month is given', async () => {
+      await put(monthA('2026-07'), aliceToken, {
+        records: [{ indicator_id: water.id, value: 800 }],
+      }).expect(200);
+      await put(monthA('2026-08'), aliceToken, {
+        records: [{ indicator_id: water.id, value: 1000 }],
+      }).expect(200);
+
+      const summary = await getSummary('');
+
+      expect(summary.reference_month).toBe('2026-08');
+      expect(byId(summary, water.id)?.variation_pct).toBe(25);
+    });
+
+    it('returns null variations for a month without a previous record', async () => {
+      await put(monthA('2026-09'), aliceToken, {
+        records: [{ indicator_id: water.id, value: 1100 }],
+      }).expect(200);
+
+      const summary = await getSummary('');
+
+      expect(byId(summary, water.id)).toMatchObject({
+        current: 1100,
+        previous: null,
+        variation_pct: null,
+      });
+    });
+
+    it('lists the indicators empty for a company without records', async () => {
+      const summary = await getSummary('');
+
+      expect(summary.reference_month).toBeNull();
+      expect(idsOf(summary)).toEqual(await linkedIds());
+      expect(summary.indicators.every((item) => item.current === null)).toBe(
+        true,
+      );
+    });
+
+    it('refuses a malformed month with 400 and another account with 404', async () => {
+      await get(summaryA('?month=2026-13'), aliceToken).expect(400);
+      await get(summaryA(), bobToken).expect(404);
+    });
   });
 
   it('requires authentication', async () => {

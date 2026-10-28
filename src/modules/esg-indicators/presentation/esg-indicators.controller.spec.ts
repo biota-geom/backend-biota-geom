@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
+import { GetEsgIndicatorsSummaryUseCase } from '../application/get-esg-indicators-summary.use-case';
 import { GetEsgIndicatorsUseCase } from '../application/get-esg-indicators.use-case';
 import { SaveEsgIndicatorsUseCase } from '../application/save-esg-indicators.use-case';
 import { SaveEsgIndicatorsDto } from './dto/save-esg-indicators.dto';
@@ -42,15 +43,32 @@ const RESPONSE = [
   },
 ];
 
+const SUMMARY = {
+  referenceMonth: '2026-09',
+  indicators: [
+    {
+      id: 'ind-1',
+      name: 'Consumo de Água',
+      unit: 'm³',
+      category: 'Ambiental',
+      current: 1100,
+      previous: 1000,
+      variationPct: 10,
+    },
+  ],
+};
+
 function buildController() {
   const get = { execute: jest.fn().mockResolvedValue(STORED) };
   const save = { execute: jest.fn().mockResolvedValue(STORED) };
+  const summary = { execute: jest.fn().mockResolvedValue(SUMMARY) };
   const controller = new EsgIndicatorsController(
     get as unknown as GetEsgIndicatorsUseCase,
     save as unknown as SaveEsgIndicatorsUseCase,
+    summary as unknown as GetEsgIndicatorsSummaryUseCase,
   );
 
-  return { controller, get, save };
+  return { controller, get, save, summary };
 }
 
 describe('EsgIndicatorsController', () => {
@@ -86,6 +104,44 @@ describe('EsgIndicatorsController', () => {
       month: '2026-09',
       records: [{ indicatorId: 'ind-1', value: 1250.5 }],
     });
+  });
+
+  it('returns the summary in the contract shape', async () => {
+    const { controller, summary } = buildController();
+
+    await expect(
+      controller.getSummary('customer-1', { id: 'owner-1' }, '2026-09'),
+    ).resolves.toEqual({
+      reference_month: '2026-09',
+      indicators: [
+        {
+          indicator_id: 'ind-1',
+          name: 'Consumo de Água',
+          unit: 'm³',
+          category: 'Ambiental',
+          current: 1100,
+          previous: 1000,
+          variation_pct: 10,
+        },
+      ],
+    });
+    expect(summary.execute).toHaveBeenCalledWith(
+      'customer-1',
+      'owner-1',
+      '2026-09',
+    );
+  });
+
+  it('asks for the latest month when no month is given', async () => {
+    const { controller, summary } = buildController();
+
+    await controller.getSummary('customer-1', { id: 'owner-1' });
+
+    expect(summary.execute).toHaveBeenCalledWith(
+      'customer-1',
+      'owner-1',
+      undefined,
+    );
   });
 
   it('answers a malformed customer id with a generic 400', () => {

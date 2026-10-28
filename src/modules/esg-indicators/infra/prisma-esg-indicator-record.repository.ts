@@ -23,6 +23,20 @@ export class PrismaEsgIndicatorRecordRepository extends EsgIndicatorRecordReposi
     );
   }
 
+  async findLatestMonth(customerId: string): Promise<Date | null> {
+    const latest = await this.prisma.esgIndicatorRecord.findFirst({
+      where: {
+        customerId,
+        // Old records of an indicator unlinked from the customer don't count.
+        indicator: { customerLinks: { some: { customerId } } },
+      },
+      orderBy: { referenceMonth: 'desc' },
+      select: { referenceMonth: true },
+    });
+
+    return latest?.referenceMonth ?? null;
+  }
+
   async saveMonth(
     customerId: string,
     referenceMonth: Date,

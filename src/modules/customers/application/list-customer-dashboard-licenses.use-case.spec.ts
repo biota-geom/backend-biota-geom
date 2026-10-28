@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
 import { License } from '../../licenses/domain/license.entity';
 import { CustomerRepository } from '../domain/customers.repository';
@@ -15,9 +15,9 @@ function buildLicense(
   return {
     id,
     customerId: CUSTOMER_ID,
-    type: LicenseType.LO,
+    type: 'LO',
     processNumber: `LO ${id}`,
-    issuingAgencyId: 'agency-1',
+    issuingAgency: 'FEPAM',
     issueDate: new Date('2020-01-01T00:00:00.000Z'),
     expirationDate: new Date(expirationDate),
     status: LicenseStatus.REGULAR,
@@ -70,21 +70,21 @@ describe('ListCustomerDashboardLicensesUseCase', () => {
       critical: [
         {
           id: 'expired-sooner',
-          type: LicenseType.LO,
+          type: 'LO',
           process_number: 'LO expired-sooner',
           expiration_date: '2025-12-20',
           status: 'Vencida',
         },
         {
           id: 'expired-later',
-          type: LicenseType.LO,
+          type: 'LO',
           process_number: 'LO expired-later',
           expiration_date: '2025-12-30',
           status: 'Vencida',
         },
         {
           id: 'attention-sooner',
-          type: LicenseType.LO,
+          type: 'LO',
           process_number: 'LO attention-sooner',
           expiration_date: '2026-01-02',
           status: 'Atenção',

@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateLicenseUseCase } from '../application/create-license.use-case';
 import { CreateLicenseConditionUseCase } from '../application/create-license-conditions.use-case';
@@ -89,15 +89,9 @@ describe('LicensesController', () => {
     const execute = jest.fn().mockResolvedValue({
       id: 'license-1',
       customerId: 'customer-1',
-      type: LicenseType.LO,
+      type: 'LO',
       processNumber: 'LO nº 118/2020',
-      issuingAgencyId: 'agency-1',
-      issuingAgency: {
-        id: 'agency-1',
-        name: 'FEPAM',
-        acronym: 'FEPAM',
-        createdAt: new Date(),
-      },
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2020-01-10T00:00:00.000Z'),
       expirationDate: new Date('2025-01-10T00:00:00.000Z'),
       status: LicenseStatus.EXPIRED,
@@ -110,9 +104,9 @@ describe('LicensesController', () => {
     const response = await controller.createLicense(
       'customer-1',
       {
-        type: LicenseType.LO,
+        type: 'LO',
         process_number: 'LO nº 118/2020',
-        issuing_agency_id: 'agency-1',
+        issuing_agency: 'FEPAM',
         issue_date: '2020-01-10T00:00:00.000Z',
         expiration_date: '2025-01-10T00:00:00.000Z',
       },
@@ -123,9 +117,9 @@ describe('LicensesController', () => {
     expect(execute).toHaveBeenCalledWith({
       customerId: 'customer-1',
       ownerUserId: 'owner-1',
-      type: LicenseType.LO,
+      type: 'LO',
       processNumber: 'LO nº 118/2020',
-      issuingAgencyId: 'agency-1',
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2020-01-10T00:00:00.000Z'),
       expirationDate: new Date('2025-01-10T00:00:00.000Z'),
       file: {
@@ -147,15 +141,9 @@ describe('LicensesController', () => {
           {
             id: 'license-1',
             customerId: 'customer-1',
-            type: LicenseType.LP,
+            type: 'LP',
             processNumber: 'LP nº 482/2024',
-            issuingAgencyId: 'agency-1',
-            issuingAgency: {
-              id: 'agency-1',
-              name: 'FEPAM',
-              acronym: 'FEPAM',
-              createdAt: new Date(),
-            },
+            issuingAgency: 'FEPAM',
             issueDate: new Date('2024-03-12T00:00:00.000Z'),
             expirationDate: new Date('2026-03-12T00:00:00.000Z'),
             status: LicenseStatus.REGULAR,
@@ -166,15 +154,9 @@ describe('LicensesController', () => {
           {
             id: 'license-2',
             customerId: 'customer-1',
-            type: LicenseType.LO,
+            type: 'LO',
             processNumber: 'LO nº 118/2020',
-            issuingAgencyId: 'agency-1',
-            issuingAgency: {
-              id: 'agency-1',
-              name: 'FEPAM',
-              acronym: 'FEPAM',
-              createdAt: new Date(),
-            },
+            issuingAgency: 'FEPAM',
             issueDate: new Date('2020-01-10T00:00:00.000Z'),
             expirationDate: new Date('2025-01-10T00:00:00.000Z'),
             status: LicenseStatus.EXPIRED,
@@ -198,14 +180,14 @@ describe('LicensesController', () => {
         licenses: [
           expect.objectContaining({
             id: 'license-1',
-            type: 'Licença Prévia (LP)',
+            type: 'LP',
             process_number: 'LP nº 482/2024',
             issuing_agency: 'FEPAM',
             status: 'Regular',
           }),
           expect.objectContaining({
             id: 'license-2',
-            type: 'Licença de Operação (LO)',
+            type: 'LO',
             process_number: 'LO nº 118/2020',
             issuing_agency: 'FEPAM',
             status: 'Vencida',
@@ -285,9 +267,9 @@ describe('LicenseRenewalsController', () => {
       id: 'new-license',
       previousLicenseId: 'old-license',
       customerId: 'customer-1',
-      type: LicenseType.LO,
+      type: 'LO',
       processNumber: 'LO nº 119/2026',
-      issuingAgencyId: 'agency-1',
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2026-01-10T00:00:00.000Z'),
       expirationDate: new Date('2030-01-10T00:00:00.000Z'),
       status: LicenseStatus.REGULAR,

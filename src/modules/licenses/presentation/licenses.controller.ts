@@ -34,7 +34,6 @@ import {
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { LicenseType } from '@prisma/client';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
@@ -188,15 +187,15 @@ export class LicensesController {
       required: [
         'type',
         'process_number',
-        'issuing_agency_id',
+        'issuing_agency',
         'issue_date',
         'expiration_date',
         'document_file',
       ],
       properties: {
-        type: { type: 'string', enum: Object.values(LicenseType) },
+        type: { type: 'string', maxLength: 50, example: 'LO' },
         process_number: { type: 'string', example: 'LO nº 118/2020' },
-        issuing_agency_id: { type: 'string', format: 'uuid' },
+        issuing_agency: { type: 'string', maxLength: 150, example: 'FEPAM' },
         issue_date: { type: 'string', format: 'date-time' },
         expiration_date: { type: 'string', format: 'date-time' },
         document_file: { type: 'string', format: 'binary' },
@@ -209,7 +208,7 @@ export class LicensesController {
   })
   @ApiCreatedResponse({ type: LicenseCreatedResponseDto })
   @ApiUnprocessableEntityResponse({
-    description: 'Órgão emissor inexistente ou arquivo inválido.',
+    description: 'Arquivo inválido: não é PDF ou excede 5 MB.',
   })
   async createLicense(
     @Param('customerId', uuidPipe) customerId: string,
@@ -234,7 +233,7 @@ export class LicensesController {
       ownerUserId: user.id,
       type: dto.type,
       processNumber: dto.process_number,
-      issuingAgencyId: dto.issuing_agency_id,
+      issuingAgency: dto.issuing_agency,
       issueDate: new Date(dto.issue_date),
       expirationDate: new Date(dto.expiration_date),
       file: {

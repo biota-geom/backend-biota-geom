@@ -34,7 +34,7 @@ export class PrismaLicenseRepository implements LicenseRepository {
         customer: { connect: { id: data.customerId } },
         type: data.type,
         processNumber: data.processNumber,
-        issuingAgency: { connect: { id: data.issuingAgencyId } },
+        issuingAgency: data.issuingAgency,
         issueDate: data.issueDate,
         expirationDate: data.expirationDate,
         status: data.status,
@@ -42,9 +42,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
         previousLicense: data.previousLicenseId
           ? { connect: { id: data.previousLicenseId } }
           : undefined,
-      },
-      include: {
-        issuingAgency: true,
       },
     });
   }
@@ -57,14 +54,13 @@ export class PrismaLicenseRepository implements LicenseRepository {
             customer: { connect: { id: data.customerId } },
             type: data.type,
             processNumber: data.processNumber,
-            issuingAgency: { connect: { id: data.issuingAgencyId } },
+            issuingAgency: data.issuingAgency,
             issueDate: data.issueDate,
             expirationDate: data.expirationDate,
             status: data.status,
             documentUrl: data.documentUrl,
             previousLicense: { connect: { id: data.previousLicenseId } },
           },
-          include: { issuingAgency: true },
         });
 
         await transaction.license.update({
@@ -90,7 +86,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
     const license = await this.prisma.license.findFirst({
       where: { id, customerId },
       include: {
-        issuingAgency: true,
         conditions: { orderBy: { createdAt: 'asc' } },
       },
     });
@@ -200,7 +195,6 @@ export class PrismaLicenseRepository implements LicenseRepository {
   async findById(id: string): Promise<License | null> {
     return this.prisma.license.findUnique({
       where: { id },
-      include: { issuingAgency: true },
     });
   }
 
@@ -210,14 +204,12 @@ export class PrismaLicenseRepository implements LicenseRepository {
   ): Promise<License | null> {
     return this.prisma.license.findFirst({
       where: { id, customer: { ownerUserId } },
-      include: { issuingAgency: true },
     });
   }
 
   async findAllByCustomerId(customerId: string): Promise<License[]> {
     return this.prisma.license.findMany({
       where: { customerId },
-      include: { issuingAgency: true },
       orderBy: { expirationDate: 'asc' },
     });
   }

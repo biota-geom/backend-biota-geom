@@ -8,6 +8,7 @@ import {
   HttpStatus,
   MaxFileSizeValidator,
   Param,
+  Patch,
   Put,
   ParseFilePipe,
   ParseUUIDPipe,
@@ -20,6 +21,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
@@ -73,6 +75,8 @@ import {
   LicenseRenewedResponseDto,
   toLicenseRenewedResponse,
 } from './dto/license-renewed-response.dto';
+import { SaveConditionsFulfillmentDto } from './dto/save-conditions-fulfillment.dto';
+import { SaveConditionsFulfillmentUseCase } from '../application/save-conditions-fulfillment.use-case';
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -123,6 +127,7 @@ export class LicensesController {
     private readonly getLicenseDetailsUseCase: GetLicenseDetailsUseCase,
     private readonly updateLicenseConditionUseCase: UpdateLicenseConditionUseCase,
     private readonly deleteLicenseConditionUseCase: DeleteLicenseConditionUseCase,
+    private readonly saveConditionsFulfillmentUseCase: SaveConditionsFulfillmentUseCase,
   ) {}
 
   @Get(':licenseId')
@@ -321,6 +326,43 @@ export class LicensesController {
       licenseId,
       conditionId,
       user.id,
+    );
+  }
+
+  @Patch(':licenseId/conditions/fulfillment')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({
+    description: 'Status das condicionantes gravado.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Algum condition_id não pertence à licença ou payload inválido.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Empresa ou licença não encontrada.',
+  })
+  @ApiOperation({
+    summary:
+      'Registra o cumprimento (ou não) de cada condicionante de uma licença.',
+  })
+  async saveConditionsFulfillment(
+    @Param('customerId', uuidPipe) customerId: string,
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @Body() dto: SaveConditionsFulfillmentDto,
+    @CurrentUser() user: { id: string },
+  ): Promise<void> {
+    await this.saveConditionsFulfillmentUseCase.execute(
+      customerId,
+      licenseId,
+      user.id,
+      dto.items.map((item) => ({
+        conditionId: item.condition_id,
+        fulfilled: item.fulfilled,
+      })),
     );
   }
 }

@@ -10,7 +10,6 @@ import {
   EsgPillar,
   GovernmentSphere,
   LicenseStatus,
-  LicenseType,
   PrismaClient,
 } from '@prisma/client';
 
@@ -451,8 +450,8 @@ interface SeedCondition {
 
 interface SeedLicense {
   company: string; // nome da empresa em seedCompanies
-  type: LicenseType;
-  agency: string; // sigla em seedIssuingAgencies
+  type: string;
+  agency: string; // texto livre gravado em licenses.issuing_agency
   processNumber: string;
   issuedInDays: number;
   expiresInDays: number;
@@ -469,7 +468,7 @@ interface SeedLicense {
 const seedLicenses: SeedLicense[] = [
   {
     company: 'Unidade Industrial Ouro Preto',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'FEAM',
     processNumber: '2023.05.01.003.0001234',
     issuedInDays: -900,
@@ -511,7 +510,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'Unidade Industrial Ouro Preto',
-    type: LicenseType.LI,
+    type: 'LI',
     agency: 'IBAMA',
     processNumber: '02001.004512/2019-31',
     issuedInDays: -1500,
@@ -520,7 +519,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'Complexo Minerário Carajás',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'IBAMA',
     processNumber: '02001.009876/2021-17',
     issuedInDays: -700,
@@ -550,7 +549,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'EcoVerde Agroindústria S.A.',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'FEPAM',
     processNumber: '000123-05.67/23.4',
     issuedInDays: -365,
@@ -571,7 +570,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'EcoVerde Agroindústria S.A.',
-    type: LicenseType.LP,
+    type: 'LP',
     agency: 'FEPAM',
     processNumber: '000987-05.67/18.2',
     issuedInDays: -1200,
@@ -580,7 +579,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'MetalAço Brasil Ltda',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'FEAM',
     processNumber: '2022.03.01.002.0004567',
     issuedInDays: -1000,
@@ -612,7 +611,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'Usina Siderúrgica Volta Redonda',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'INEA',
     processNumber: 'E-07/002.1234/2016',
     issuedInDays: -2000,
@@ -621,7 +620,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'Celulose Rio Branco',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'IBAMA',
     processNumber: '02001.005555/2022-08',
     issuedInDays: -800,
@@ -630,7 +629,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'SolBrilho Energia Limpa',
-    type: LicenseType.LI,
+    type: 'LI',
     agency: 'CETESB',
     processNumber: '55/00123/22',
     issuedInDays: -300,
@@ -639,7 +638,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'Parque Eólico Serra do Vento',
-    type: LicenseType.LP,
+    type: 'LP',
     agency: 'IBAMA',
     processNumber: '02001.001111/2024-44',
     issuedInDays: -200,
@@ -648,7 +647,7 @@ const seedLicenses: SeedLicense[] = [
   },
   {
     company: 'Estação de Tratamento Vale Azul',
-    type: LicenseType.LO,
+    type: 'LO',
     agency: 'IBAMA',
     processNumber: '02001.007777/2020-62',
     issuedInDays: -1100,
@@ -932,10 +931,7 @@ async function seedCompaniesTable(
   return companies;
 }
 
-async function seedLicensesTable(
-  companies: Map<string, string>,
-  agencies: Map<string, string>,
-) {
+async function seedLicensesTable(companies: Map<string, string>) {
   const now = new Date();
 
   for (const license of seedLicenses) {
@@ -947,14 +943,6 @@ async function seedLicensesTable(
       );
     }
 
-    const issuingAgencyId = agencies.get(license.agency);
-
-    if (!issuingAgencyId) {
-      throw new Error(
-        `Licença "${license.processNumber}" referencia o órgão "${license.agency}", que não está em seedIssuingAgencies.`,
-      );
-    }
-
     const issueDate = addDays(now, license.issuedInDays);
     const expirationDate = addDays(now, license.expiresInDays);
 
@@ -963,7 +951,7 @@ async function seedLicensesTable(
       expirationDate,
       status: deriveLicenseStatus(expirationDate, now),
       documentUrl: `${SEED_DOCUMENT_BASE_URL}/licenca-${license.type.toLowerCase()}-${license.processNumber.replace(/\W/g, '')}.pdf`,
-      issuingAgencyId,
+      issuingAgency: license.agency,
     };
 
     /*
@@ -1076,9 +1064,9 @@ async function main() {
   const metrics = await seedEsgMetricsTable();
   await seedGriStandardsTable(metrics);
   await seedLegislationsTable();
-  const agencies = await seedIssuingAgenciesTable();
+  await seedIssuingAgenciesTable();
   const companies = await seedCompaniesTable(users, sectors, metrics);
-  await seedLicensesTable(companies, agencies);
+  await seedLicensesTable(companies);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);

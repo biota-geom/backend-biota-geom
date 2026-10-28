@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { License } from '../../domain/license.entity';
 import { toLicenseCreatedResponse } from './license-created-response.dto';
 
@@ -6,15 +6,9 @@ function buildLicense(overrides: Partial<License> = {}): License {
   return {
     id: 'license-1',
     customerId: 'customer-1',
-    type: LicenseType.LO,
+    type: 'LO',
     processNumber: 'LO nº 118/2020',
-    issuingAgencyId: 'agency-1',
-    issuingAgency: {
-      id: 'agency-1',
-      name: 'FEPAM',
-      acronym: 'FEPAM',
-      createdAt: new Date(),
-    },
+    issuingAgency: 'FEPAM',
     issueDate: new Date('2020-01-10T00:00:00.000Z'),
     expirationDate: new Date('2025-01-10T00:00:00.000Z'),
     status: LicenseStatus.EXPIRED,
@@ -43,23 +37,14 @@ describe('toLicenseCreatedResponse', () => {
     expect(toLicenseCreatedResponse(license)).toEqual({
       id: 'license-1',
       customer_id: 'customer-1',
-      type: LicenseType.LO,
+      type: 'LO',
       process_number: 'LO nº 118/2020',
-      issuing_agency_id: 'agency-1',
-      issuing_agency_name: 'FEPAM',
+      issuing_agency: 'FEPAM',
       issue_date: '2020-01-10T00:00:00.000Z',
       expiration_date: '2025-01-10T00:00:00.000Z',
       status: 'Vencida',
       document_url: 'https://bucket.aws.com/licenses/lo-118-2020.pdf',
       created_at: '2020-01-10T00:00:00.000Z',
     });
-  });
-
-  it('falls back to null when the issuing agency was not included', () => {
-    const response = toLicenseCreatedResponse(
-      buildLicense({ issuingAgency: undefined }),
-    );
-
-    expect(response.issuing_agency_name).toBeNull();
   });
 });

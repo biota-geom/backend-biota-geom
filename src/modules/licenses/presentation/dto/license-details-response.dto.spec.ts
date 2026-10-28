@@ -3,7 +3,6 @@ import {
   ConditionStatus,
   ConditionType,
   LicenseStatus,
-  LicenseType,
 } from '@prisma/client';
 import { LicenseCondition } from '../../domain/condition.entity';
 import { License } from '../../domain/license.entity';
@@ -49,8 +48,8 @@ describe('license details response mappers', () => {
       id: 'license-1',
       customerId: 'customer-1',
       processNumber: 'LO 118/2020',
-      type: LicenseType.LO,
-      issuingAgencyId: 'agency-1',
+      type: 'LO',
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2020-01-01T00:00:00.000Z'),
       expirationDate: new Date('2028-01-01T00:00:00.000Z'),
       status: LicenseStatus.REGULAR,

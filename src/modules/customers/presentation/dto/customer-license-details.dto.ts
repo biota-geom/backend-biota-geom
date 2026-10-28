@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LicenseType } from '@prisma/client';
 
 export class CustomerLicenseDetailsCriticalResponseDto {
   @ApiProperty({
@@ -8,8 +7,8 @@ export class CustomerLicenseDetailsCriticalResponseDto {
   })
   id!: string;
 
-  @ApiProperty({ enum: LicenseType, example: LicenseType.LO })
-  type!: LicenseType;
+  @ApiProperty({ example: 'LO' })
+  type!: string;
 
   @ApiProperty({ example: 'LO 118/2020' })
   process_number!: string;

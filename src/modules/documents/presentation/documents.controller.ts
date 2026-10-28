@@ -157,7 +157,9 @@ export class DocumentsController {
       customerId,
       ownerUserId: user.id,
       title: dto.title,
-      documentDate: new Date(`${dto.document_date}T00:00:00.000Z`),
+      documentDate: new Date(
+        `${dto.document_date ?? new Date().toISOString().slice(0, 10)}T00:00:00.000Z`,
+      ),
       folderId: dto.folder_id ?? null,
       file: {
         buffer: file.buffer,

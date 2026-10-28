@@ -90,6 +90,32 @@ describe('DocumentsController', () => {
     expect(response.id).toBe('document-1');
   });
 
+  it('uses the upload date when document_date is omitted', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-28T15:00:00.000Z'));
+
+    try {
+      await controller.create(
+        'customer-1',
+        { title: 'Report', document_date: undefined, folder_id: undefined },
+        {
+          buffer: Buffer.from('%PDF-'),
+          originalname: 'report.pdf',
+          mimetype: 'application/pdf',
+          size: 5,
+        },
+        { id: 'user-1' },
+      );
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          documentDate: new Date('2026-10-28T00:00:00.000Z'),
+        }),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('maps the active document list', async () => {
     const response = await controller.list('customer-1', { id: 'user-1' });
 

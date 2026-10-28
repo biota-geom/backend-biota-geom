@@ -7,6 +7,7 @@ import { GetLicenseDetailsUseCase } from '../application/get-license-details.use
 import { ListLicensesByCustomerUseCase } from '../application/list-licenses-by-customer.use-case';
 import { RenewLicenseUseCase } from '../application/renew-license.use-case';
 import { UpdateLicenseConditionUseCase } from '../application/update-license-conditions.use-case';
+import { SaveConditionsFulfillmentUseCase } from '../application/save-conditions-fulfillment.use-case';
 import {
   fileValidationExceptionFactory,
   invalidCustomerIdException,
@@ -22,6 +23,7 @@ function buildController(overrides?: {
   getLicenseDetailsUseCase?: unknown;
   updateLicenseConditionUseCase?: unknown;
   deleteLicenseConditionUseCase?: unknown;
+  saveConditionsFulfillmentUseCase?: unknown;
 }): LicensesController {
   return new LicensesController(
     (overrides?.createLicenseUseCase ??
@@ -40,6 +42,9 @@ function buildController(overrides?: {
     (overrides?.deleteLicenseConditionUseCase ?? {
       execute: jest.fn(),
     }) as DeleteLicenseConditionUseCase,
+    (overrides?.saveConditionsFulfillmentUseCase ?? {
+      execute: jest.fn(),
+    }) as SaveConditionsFulfillmentUseCase,
   );
 }
 
@@ -322,5 +327,33 @@ describe('LicenseRenewalsController', () => {
       previous_license_id: 'old-license',
       status: 'Regular',
     });
+  });
+});
+
+describe('LicensesController — saveConditionsFulfillment', () => {
+  it('delegates to SaveConditionsFulfillmentUseCase and returns nothing', async () => {
+    const execute = jest.fn().mockResolvedValue(undefined);
+    const controller = buildController({
+      saveConditionsFulfillmentUseCase: { execute },
+    });
+
+    const items = [
+      { condition_id: 'cond-a', fulfilled: true },
+      { condition_id: 'cond-b', fulfilled: false },
+    ];
+
+    await expect(
+      controller.saveConditionsFulfillment(
+        'customer-1',
+        'license-1',
+        { items },
+        { id: 'owner-1' },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(execute).toHaveBeenCalledWith('customer-1', 'license-1', 'owner-1', [
+      { conditionId: 'cond-a', fulfilled: true },
+      { conditionId: 'cond-b', fulfilled: false },
+    ]);
   });
 });

@@ -787,4 +787,166 @@ describe('Licenses (e2e)', () => {
       expect(response.body).not.toHaveProperty('summary');
     });
   });
+
+  describe('PATCH /:licenseId/conditions/fulfillment', () => {
+    let fulfillmentLicenseId: string;
+    let otherLicenseId: string | undefined;
+    let conditionAId: string;
+    let conditionBId: string;
+    let conditionCId: string;
+
+    beforeAll(async () => {
+      // Create a license and three conditions to test fulfillment
+      const licenseResponse = await createLicenseRequest()
+        .attach('document_file', PDF_HEADER, {
+          filename: 'lic-fulfillment.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+      fulfillmentLicenseId = (licenseResponse.body as { id: string }).id;
+
+      const created = await prisma.$transaction([
+        prisma.licenseCondition.create({
+          data: {
+            licenseId: fulfillmentLicenseId,
+            name: 'Condicionante A',
+            environmentalDescriptor: 'Recursos Hídricos',
+            responsibleAgency: 'FEPAM',
+            dueDate: new Date('2030-01-01'),
+          },
+        }),
+        prisma.licenseCondition.create({
+          data: {
+            licenseId: fulfillmentLicenseId,
+            name: 'Condicionante B',
+            environmentalDescriptor: 'Recursos Hídricos',
+            responsibleAgency: 'FEPAM',
+            dueDate: new Date('2030-06-01'),
+          },
+        }),
+        prisma.licenseCondition.create({
+          data: {
+            licenseId: fulfillmentLicenseId,
+            name: 'Condicionante C',
+            environmentalDescriptor: 'Recursos Hídricos',
+            responsibleAgency: 'IBAMA',
+            dueDate: new Date('2031-01-01'),
+          },
+        }),
+      ]);
+
+      conditionAId = created[0].id;
+      conditionBId = created[1].id;
+      conditionCId = created[2].id;
+    });
+
+    it('saves FULFILLED and IN_PROGRESS correctly for a mixed list', async () => {
+      await request(app.getHttpServer())
+        .patch(
+          `/api/customers/${customerId}/licenses/${fulfillmentLicenseId}/conditions/fulfillment`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          items: [
+            { condition_id: conditionAId, fulfilled: true },
+            { condition_id: conditionBId, fulfilled: false },
+            { condition_id: conditionCId, fulfilled: true },
+          ],
+        })
+        .expect(204);
+
+      const [condA, condB, condC] = await Promise.all([
+        prisma.licenseCondition.findUniqueOrThrow({
+          where: { id: conditionAId },
+        }),
+        prisma.licenseCondition.findUniqueOrThrow({
+          where: { id: conditionBId },
+        }),
+        prisma.licenseCondition.findUniqueOrThrow({
+          where: { id: conditionCId },
+        }),
+      ]);
+
+      expect(condA.conditionStatus).toBe('FULFILLED');
+      expect(condA.completionDate).not.toBeNull();
+
+      expect(condB.conditionStatus).toBe('IN_PROGRESS');
+      expect(condB.completionDate).toBeNull();
+
+      expect(condC.conditionStatus).toBe('FULFILLED');
+      expect(condC.completionDate).not.toBeNull();
+    });
+
+    it('returns 400 when a condition_id belongs to a different license', async () => {
+      // Create a second license and grab one of its conditions
+      const otherLicense = await createLicenseRequest({
+        process_number: `LO nº 999/2024-${uniqueSuffix()}`,
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'other.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      otherLicenseId = (otherLicense.body as { id: string }).id;
+
+      const foreignCondition = await prisma.licenseCondition.create({
+        data: {
+          licenseId: otherLicenseId,
+          name: 'Condicionante Alheia',
+          environmentalDescriptor: 'Recursos Hídricos',
+          responsibleAgency: 'FEPAM',
+          dueDate: new Date('2030-01-01'),
+        },
+      });
+
+      await request(app.getHttpServer())
+        .patch(
+          `/api/customers/${customerId}/licenses/${fulfillmentLicenseId}/conditions/fulfillment`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          items: [{ condition_id: foreignCondition.id, fulfilled: true }],
+        })
+        .expect(400);
+    });
+
+    it('returns 400 when items array is empty', async () => {
+      await request(app.getHttpServer())
+        .patch(
+          `/api/customers/${customerId}/licenses/${fulfillmentLicenseId}/conditions/fulfillment`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ items: [] })
+        .expect(400);
+    });
+
+    it('returns 404 when the license belongs to another customer', async () => {
+      const otherToken = await getOtherOwnerToken();
+
+      await request(app.getHttpServer())
+        .patch(
+          `/api/customers/${customerId}/licenses/${fulfillmentLicenseId}/conditions/fulfillment`,
+        )
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({
+          items: [{ condition_id: conditionAId, fulfilled: true }],
+        })
+        .expect(404);
+    });
+
+    afterAll(async () => {
+      const licenseIds = [fulfillmentLicenseId, otherLicenseId].filter(
+        (id): id is string => Boolean(id),
+      );
+      if (licenseIds.length > 0) {
+        await prisma.licenseCondition.deleteMany({
+          where: { licenseId: { in: licenseIds } },
+        });
+        await prisma.license.deleteMany({
+          where: { id: { in: licenseIds } },
+        });
+      }
+    });
+  });
 });

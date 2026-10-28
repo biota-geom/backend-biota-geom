@@ -7,7 +7,6 @@ import {
 } from '@prisma/client';
 import { License } from '../../domain/license.entity';
 import { LicenseCondition } from '../../domain/condition.entity';
-import { LICENSE_TYPE_LABELS } from './license-labels';
 
 export class LicenseConditionDetailsResponseDto {
   @ApiProperty({ format: 'uuid', nullable: true })
@@ -60,7 +59,7 @@ export class LicenseDetailsResponseDto {
   @ApiProperty({ example: 'LP nº 482/2024' })
   process_number!: string;
 
-  @ApiProperty({ example: 'Licença Prévia (LP)' })
+  @ApiProperty({ example: 'LP' })
   type!: string;
 
   @ApiProperty({ example: 'FEPAM', nullable: true })
@@ -105,8 +104,8 @@ export function toLicenseDetailsResponse(
   return {
     id: license.id,
     process_number: license.processNumber,
-    type: LICENSE_TYPE_LABELS[license.type],
-    issuing_agency: license.issuingAgency?.name ?? null,
+    type: license.type,
+    issuing_agency: license.issuingAgency,
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: LICENSE_STATUS_LABELS[license.status],

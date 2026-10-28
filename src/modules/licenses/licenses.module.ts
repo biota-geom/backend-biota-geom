@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { FileStorageModule } from '../../common/storage/file-storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
@@ -24,10 +24,11 @@ import { UpdateLicenseConditionUseCase } from './application/update-license-cond
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
 import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
+import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-fulfillment.use-case';
 @Module({
   imports: [
     AuthModule,
-    CustomerModule,
+    forwardRef(() => CustomerModule),
     IssuingAgenciesModule,
     FileStorageModule,
   ],
@@ -52,8 +53,13 @@ import { GetLicenseDocumentUrlUseCase } from './application/get-license-document
     DeleteLicenseConditionUseCase,
     RenewLicenseUseCase,
     GetLicenseDocumentUrlUseCase,
+    SaveConditionsFulfillmentUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
+  ],
+  exports: [
+    GetLicenseConditionsComplianceUseCase,
+    ListLicenseConditionsByCustomerUseCase,
   ],
 })
 export class LicensesModule {}

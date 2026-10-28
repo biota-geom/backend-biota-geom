@@ -1,31 +1,52 @@
+import { plainToInstance } from 'class-transformer';
 import {
-  toEsgIndicatorChanges,
-  toEsgIndicatorsResponse,
+  toIndicatorRecordChanges,
+  toMonthlyIndicatorResponse,
+  toNewIndicatorResponse,
 } from './esg-indicators-response.dto';
 import { SaveEsgIndicatorsDto } from './save-esg-indicators.dto';
 
-describe('esg indicators response mapping', () => {
-  it('maps stored values to the lowercase API contract, keeping nulls', () => {
+const DEFINITION = {
+  id: 'ind-1',
+  name: 'Consumo de Água',
+  unit: 'm³',
+  category: 'Ambiental' as const,
+};
+
+describe('esg indicators response mappers', () => {
+  it('uses the contract field names', () => {
     expect(
-      toEsgIndicatorsResponse({
-        WATER: 1250.5,
-        WASTE: null,
-        EMPLOYEES: 148,
-        ENERGY: null,
-      }),
-    ).toEqual({ water: 1250.5, waste: null, employees: 148, energy: null });
+      toMonthlyIndicatorResponse({ ...DEFINITION, value: 1250.5 }),
+    ).toEqual({
+      indicator_id: 'ind-1',
+      name: 'Consumo de Água',
+      unit: 'm³',
+      category: 'Ambiental',
+      value: 1250.5,
+    });
   });
 
-  it('maps the request body to changes, leaving omitted fields undefined', () => {
-    const dto = new SaveEsgIndicatorsDto();
-    dto.water = 10;
-    dto.waste = null;
-
-    expect(toEsgIndicatorChanges(dto)).toEqual({
-      WATER: 10,
-      WASTE: null,
-      EMPLOYEES: undefined,
-      ENERGY: undefined,
+  it('shows a new indicator without a value', () => {
+    expect(toNewIndicatorResponse(DEFINITION)).toEqual({
+      indicator_id: 'ind-1',
+      name: 'Consumo de Água',
+      unit: 'm³',
+      category: 'Ambiental',
+      value: null,
     });
+  });
+
+  it('turns the request records into domain changes', () => {
+    const dto = plainToInstance(SaveEsgIndicatorsDto, {
+      records: [
+        { indicator_id: 'ind-1', value: 10 },
+        { indicator_id: 'ind-2', value: null },
+      ],
+    });
+
+    expect(toIndicatorRecordChanges(dto)).toEqual([
+      { indicatorId: 'ind-1', value: 10 },
+      { indicatorId: 'ind-2', value: null },
+    ]);
   });
 });

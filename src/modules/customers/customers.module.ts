@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { LicensesModule } from '../licenses/licenses.module';
 import { SectorsModule } from '../sectors/sectors.module';
 import { CreateCustomerUseCase } from './application/create-customer.use-case';
 import { FindCustomerUseCase } from './application/find-a-customer.use-case';
+import { GetCustomerDashboardConditionsUseCase } from './application/get-customer-dashboard-conditions.use-case';
 import { LinkCustomerEsgMetricsUseCase } from './application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from './application/list-customer-esg-metrics.use-case';
 import { ListCustomersUseCase } from './application/list-customers.use-case';
@@ -14,9 +16,12 @@ import { CustomersService } from './infra/customers.service';
 import { PrismaCustomerEsgMetricRepository } from './infra/prisma-customer-esg-metric.repository';
 import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
 import { CustomerController } from './presentation/customers.controller';
+import { LicenseRepository } from '../licenses/domain/licenses.repository';
+import { PrismaLicenseRepository } from '../licenses/infra/prisma-license.repository';
+import { ListCustomerDashboardLicensesUseCase } from './application/list-customer-dashboard-licenses.use-case';
 
 @Module({
-  imports: [AuthModule, SectorsModule],
+  imports: [AuthModule, SectorsModule, forwardRef(() => LicensesModule)],
   controllers: [CustomerController],
   providers: [
     { provide: CustomerRepository, useClass: PrismaCustomerRepository },
@@ -24,6 +29,11 @@ import { CustomerController } from './presentation/customers.controller';
       provide: CustomerEsgMetricRepository,
       useClass: PrismaCustomerEsgMetricRepository,
     },
+    {
+      provide: LicenseRepository,
+      useClass: PrismaLicenseRepository,
+    },
+    ListCustomerDashboardLicensesUseCase,
     ListCustomersUseCase,
     CreateCustomerUseCase,
     FindCustomerUseCase,
@@ -31,6 +41,7 @@ import { CustomerController } from './presentation/customers.controller';
     UpdateCustomerUseCase,
     LinkCustomerEsgMetricsUseCase,
     ListCustomerEsgMetricsUseCase,
+    GetCustomerDashboardConditionsUseCase,
     CustomersService,
   ],
   // CustomerRepository scopes license operations to the authenticated owner's

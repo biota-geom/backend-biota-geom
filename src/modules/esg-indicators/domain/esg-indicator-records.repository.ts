@@ -1,25 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import { EsgIndicatorChanges, EsgIndicatorValues } from './esg-indicator';
+import { IndicatorRecordChange } from './esg-indicator';
 
 /*
  * The customer is assumed to be already checked against its owner (see
- * CustomerRepository): the use cases do that before calling this port.
+ * CustomerRepository), and the indicators against the customer's catalog:
+ * the use cases do that before calling this port.
  */
 @Injectable()
 export abstract class EsgIndicatorRecordRepository {
-  abstract findByMonth(
+  // Stored values of the month by indicator id; indicators without a record
+  // are simply not in the map.
+  abstract findValuesByMonth(
     customerId: string,
     referenceMonth: Date,
-  ): Promise<EsgIndicatorValues>;
+  ): Promise<Map<string, number>>;
+
+  // The most recent month with a record of an indicator still linked to the
+  // customer, or null when there is none.
+  abstract findLatestMonth(customerId: string): Promise<Date | null>;
 
   /*
-   * Applies every change of the month in one transaction (all or nothing)
-   * and returns the month as it is stored afterwards. Saving a month that
-   * already has a record corrects it; it never adds a second one.
+   * Applies every change in one transaction (all or nothing). Saving an
+   * indicator that already has a record for the month corrects it; it never
+   * adds a second one.
    */
   abstract saveMonth(
     customerId: string,
     referenceMonth: Date,
-    changes: EsgIndicatorChanges,
-  ): Promise<EsgIndicatorValues>;
+    changes: IndicatorRecordChange[],
+  ): Promise<void>;
 }

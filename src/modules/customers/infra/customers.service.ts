@@ -14,6 +14,8 @@ import {
 import { CustomerListResponseDTO } from '../presentation/dto/customer-list-response.dto';
 import { CustomerResponseDTO } from '../presentation/dto/customer-response.dto';
 import { UpdateCustomerDto } from '../presentation/dto/update-customer.dto';
+import { ListCustomerDashboardLicensesUseCase } from '../application/list-customer-dashboard-licenses.use-case';
+import { CustomerLicenseDetailsResponseDto } from '../presentation/dto/customer-license-details.dto';
 
 @Injectable()
 export class CustomersService {
@@ -23,6 +25,7 @@ export class CustomersService {
     private readonly findCustomerUseCase: FindCustomerUseCase,
     private readonly updateCustomerUseCase: UpdateCustomerUseCase,
     private readonly removeCustomerUseCase: RemoveCustomerUseCase,
+    private readonly listCustomerDashboardLicensesUseCase: ListCustomerDashboardLicensesUseCase,
   ) {}
 
   async findAll(ownerUserId: string): Promise<CustomerListResponseDTO[]> {
@@ -93,5 +96,18 @@ export class CustomersService {
     }
 
     return true;
+  }
+
+  async listCustomerDashboardLicenses(
+    customerId: string,
+    userId: string,
+  ): Promise<CustomerLicenseDetailsResponseDto> {
+    const licensesDetails =
+      await this.listCustomerDashboardLicensesUseCase.execute(
+        customerId,
+        userId,
+      );
+
+    return licensesDetails;
   }
 }

@@ -1,8 +1,4 @@
-import {
-  LicenseConditionStatus,
-  LicenseStatus,
-  LicenseType,
-} from '@prisma/client';
+import { LicenseConditionStatus, LicenseStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { InvalidConditionDueDateError } from '../domain/errors/invalid-condition-due-date.error';
 import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
@@ -24,9 +20,9 @@ function buildUseCase(overrides?: {
     findById: jest.fn().mockResolvedValue({
       id: 'license-1',
       customerId: 'customer-1',
-      type: LicenseType.LO,
+      type: 'LO',
       processNumber: 'LO 118/2020',
-      issuingAgencyId: 'agency-1',
+      issuingAgency: 'FEPAM',
       issueDate: new Date('2020-01-01T00:00:00.000Z'),
       expirationDate: new Date('2028-01-01T00:00:00.000Z'),
       status: LicenseStatus.REGULAR,

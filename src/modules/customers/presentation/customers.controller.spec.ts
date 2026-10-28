@@ -1,9 +1,15 @@
 import { BadRequestException } from '@nestjs/common';
-import { AddressType, DocumentType } from '@prisma/client';
+import {
+  AddressType,
+  DocumentType,
+  LicenseConditionStatus,
+} from '@prisma/client';
 import { describe, expect, it, jest } from '@jest/globals';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { EsgMetricEntity } from '../../esg-metrics/domain/entities/esg-metric.entity';
 import { EsgPillar } from '../../esg-metrics/domain/esg-pillar';
+import { LicenseConditionRiskLevel } from '../../licenses/domain/license-condition-risk-level';
+import { GetCustomerDashboardConditionsUseCase } from '../application/get-customer-dashboard-conditions.use-case';
 import { LinkCustomerEsgMetricsUseCase } from '../application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from '../application/list-customer-esg-metrics.use-case';
 import { CustomersService } from '../infra/customers.service';
@@ -13,6 +19,7 @@ import {
 } from './customers.controller';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerDetailResponseDto } from './dto/customer-detail-response.dto';
+import { CustomerLicenseDetailsResponseDto } from './dto/customer-license-details.dto';
 import { CustomerListResponseDTO } from './dto/customer-list-response.dto';
 import { CustomerResponseDTO } from './dto/customer-response.dto';
 import { LinkCustomerEsgMetricsDto } from './dto/link-customer-esg-metrics.dto';
@@ -48,6 +55,8 @@ describe('CustomerController', () => {
       remove: jest
         .fn<(id: string, ownerUserId: string) => Promise<boolean>>()
         .mockResolvedValue(true),
+      listCustomerDashboardLicenses:
+        jest.fn<CustomersService['listCustomerDashboardLicenses']>(),
     };
     const linkExecute =
       jest.fn<
@@ -73,10 +82,77 @@ describe('CustomerController', () => {
       service as unknown as CustomersService,
       { execute: linkExecute } as unknown as LinkCustomerEsgMetricsUseCase,
       { execute: listExecute } as unknown as ListCustomerEsgMetricsUseCase,
+      {
+        execute: jest.fn(),
+      } as unknown as GetCustomerDashboardConditionsUseCase,
     );
 
-    return { controller, service, linkExecute, listExecute };
+    return {
+      controller,
+      service,
+      linkExecute,
+      listExecute,
+    };
   }
+
+  it('returns dashboard conditions using the authenticated owner', async () => {
+    const condition = {
+      id: 'condition-1',
+      licenseId: 'license-1',
+      name: 'MTR',
+      description: null,
+      environmentalDescriptor: 'Resíduos sólidos',
+      responsibleAgency: 'FEPAM',
+      dueDate: new Date('2026-10-25T00:00:00.000Z'),
+      status: LicenseConditionStatus.REGULAR,
+      hasDelivery: true,
+      isViolated: false,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      riskLevel: LicenseConditionRiskLevel.RISK,
+    };
+    const execute = jest
+      .fn<GetCustomerDashboardConditionsUseCase['execute']>()
+      .mockResolvedValue({
+        totalActive: 1,
+        inCompliance: 0,
+        compliancePercentage: 0,
+        critical: [condition],
+      });
+    const controller = new CustomerController(
+      {} as CustomersService,
+      {} as LinkCustomerEsgMetricsUseCase,
+      {} as ListCustomerEsgMetricsUseCase,
+      { execute } as unknown as GetCustomerDashboardConditionsUseCase,
+    );
+
+    await expect(
+      controller.getCustomerDashboardConditions(
+        CUSTOMER_ID,
+        AUTHENTICATED_USER,
+      ),
+    ).resolves.toEqual({
+      total_active: 1,
+      in_compliance: 0,
+      compliance_percentage: 0,
+      critical: [
+        {
+          id: 'condition-1',
+          license_id: 'license-1',
+          name: 'MTR',
+          description: null,
+          environmental_descriptor: 'Resíduos sólidos',
+          responsible_agency: 'FEPAM',
+          due_date: condition.dueDate.toISOString(),
+          status: 'Regular',
+          has_delivery: true,
+          is_violated: false,
+          risk_level: LicenseConditionRiskLevel.RISK,
+        },
+      ],
+    });
+    expect(execute).toHaveBeenCalledWith(CUSTOMER_ID, AUTHENTICATED_USER.id);
+  });
 
   it('returns the list from the customer service', async () => {
     const { controller, service } = buildController();
@@ -100,6 +176,24 @@ describe('CustomerController', () => {
     );
     // The owner comes from the token, so the list cannot be widened by input.
     expect(service.findAll).toHaveBeenCalledWith(AUTHENTICATED_USER.id);
+  });
+
+  it('delegates the dashboard license lookup with the authenticated user id', async () => {
+    const { controller, service } = buildController();
+    const result: CustomerLicenseDetailsResponseDto = {
+      header: { active_licenses: 1, pending_items: 1 },
+      counts: { regular: 0, pending: 1, expired: 0 },
+      critical: [],
+    };
+    service.listCustomerDashboardLicenses.mockResolvedValue(result);
+
+    await expect(
+      controller.listCustomerDashboardLicenses(CUSTOMER_ID, AUTHENTICATED_USER),
+    ).resolves.toBe(result);
+    expect(service.listCustomerDashboardLicenses).toHaveBeenCalledWith(
+      CUSTOMER_ID,
+      AUTHENTICATED_USER.id,
+    );
   });
 
   it('maps linked metrics to the response dto', async () => {
@@ -179,6 +273,7 @@ describe('CustomerController', () => {
       service as unknown as CustomersService,
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
+      {} as GetCustomerDashboardConditionsUseCase,
     );
     const dto = Object.assign(new UpdateCustomerDto(), {
       name: 'Empresa Atualizada',
@@ -228,6 +323,7 @@ describe('CustomerController', () => {
       service as unknown as CustomersService,
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
+      {} as GetCustomerDashboardConditionsUseCase,
     );
     const dto: CreateCustomerDto = {
       name: 'Unidade Industrial RS',
@@ -322,6 +418,7 @@ describe('CustomerController', () => {
       service as unknown as CustomersService,
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
+      {} as GetCustomerDashboardConditionsUseCase,
     );
 
     const response = await controller.createCustomer(

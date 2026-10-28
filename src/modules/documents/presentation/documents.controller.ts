@@ -112,7 +112,7 @@ export class DocumentsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'title', 'document_date'],
+      required: ['file', 'title'],
       properties: {
         file: { type: 'string', format: 'binary' },
         title: { type: 'string', example: 'Noise Report 2026' },

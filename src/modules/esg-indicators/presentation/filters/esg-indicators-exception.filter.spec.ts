@@ -1,6 +1,9 @@
 import { ArgumentsHost, HttpStatus } from '@nestjs/common';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
+import { DuplicatedIndicatorRecordError } from '../../domain/errors/duplicated-indicator-record.error';
+import { IndicatorAlreadyExistsError } from '../../domain/errors/indicator-already-exists.error';
+import { IndicatorNotConfiguredError } from '../../domain/errors/indicator-not-configured.error';
 import { InvalidReferenceMonthError } from '../../domain/errors/invalid-reference-month.error';
 import { ESG_INDICATORS_MESSAGES } from '../messages/esg-indicators.messages.pt-br';
 import { EsgIndicatorsExceptionFilter } from './esg-indicators-exception.filter';
@@ -42,6 +45,45 @@ describe('EsgIndicatorsExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         message: ESG_INDICATORS_MESSAGES.INVALID_MONTH,
+      }),
+    );
+  });
+
+  it('maps IndicatorNotConfiguredError to 400', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new IndicatorNotConfiguredError(['ind-1']), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: ESG_INDICATORS_MESSAGES.INDICATOR_NOT_CONFIGURED,
+      }),
+    );
+  });
+
+  it('maps DuplicatedIndicatorRecordError to 400', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new DuplicatedIndicatorRecordError('ind-1'), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: ESG_INDICATORS_MESSAGES.DUPLICATED_INDICATOR_RECORD,
+      }),
+    );
+  });
+
+  it('maps IndicatorAlreadyExistsError to 409', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new IndicatorAlreadyExistsError('Água'), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: ESG_INDICATORS_MESSAGES.INDICATOR_ALREADY_EXISTS,
       }),
     );
   });

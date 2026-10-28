@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { FileStorageModule } from '../../common/storage/file-storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
@@ -28,7 +28,7 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
 @Module({
   imports: [
     AuthModule,
-    CustomerModule,
+    forwardRef(() => CustomerModule),
     IssuingAgenciesModule,
     FileStorageModule,
   ],
@@ -56,6 +56,10 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     SaveConditionsFulfillmentUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
+  ],
+  exports: [
+    GetLicenseConditionsComplianceUseCase,
+    ListLicenseConditionsByCustomerUseCase,
   ],
 })
 export class LicensesModule {}

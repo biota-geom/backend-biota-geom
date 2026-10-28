@@ -44,4 +44,7 @@ export abstract class LicenseRepository {
   abstract saveConditionsFulfillment(
     data: SaveConditionsFulfillmentData,
   ): Promise<void>;
+  abstract findCustomerLicenses(
+    customerId: string,
+  ): Promise<Array<License & { conditions: LicenseCondition[] }>>;
 }

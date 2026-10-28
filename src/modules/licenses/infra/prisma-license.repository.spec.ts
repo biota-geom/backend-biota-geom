@@ -103,8 +103,19 @@ describe('PrismaLicenseRepository', () => {
         periodicity: 'ANNUAL',
         hasDelivery: true,
       },
+      {
+        id: 'c-3',
+        name: 'Outorga',
+        environmentalDescriptor: 'Recursos Hídricos',
+        description: null,
+        responsibleAgency: null,
+        responsibleName: null,
+        conditionType: null,
+        periodicity: null,
+        hasDelivery: false,
+      },
     ]);
-    const createMany = jest.fn().mockResolvedValue({ count: 1 });
+    const createMany = jest.fn().mockResolvedValue({ count: 2 });
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({
         license: { create, update },
@@ -115,6 +126,7 @@ describe('PrismaLicenseRepository', () => {
       $transaction: transaction,
     } as unknown as PrismaService);
     const newDueDate = new Date('2027-10-01T00:00:00.000Z');
+    const otherDueDate = new Date('2027-11-01T00:00:00.000Z');
 
     await repository.renew({
       previousLicenseId: 'old-license',
@@ -129,6 +141,12 @@ describe('PrismaLicenseRepository', () => {
       conditions: [
         { conditionId: 'c-1', fulfilled: true, copyToNew: true, newDueDate },
         { conditionId: 'c-2', fulfilled: false, copyToNew: false },
+        {
+          conditionId: 'c-3',
+          fulfilled: true,
+          copyToNew: true,
+          newDueDate: otherDueDate,
+        },
       ],
     });
 
@@ -147,7 +165,7 @@ describe('PrismaLicenseRepository', () => {
       },
     });
     expect(findMany).toHaveBeenCalledWith({
-      where: { licenseId: 'old-license', id: { in: ['c-1'] } },
+      where: { licenseId: 'old-license', id: { in: ['c-1', 'c-3'] } },
       orderBy: { createdAt: 'asc' },
     });
     expect(createMany).toHaveBeenCalledWith({
@@ -162,10 +180,33 @@ describe('PrismaLicenseRepository', () => {
           conditionType: 'PERIODIC',
           periodicity: 'ANNUAL',
           hasDelivery: true,
+          deadline: newDueDate,
           dueDate: newDueDate,
+          createdAt: expect.any(Date) as Date,
+        },
+        {
+          licenseId: 'new-license',
+          name: 'Outorga',
+          environmentalDescriptor: 'Recursos Hídricos',
+          description: null,
+          responsibleAgency: null,
+          responsibleName: null,
+          conditionType: null,
+          periodicity: null,
+          hasDelivery: false,
+          deadline: otherDueDate,
+          dueDate: otherDueDate,
+          createdAt: expect.any(Date) as Date,
         },
       ],
     });
+    // Read-time numbering follows createdAt, so the copies keep the source order.
+    const [{ data: copies }] = createMany.mock.calls[0] as [
+      { data: { createdAt: Date }[] },
+    ];
+    expect(copies[1].createdAt.getTime()).toBeGreaterThan(
+      copies[0].createdAt.getTime(),
+    );
   });
 
   it('does not copy any condition when none is marked to be copied', async () => {

@@ -95,19 +95,30 @@ export class PrismaLicenseRepository implements LicenseRepository {
             orderBy: { createdAt: 'asc' },
           });
 
+          const copiedAt = Date.now();
           await transaction.licenseCondition.createMany({
-            data: sources.map((source) => ({
-              licenseId: renewed.id,
-              name: source.name,
-              environmentalDescriptor: source.environmentalDescriptor,
-              description: source.description,
-              responsibleAgency: source.responsibleAgency,
-              responsibleName: source.responsibleName,
-              conditionType: source.conditionType,
-              periodicity: source.periodicity,
-              hasDelivery: source.hasDelivery,
-              dueDate: dueDateById.get(source.id) as Date,
-            })),
+            data: sources.map((source, index) => {
+              const dueDate = dueDateById.get(source.id) as Date;
+
+              return {
+                licenseId: renewed.id,
+                name: source.name,
+                environmentalDescriptor: source.environmentalDescriptor,
+                description: source.description,
+                responsibleAgency: source.responsibleAgency,
+                responsibleName: source.responsibleName,
+                conditionType: source.conditionType,
+                periodicity: source.periodicity,
+                hasDelivery: source.hasDelivery,
+                // Same pair the condition form writes: the page shows
+                // `deadline`, the compliance rules read `dueDate`.
+                deadline: dueDate,
+                dueDate,
+                // Distinct timestamps keep the previous license's order for
+                // the read-time item numbering.
+                createdAt: new Date(copiedAt + index),
+              };
+            }),
           });
         }
 

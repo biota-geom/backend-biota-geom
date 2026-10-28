@@ -895,6 +895,9 @@ describe('Licenses (e2e)', () => {
         '2027-10-01',
         '2027-11-01',
       ]);
+      expect(copies.map((c) => c.deadline?.toISOString().slice(0, 10))).toEqual(
+        ['2027-10-01', '2027-11-01'],
+      );
       expect(copies.every((c) => c.conditionStatus === 'IN_PROGRESS')).toBe(
         true,
       );

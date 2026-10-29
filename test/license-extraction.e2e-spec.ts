@@ -273,9 +273,6 @@ describe('License extraction (e2e)', () => {
     const sector = await prisma.sector.create({
       data: { name: `Setor Extração ${uniqueSuffix()}` },
     });
-    const agency = await prisma.issuingAgency.create({
-      data: { name: `Órgão Extração ${uniqueSuffix()}`, acronym: 'FEPAM' },
-    });
     const customer = await request(app.getHttpServer())
       .post('/api/customers')
       .set('Authorization', `Bearer ${token}`)
@@ -309,13 +306,13 @@ describe('License extraction (e2e)', () => {
         suggested_conditions: Array<Record<string, string | null>>;
       };
 
-    // 2. The user picks the agency, reviews and saves the license.
+    // 2. The user reviews and saves the license.
     const license = await request(app.getHttpServer())
       .post(`/api/customers/${customerId}/licenses`)
       .set('Authorization', `Bearer ${token}`)
       .field('type', data.type)
       .field('process_number', data.process_number)
-      .field('issuing_agency_id', agency.id)
+      .field('issuing_agency', data.issuing_agency)
       .field('issue_date', data.issue_date)
       .field('expiration_date', data.expiration_date)
       .attach('document_file', PDF, {

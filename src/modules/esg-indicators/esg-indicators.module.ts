@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { CreateCustomerIndicatorUseCase } from './application/create-customer-indicator.use-case';
@@ -13,7 +13,8 @@ import { CustomerIndicatorsController } from './presentation/customer-indicators
 import { EsgIndicatorsController } from './presentation/esg-indicators.controller';
 
 @Module({
-  imports: [AuthModule, CustomerModule],
+  // Circular with CustomerModule: both sides need forwardRef.
+  imports: [AuthModule, forwardRef(() => CustomerModule)],
   controllers: [EsgIndicatorsController, CustomerIndicatorsController],
   providers: [
     {
@@ -29,5 +30,8 @@ import { EsgIndicatorsController } from './presentation/esg-indicators.controlle
     CreateCustomerIndicatorUseCase,
     GetEsgIndicatorsSummaryUseCase,
   ],
+  // The executive report reuses the same summary the dashboard block shows,
+  // so both always print the same numbers for the same moment.
+  exports: [GetEsgIndicatorsSummaryUseCase],
 })
 export class EsgIndicatorsModule {}

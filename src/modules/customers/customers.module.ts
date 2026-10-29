@@ -1,9 +1,11 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { EsgIndicatorsModule } from '../esg-indicators/esg-indicators.module';
 import { LicensesModule } from '../licenses/licenses.module';
 import { SectorsModule } from '../sectors/sectors.module';
 import { CreateCustomerUseCase } from './application/create-customer.use-case';
 import { FindCustomerUseCase } from './application/find-a-customer.use-case';
+import { GenerateCustomerReportUseCase } from './application/generate-customer-report.use-case';
 import { GetCustomerDashboardConditionsUseCase } from './application/get-customer-dashboard-conditions.use-case';
 import { LinkCustomerEsgMetricsUseCase } from './application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from './application/list-customer-esg-metrics.use-case';
@@ -11,9 +13,11 @@ import { ListCustomersUseCase } from './application/list-customers.use-case';
 import { RemoveCustomerUseCase } from './application/remove-customer.use-case';
 import { UpdateCustomerUseCase } from './application/update-customer.use-case';
 import { CustomerEsgMetricRepository } from './domain/customer-esg-metric.repository';
+import { CustomerReportRenderer } from './domain/customer-report.renderer';
 import { CustomerRepository } from './domain/customers.repository';
 import { CustomersService } from './infra/customers.service';
 import { PrismaCustomerEsgMetricRepository } from './infra/prisma-customer-esg-metric.repository';
+import { PdfKitCustomerReportRenderer } from './infra/pdfkit-customer-report.renderer';
 import { PrismaCustomerRepository } from './infra/prisma-customer.repository';
 import { CustomerController } from './presentation/customers.controller';
 import { LicenseRepository } from '../licenses/domain/licenses.repository';
@@ -21,7 +25,12 @@ import { PrismaLicenseRepository } from '../licenses/infra/prisma-license.reposi
 import { ListCustomerDashboardLicensesUseCase } from './application/list-customer-dashboard-licenses.use-case';
 
 @Module({
-  imports: [AuthModule, SectorsModule, forwardRef(() => LicensesModule)],
+  imports: [
+    AuthModule,
+    SectorsModule,
+    forwardRef(() => LicensesModule),
+    forwardRef(() => EsgIndicatorsModule),
+  ],
   controllers: [CustomerController],
   providers: [
     { provide: CustomerRepository, useClass: PrismaCustomerRepository },
@@ -42,6 +51,11 @@ import { ListCustomerDashboardLicensesUseCase } from './application/list-custome
     LinkCustomerEsgMetricsUseCase,
     ListCustomerEsgMetricsUseCase,
     GetCustomerDashboardConditionsUseCase,
+    GenerateCustomerReportUseCase,
+    {
+      provide: CustomerReportRenderer,
+      useClass: PdfKitCustomerReportRenderer,
+    },
     CustomersService,
   ],
   // CustomerRepository scopes license operations to the authenticated owner's

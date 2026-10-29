@@ -29,5 +29,8 @@ import { EsgIndicatorsController } from './presentation/esg-indicators.controlle
     CreateCustomerIndicatorUseCase,
     GetEsgIndicatorsSummaryUseCase,
   ],
+  // The executive report reuses the same summary the dashboard block shows,
+  // so both always print the same numbers for the same moment.
+  exports: [GetEsgIndicatorsSummaryUseCase],
 })
 export class EsgIndicatorsModule {}

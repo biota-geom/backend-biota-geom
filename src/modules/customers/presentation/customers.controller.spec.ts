@@ -9,6 +9,8 @@ import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt
 import { EsgMetricEntity } from '../../esg-metrics/domain/entities/esg-metric.entity';
 import { EsgPillar } from '../../esg-metrics/domain/esg-pillar';
 import { LicenseConditionRiskLevel } from '../../licenses/domain/license-condition-risk-level';
+import type { Response } from 'express';
+import { GenerateCustomerReportUseCase } from '../application/generate-customer-report.use-case';
 import { GetCustomerDashboardConditionsUseCase } from '../application/get-customer-dashboard-conditions.use-case';
 import { LinkCustomerEsgMetricsUseCase } from '../application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from '../application/list-customer-esg-metrics.use-case';
@@ -85,6 +87,9 @@ describe('CustomerController', () => {
       {
         execute: jest.fn(),
       } as unknown as GetCustomerDashboardConditionsUseCase,
+      {
+        execute: jest.fn(),
+      } as unknown as GenerateCustomerReportUseCase,
     );
 
     return {
@@ -124,6 +129,7 @@ describe('CustomerController', () => {
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
       { execute } as unknown as GetCustomerDashboardConditionsUseCase,
+      {} as GenerateCustomerReportUseCase,
     );
 
     await expect(
@@ -274,6 +280,7 @@ describe('CustomerController', () => {
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
       {} as GetCustomerDashboardConditionsUseCase,
+      {} as GenerateCustomerReportUseCase,
     );
     const dto = Object.assign(new UpdateCustomerDto(), {
       name: 'Empresa Atualizada',
@@ -324,6 +331,7 @@ describe('CustomerController', () => {
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
       {} as GetCustomerDashboardConditionsUseCase,
+      {} as GenerateCustomerReportUseCase,
     );
     const dto: CreateCustomerDto = {
       name: 'Unidade Industrial RS',
@@ -419,6 +427,7 @@ describe('CustomerController', () => {
       {} as LinkCustomerEsgMetricsUseCase,
       {} as ListCustomerEsgMetricsUseCase,
       {} as GetCustomerDashboardConditionsUseCase,
+      {} as GenerateCustomerReportUseCase,
     );
 
     const response = await controller.createCustomer(
@@ -442,5 +451,38 @@ describe('CustomerController', () => {
       'customer-1',
       AUTHENTICATED_USER.id,
     );
+  });
+
+  it('streams the report and names the download after the company', async () => {
+    const content = Buffer.from('%PDF-1.7');
+    const execute = jest
+      .fn<GenerateCustomerReportUseCase['execute']>()
+      .mockResolvedValue({
+        fileName: 'relatorio-unidade-industrial-rs-2026-10-28.pdf',
+        content,
+      });
+    const set = jest.fn();
+    const controller = new CustomerController(
+      {} as CustomersService,
+      {} as LinkCustomerEsgMetricsUseCase,
+      {} as ListCustomerEsgMetricsUseCase,
+      {} as GetCustomerDashboardConditionsUseCase,
+      { execute } as unknown as GenerateCustomerReportUseCase,
+    );
+
+    const file = await controller.downloadCustomerReport(
+      CUSTOMER_ID,
+      AUTHENTICATED_USER,
+      { set } as unknown as Response,
+    );
+
+    expect(execute).toHaveBeenCalledWith(CUSTOMER_ID, AUTHENTICATED_USER.id);
+    expect(set).toHaveBeenCalledWith({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition':
+        'attachment; filename="relatorio-unidade-industrial-rs-2026-10-28.pdf"',
+      'Access-Control-Expose-Headers': 'Content-Disposition',
+    });
+    expect(file.getStream().read()).toEqual(content);
   });
 });

@@ -58,7 +58,6 @@ describe('CreateLicenseConditionUseCase', () => {
   it('creates conditions with a computed-number-ready descriptor', async () => {
     const { useCase, repository } = buildUseCase();
     const deadline = new Date('2027-01-01T00:00:00.000Z');
-    jest.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
 
     await expect(useCase.execute(buildInput())).resolves.toEqual({
       count: 1,
@@ -77,14 +76,12 @@ describe('CreateLicenseConditionUseCase', () => {
         dueDate: deadline,
         conditionStatus: ConditionStatus.IN_PROGRESS,
         hasDelivery: true,
-        createdAt: new Date(1_800_000_000_000),
       },
     ]);
   });
 
-  it('preserves payload order with increasing creation timestamps', async () => {
+  it('hands the conditions to the repository in payload order', async () => {
     const { useCase, repository } = buildUseCase();
-    jest.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000);
     const input = buildInput();
     input.data.conditions.push({
       environmental_descriptor: 'Água',
@@ -99,8 +96,9 @@ describe('CreateLicenseConditionUseCase', () => {
     const createConditions = jest.mocked(repository.createConditions!);
     const created = createConditions.mock.calls[0]?.[0];
     if (!created) throw new Error('Expected conditions to be created');
-    expect(created.map((condition) => condition.createdAt.getTime())).toEqual([
-      1_800_000_000_000, 1_800_000_000_001,
+    expect(created.map((condition) => condition.description)).toEqual([
+      input.data.conditions[0].description,
+      'Laudo',
     ]);
   });
 

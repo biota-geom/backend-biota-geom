@@ -23,6 +23,7 @@ import { GetLicenseDetailsUseCase } from './application/get-license-details.use-
 import { UpdateLicenseConditionUseCase } from './application/update-license-conditions.use-case';
 import { DeleteLicenseConditionUseCase } from './application/delete-license-condition.use-case';
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
+import { ListLicenseHistoryUseCase } from './application/list-license-history.use-case';
 import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
 import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-fulfillment.use-case';
 @Module({
@@ -52,6 +53,7 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     UpdateLicenseConditionUseCase,
     DeleteLicenseConditionUseCase,
     RenewLicenseUseCase,
+    ListLicenseHistoryUseCase,
     GetLicenseDocumentUrlUseCase,
     SaveConditionsFulfillmentUseCase,
     ListLicenseConditionsByCustomerUseCase,

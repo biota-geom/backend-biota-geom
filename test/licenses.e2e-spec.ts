@@ -802,6 +802,289 @@ describe('Licenses (e2e)', () => {
     });
   });
 
+  describe('POST /licenses/:licenseId/renew (conditions and history)', () => {
+    let previousLicenseId: string;
+    let conditionIds: string[];
+
+    // Date-only value `days` from now, as the renewal form sends it.
+    function inDays(days: number): string {
+      return new Date(Date.now() + days * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+    }
+
+    function renew(
+      licenseId: string,
+      conditions: unknown,
+      overrides: Record<string, string> = {},
+    ) {
+      const fields: Record<string, string> = {
+        process_number: `LO renovada-${uniqueSuffix()}`,
+        issue_date: '2026-01-10T00:00:00.000Z',
+        expiration_date: '2099-01-10T00:00:00.000Z',
+        ...overrides,
+      };
+      if (conditions !== undefined) {
+        fields.conditions =
+          typeof conditions === 'string'
+            ? conditions
+            : JSON.stringify(conditions);
+      }
+
+      let req = request(app.getHttpServer())
+        .post(`/api/licenses/${licenseId}/renew`)
+        .set('Authorization', `Bearer ${token}`);
+      for (const [key, value] of Object.entries(fields)) {
+        req = req.field(key, value);
+      }
+
+      return req.attach('document_file', PDF_HEADER, {
+        filename: 'renovada.pdf',
+        contentType: 'application/pdf',
+      });
+    }
+
+    beforeEach(async () => {
+      const license = await createLicenseRequest({
+        process_number: `LO a renovar-${uniqueSuffix()}`,
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'licenca.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+      previousLicenseId = (license.body as { id: string }).id;
+
+      conditionIds = [];
+      for (const name of ['Condição A', 'Condição B', 'Condição C']) {
+        const condition = await request(app.getHttpServer())
+          .post(`/api/licenses/${previousLicenseId}/conditions`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            name: `${name} ${uniqueSuffix()}`,
+            environmental_descriptor: 'Resíduos sólidos',
+            license_id: previousLicenseId,
+            due_date: new Date(Date.now() + 400 * 86_400_000).toISOString(),
+            responsible_agency: 'FEPAM',
+            status: 'Regular',
+            has_delivery: true,
+            description: 'Condicionante de teste.',
+          })
+          .expect(201);
+        conditionIds.push((condition.body as { id: string }).id);
+      }
+    });
+
+    it('records fulfillment and copies exactly the marked conditions with their new due dates', async () => {
+      const response = await renew(previousLicenseId, [
+        {
+          condition_id: conditionIds[0],
+          fulfilled: true,
+          copy_to_new: true,
+          new_due_date: inDays(400),
+        },
+        {
+          condition_id: conditionIds[1],
+          fulfilled: false,
+          copy_to_new: true,
+          new_due_date: inDays(430),
+        },
+        { condition_id: conditionIds[2], fulfilled: true, copy_to_new: false },
+      ]).expect(201);
+      const renewedId = (response.body as { id: string }).id;
+
+      const copies = await prisma.licenseCondition.findMany({
+        where: { licenseId: renewedId },
+        orderBy: { dueDate: 'asc' },
+      });
+      expect(copies).toHaveLength(2);
+      expect(copies.map((c) => c.dueDate.toISOString().slice(0, 10))).toEqual([
+        inDays(400),
+        inDays(430),
+      ]);
+      expect(copies.map((c) => c.deadline?.toISOString().slice(0, 10))).toEqual(
+        [inDays(400), inDays(430)],
+      );
+      expect(copies.every((c) => c.conditionStatus === 'IN_PROGRESS')).toBe(
+        true,
+      );
+
+      const previous = await prisma.licenseCondition.findMany({
+        where: { licenseId: previousLicenseId },
+      });
+      const byId = new Map(previous.map((c) => [c.id, c]));
+      expect(byId.get(conditionIds[0])?.conditionStatus).toBe('FULFILLED');
+      expect(byId.get(conditionIds[0])?.completionDate).not.toBeNull();
+      expect(byId.get(conditionIds[1])?.conditionStatus).toBe('IN_PROGRESS');
+      expect(byId.get(conditionIds[2])?.conditionStatus).toBe('FULFILLED');
+    });
+
+    it('does not conclude when some condition is left unmarked, leaving everything untouched', async () => {
+      // 409: the caller's list no longer matches the license's conditions.
+      await renew(previousLicenseId, [
+        { condition_id: conditionIds[0], fulfilled: true },
+      ]).expect(409);
+      await renew(previousLicenseId, undefined).expect(409);
+      await renew(previousLicenseId, 'not json').expect(400);
+
+      const stored = await prisma.license.findUniqueOrThrow({
+        where: { id: previousLicenseId },
+      });
+      expect(stored.status).not.toBe('ARCHIVED');
+      expect(await prisma.license.count({ where: { previousLicenseId } })).toBe(
+        0,
+      );
+    });
+
+    it('requires a new due date for copied conditions and rejects foreign condition ids', async () => {
+      await renew(
+        previousLicenseId,
+        conditionIds.map((id) => ({
+          condition_id: id,
+          fulfilled: true,
+          copy_to_new: true,
+        })),
+      ).expect(400);
+
+      const outdated = await renew(previousLicenseId, [
+        ...conditionIds.map((id) => ({ condition_id: id, fulfilled: true })),
+        { condition_id: randomUUID(), fulfilled: true },
+      ]).expect(409);
+      expect((outdated.body as { message: string }).message).toMatch(/mudaram/);
+    });
+
+    it('rejects a copied condition whose new due date is in the past or after the new expiration', async () => {
+      for (const newDueDate of [inDays(-1), '2099-01-11', '2027-02-30']) {
+        await renew(previousLicenseId, [
+          {
+            condition_id: conditionIds[0],
+            fulfilled: true,
+            copy_to_new: true,
+            new_due_date: newDueDate,
+          },
+          { condition_id: conditionIds[1], fulfilled: true },
+          { condition_id: conditionIds[2], fulfilled: true },
+        ]).expect(400);
+      }
+
+      expect(await prisma.license.count({ where: { previousLicenseId } })).toBe(
+        0,
+      );
+    });
+
+    it('keeps the completion date already recorded and leaves an overdue condition overdue', async () => {
+      const fulfilledAt = new Date('2026-03-01T12:00:00.000Z');
+      await prisma.licenseCondition.update({
+        where: { id: conditionIds[0] },
+        data: { conditionStatus: 'FULFILLED', completionDate: fulfilledAt },
+      });
+      await prisma.licenseCondition.update({
+        where: { id: conditionIds[1] },
+        data: { conditionStatus: 'OVERDUE' },
+      });
+
+      await renew(previousLicenseId, [
+        { condition_id: conditionIds[0], fulfilled: true },
+        { condition_id: conditionIds[1], fulfilled: false },
+        { condition_id: conditionIds[2], fulfilled: true },
+      ]).expect(201);
+
+      const stored = await prisma.licenseCondition.findMany({
+        where: { id: { in: conditionIds } },
+      });
+      const byId = new Map(stored.map((c) => [c.id, c]));
+      expect(byId.get(conditionIds[0])?.completionDate).toEqual(fulfilledAt);
+      expect(byId.get(conditionIds[1])?.conditionStatus).toBe('OVERDUE');
+      expect(byId.get(conditionIds[2])?.conditionStatus).toBe('FULFILLED');
+    });
+
+    it('numbers the copies in the previous license order, whatever order they were decided in', async () => {
+      const response = await renew(
+        previousLicenseId,
+        [...conditionIds].reverse().map((id, index) => ({
+          condition_id: id,
+          fulfilled: true,
+          copy_to_new: true,
+          // Due dates in reverse too, so dueDate order can't explain the result.
+          new_due_date: inDays(500 - index),
+        })),
+      ).expect(201);
+      const renewedId = (response.body as { id: string }).id;
+
+      const details = await request(app.getHttpServer())
+        .get(`/api/customers/${customerId}/licenses/${renewedId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      const sources = await prisma.licenseCondition.findMany({
+        where: { id: { in: conditionIds } },
+      });
+      const nameById = new Map(sources.map((c) => [c.id, c.name]));
+
+      expect(
+        (
+          details.body as {
+            conditions: { item_number: string; name: string | null }[];
+          }
+        ).conditions
+          .filter((row) => row.name !== null)
+          .map((row) => [row.item_number, row.name]),
+      ).toEqual(
+        conditionIds.map((id, index) => [`1.${index + 1}`, nameById.get(id)]),
+      );
+    });
+
+    it('lists the version chain newest first and 404s for an unknown license', async () => {
+      const first = await renew(
+        previousLicenseId,
+        conditionIds.map((id) => ({ condition_id: id, fulfilled: true })),
+      ).expect(201);
+      const firstRenewalId = (first.body as { id: string }).id;
+      const secondRenewal = await renew(firstRenewalId, []).expect(201);
+      const secondRenewalId = (secondRenewal.body as { id: string }).id;
+
+      const history = await request(app.getHttpServer())
+        .get(`/api/licenses/${secondRenewalId}/history`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(
+        (history.body as { id: string; is_current: boolean }[]).map((item) => [
+          item.id,
+          item.is_current,
+        ]),
+      ).toEqual([
+        [secondRenewalId, true],
+        [firstRenewalId, false],
+        [previousLicenseId, false],
+      ]);
+      expect(history.body).toEqual([
+        expect.objectContaining({ status: 'Regular' }),
+        expect.objectContaining({ status: 'Renovada/Arquivada' }),
+        expect.objectContaining({ status: 'Renovada/Arquivada' }),
+      ]);
+
+      // From the oldest version the newer ones are listed too.
+      const fromOldest = await request(app.getHttpServer())
+        .get(`/api/licenses/${previousLicenseId}/history`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(
+        (fromOldest.body as { id: string; is_current: boolean }[]).map(
+          (item) => [item.id, item.is_current],
+        ),
+      ).toEqual([
+        [secondRenewalId, false],
+        [firstRenewalId, false],
+        [previousLicenseId, true],
+      ]);
+
+      await request(app.getHttpServer())
+        .get(`/api/licenses/${randomUUID()}/history`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+    });
+  });
+
   describe('PATCH /:licenseId/conditions/fulfillment', () => {
     let fulfillmentLicenseId: string;
     let otherLicenseId: string | undefined;

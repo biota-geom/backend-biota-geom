@@ -979,9 +979,11 @@ async function seedLicensesTable(companies: Map<string, string>) {
           },
         });
 
-    for (const condition of license.conditions) {
+    for (const [index, condition] of license.conditions.entries()) {
       const conditionData = {
         name: condition.title,
+        // Ordem da numeração na página: a mesma da lista acima.
+        position: index + 1,
         environmentalDescriptor: condition.environmentalDescriptor,
         description: condition.description,
         responsibleName: condition.responsibleName,

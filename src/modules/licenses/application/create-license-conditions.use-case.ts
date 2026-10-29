@@ -44,9 +44,9 @@ export class CreateLicenseConditionUseCase {
       throw new LicenseNotFoundError(input.licenseId);
     }
 
-    const firstCreatedAt = Date.now();
+    // The repository appends them in this order, the form order.
     const conditionsData: ConditionData[] = input.data.conditions.map(
-      (condition, index) => {
+      (condition) => {
         const deadline = new Date(condition.deadline);
 
         return {
@@ -63,8 +63,6 @@ export class CreateLicenseConditionUseCase {
           dueDate: deadline,
           conditionStatus: ConditionStatus.IN_PROGRESS,
           hasDelivery: condition.has_delivery ?? true,
-          // Distinct timestamps preserve the form order used by read-time numbering.
-          createdAt: new Date(firstCreatedAt + index),
         };
       },
     );

@@ -20,6 +20,7 @@ function condition(
   environmentalDescriptor: string,
   createdAt: string,
   isViolated = false,
+  position = 0,
 ): LicenseCondition {
   return {
     id,
@@ -37,6 +38,7 @@ function condition(
     status: ConditionStatus.IN_PROGRESS,
     hasDelivery: true,
     isViolated,
+    position,
     createdAt: new Date(createdAt),
     updatedAt: new Date(createdAt),
   };
@@ -97,6 +99,37 @@ describe('license details response mappers', () => {
         id: 'water-1',
       },
     ]);
+  });
+
+  it('numbers by position first, creation date only breaking ties', () => {
+    const response = toLicenseDetailsResponse({
+      id: 'license-1',
+      customerId: 'customer-1',
+      processNumber: 'LO 118/2020',
+      type: 'LO',
+      issuingAgency: 'FEPAM',
+      issueDate: new Date('2020-01-01T00:00:00.000Z'),
+      expirationDate: new Date('2028-01-01T00:00:00.000Z'),
+      status: LicenseStatus.REGULAR,
+      documentUrl: 'url',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      conditions: [
+        // Copied on renewal: one timestamp, distinct positions.
+        condition('c', 'Resíduos', '2026-01-01T00:00:00.000Z', false, 3),
+        condition('a', 'Resíduos', '2026-01-01T00:00:00.000Z', false, 1),
+        condition('b', 'Resíduos', '2026-01-01T00:00:00.000Z', false, 2),
+      ],
+    } satisfies License & { conditions: LicenseCondition[] });
+
+    expect(response.conditions.map((row) => [row.item_number, row.id])).toEqual(
+      [
+        ['1', null],
+        ['1.1', 'a'],
+        ['1.2', 'b'],
+        ['1.3', 'c'],
+      ],
+    );
   });
 
   it('returns the persisted manual violation flag', () => {

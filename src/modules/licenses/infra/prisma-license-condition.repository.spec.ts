@@ -18,11 +18,13 @@ const ROW = {
 };
 
 describe('PrismaLicenseConditionRepository', () => {
-  it('creates all conditions in one transaction', async () => {
-    const create = jest.fn().mockReturnValue({ operation: 'create' });
-    const transaction = jest.fn().mockResolvedValue([ROW]);
+  it('appends all conditions after the existing ones in one transaction', async () => {
+    const aggregate = jest.fn().mockResolvedValue({ _max: { position: 2 } });
+    const createManyAndReturn = jest.fn().mockResolvedValue([ROW]);
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ licenseCondition: { aggregate, createManyAndReturn } }),
+    );
     const repository = new PrismaLicenseConditionRepository({
-      licenseCondition: { create },
       $transaction: transaction,
     } as unknown as PrismaService);
     const conditions = [
@@ -38,7 +40,13 @@ describe('PrismaLicenseConditionRepository', () => {
     ];
 
     await expect(repository.addMany(conditions)).resolves.toEqual([ROW]);
-    expect(create).toHaveBeenCalledWith({ data: conditions[0] });
+    expect(aggregate).toHaveBeenCalledWith({
+      where: { licenseId: 'license-1' },
+      _max: { position: true },
+    });
+    expect(createManyAndReturn).toHaveBeenCalledWith({
+      data: [{ ...conditions[0], position: 3 }],
+    });
   });
 
   it('finds active-license conditions by customer', async () => {

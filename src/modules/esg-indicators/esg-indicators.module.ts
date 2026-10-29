@@ -13,12 +13,7 @@ import { CustomerIndicatorsController } from './presentation/customer-indicators
 import { EsgIndicatorsController } from './presentation/esg-indicators.controller';
 
 @Module({
-  /*
-   * Both sides of the cycle need forwardRef: this module imports CustomerModule
-   * and CustomerModule imports this one back for the executive report. With it
-   * on one side only, whichever file is evaluated first sees the other as
-   * undefined and Nest refuses to build the graph.
-   */
+  // Circular with CustomerModule: both sides need forwardRef.
   imports: [AuthModule, forwardRef(() => CustomerModule)],
   controllers: [EsgIndicatorsController, CustomerIndicatorsController],
   providers: [

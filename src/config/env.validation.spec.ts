@@ -36,8 +36,8 @@ describe('validateEnv', () => {
       LOCAL_STORAGE_DIR: './storage',
       AWS_REGION: 'us-east-1',
       AWS_S3_SIGNED_URL_TTL_SECONDS: 900,
-      BEDROCK_MODEL_ID: 'us.amazon.nova-2-lite-v1:0',
-      BEDROCK_TIMEOUT_MS: 60_000,
+      BEDROCK_MODEL_ID: 'global.anthropic.claude-sonnet-5-5',
+      BEDROCK_TIMEOUT_MS: 180_000,
     });
   });
 
@@ -260,8 +260,8 @@ describe('validateEnv', () => {
     expect(result.BEDROCK_TIMEOUT_MS).toBe(30_000);
   });
 
-  it.each(['999', '120001', 'abc'])(
-    'rejects BEDROCK_TIMEOUT_MS=%s (outside 1s-120s)',
+  it.each(['999', '300001', 'abc'])(
+    'rejects BEDROCK_TIMEOUT_MS=%s (outside 1s-300s)',
     (value) => {
       expect(() =>
         validateEnv({ ...VALID_BASE, BEDROCK_TIMEOUT_MS: value }),

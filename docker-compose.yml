@@ -18,8 +18,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
-      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.amazon.nova-2-lite-v1:0}
-      BEDROCK_TIMEOUT_MS: ${BEDROCK_TIMEOUT_MS:-60000}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-global.anthropic.claude-sonnet-5-5}
+      BEDROCK_TIMEOUT_MS: ${BEDROCK_TIMEOUT_MS:-180000}
     ports:
       - '3000:3000'
     depends_on:

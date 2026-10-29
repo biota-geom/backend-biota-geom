@@ -5,24 +5,46 @@ function answer(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function item(number: string | null, description: string, extra = {}) {
+  return {
+    number,
+    description,
+    condition_type: 'INFORMATIVE',
+    periodicity: null,
+    due_date: null,
+    ...extra,
+  };
+}
+
+const EXTRACTED_DATA = {
+  type: 'LO',
+  process_number: 'LO nº 118/2020',
+  issuing_agency: 'FEPAM',
+  issue_date: '2020-01-10',
+  expiration_date: '2025-01-10',
+};
+
 const FULL_ANSWER = {
-  extracted_data: {
-    type: 'LO',
-    process_number: 'LO nº 118/2020',
-    issuing_agency: 'FEPAM',
-    issue_date: '2020-01-10',
-    expiration_date: '2025-01-10',
-  },
-  suggested_conditions: [
+  extracted_data: EXTRACTED_DATA,
+  sections: [
     {
-      environmental_descriptor: 'Resíduos Sólidos',
-      description: 'Apresentar relatório semestral',
-      condition_type: 'PERIODIC',
-      periodicity: 'SEMIANNUAL',
-      due_date: '2025-07-10',
+      descriptor: 'Resíduos Sólidos',
+      items: [
+        item('2.1', 'Apresentar relatório semestral', {
+          condition_type: 'PERIODIC',
+          periodicity: 'SEMIANNUAL',
+          due_date: '2025-07-10',
+        }),
+      ],
     },
   ],
 };
+
+function descriptions(sections: unknown[]): string[] {
+  return parseLicenseExtraction(
+    answer({ extracted_data: EXTRACTED_DATA, sections }),
+  ).suggestedConditions.map((condition) => condition.description);
+}
 
 describe('parseLicenseExtraction', () => {
   it('maps a valid answer onto the extraction contract', () => {
@@ -84,33 +106,111 @@ describe('parseLicenseExtraction', () => {
     expect(result.extractedData.type).toBe('LAO');
   });
 
-  it('drops conditions without a description and keeps the valid ones', () => {
+  it('flattens the sections in order, each item carrying its section descriptor', () => {
     const result = parseLicenseExtraction(
       answer({
-        extracted_data: FULL_ANSWER.extracted_data,
-        suggested_conditions: [
-          { description: '' },
-          { description: null },
-          'not an object',
-          { description: '  Manter   o MTR\n no veículo. ' },
+        extracted_data: EXTRACTED_DATA,
+        sections: [
+          { descriptor: 'vegetação', items: [item('1.1', 'Preservar')] },
+          { descriptor: null, items: [item('2.1', 'Atender')] },
         ],
       }),
     );
 
-    expect(result.suggestedConditions).toEqual([
-      {
-        environmentalDescriptor: null,
-        description: 'Manter o MTR no veículo.',
-        conditionType: null,
-        periodicity: null,
-        dueDate: null,
-      },
+    expect(
+      result.suggestedConditions.map((condition) => [
+        condition.environmentalDescriptor,
+        condition.description,
+      ]),
+    ).toEqual([
+      ['Vegetação', 'Preservar'],
+      [null, 'Atender'],
     ]);
   });
 
-  it('treats a non-array condition list as empty', () => {
+  it('drops items without a description and keeps the valid ones', () => {
+    expect(
+      descriptions([
+        {
+          descriptor: 'Transporte',
+          items: [
+            item('1.1', ''),
+            { number: '1.2', description: null },
+            'not an object',
+            item('1.3', '  Manter   o MTR\n no veículo. '),
+          ],
+        },
+        'not a section',
+      ]),
+    ).toEqual(['Manter o MTR no veículo.']);
+  });
+
+  it('keeps a single entry per printed number, even when the model repeats one', () => {
+    expect(
+      descriptions([
+        {
+          descriptor: 'Obras',
+          items: [item('8.1', 'Atender'), item('8.2', 'Sinalizar')],
+        },
+        {
+          descriptor: 'Obras',
+          items: [item('8.1.', 'Atender'), item('8.3', 'Destinar')],
+        },
+      ]),
+    ).toEqual(['Atender', 'Sinalizar', 'Destinar']);
+  });
+
+  it('keeps items whose text repeats under a different number', () => {
+    expect(
+      descriptions([
+        {
+          descriptor: 'Resíduos',
+          items: [item('2.3', 'Portar o MTR'), item('2.7', 'Portar o MTR')],
+        },
+      ]),
+    ).toEqual(['Portar o MTR', 'Portar o MTR']);
+  });
+
+  it('prefixes each sub-item with the text of its introductory ancestors', () => {
+    expect(
+      descriptions([
+        {
+          descriptor: 'Resíduos',
+          items: [
+            item('2.5', 'no caso de resíduos de saúde:'),
+            item('2.5.1', 'o compartimento deve ser estanque,'),
+            item('2.5.2', 'quanto à limpeza:'),
+            item('2.5.2.1', 'higienizar o veículo.'),
+            item('2.6', 'Manter o MTR.'),
+          ],
+        },
+      ]),
+    ).toEqual([
+      'no caso de resíduos de saúde:',
+      'No caso de resíduos de saúde: o compartimento deve ser estanque,',
+      'No caso de resíduos de saúde: quanto à limpeza:',
+      'No caso de resíduos de saúde: quanto à limpeza: higienizar o veículo.',
+      'Manter o MTR.',
+    ]);
+  });
+
+  it('does not add the parent text when the parent is a full obligation', () => {
+    expect(
+      descriptions([
+        {
+          descriptor: 'Resíduos',
+          items: [
+            item('2.3', 'Portar o MTR.'),
+            item('2.3.1', 'No caso de embalagens vazias, portar o MTR.'),
+          ],
+        },
+      ]),
+    ).toEqual(['Portar o MTR.', 'No caso de embalagens vazias, portar o MTR.']);
+  });
+
+  it('treats a non-array section list as empty', () => {
     const result = parseLicenseExtraction(
-      answer({ ...FULL_ANSWER, suggested_conditions: 'none' }),
+      answer({ ...FULL_ANSWER, sections: 'none' }),
     );
 
     expect(result.suggestedConditions).toEqual([]);
@@ -119,15 +219,16 @@ describe('parseLicenseExtraction', () => {
   it('never returns a periodicity on a non-periodic condition', () => {
     const result = parseLicenseExtraction(
       answer({
-        ...FULL_ANSWER,
-        suggested_conditions: [
+        extracted_data: EXTRACTED_DATA,
+        sections: [
           {
-            description: 'Informativa',
-            condition_type: 'INFORMATIVE',
-            periodicity: 'ANNUAL',
+            descriptor: null,
+            items: [
+              item('1', 'Informativa', { periodicity: 'ANNUAL' }),
+              { number: '2', description: 'Sem tipo', periodicity: 'MONTHLY' },
+              { number: '3', description: 'Inválida', periodicity: 'WEEKLY' },
+            ],
           },
-          { description: 'Sem tipo', periodicity: 'MONTHLY' },
-          { description: 'Inválida', periodicity: 'WEEKLY' },
         ],
       }),
     );
@@ -144,32 +245,37 @@ describe('parseLicenseExtraction', () => {
     ]);
   });
 
-  it('truncates texts to the limits the registration form accepts', () => {
+  it('truncates texts to the limits the registration form accepts, at a word boundary', () => {
     const result = parseLicenseExtraction(
       answer({
-        ...FULL_ANSWER,
-        suggested_conditions: [
+        extracted_data: EXTRACTED_DATA,
+        sections: [
           {
-            description: 'a'.repeat(600),
-            environmental_descriptor: 'b'.repeat(200),
+            descriptor: 'b'.repeat(200),
+            items: [item('1.1', 'palavra '.repeat(80))],
           },
         ],
       }),
     );
+    const [condition] = result.suggestedConditions;
 
-    expect(result.suggestedConditions[0].description).toHaveLength(500);
-    expect(result.suggestedConditions[0].environmentalDescriptor).toHaveLength(
-      120,
-    );
+    expect(condition.description.length).toBeLessThanOrEqual(500);
+    expect(condition.description).toMatch(/palavra…$/);
+    expect(condition.environmentalDescriptor).toHaveLength(120);
   });
 
   it('caps the number of suggested conditions', () => {
     const result = parseLicenseExtraction(
       answer({
-        ...FULL_ANSWER,
-        suggested_conditions: Array.from({ length: 250 }, (_, index) => ({
-          description: `Item ${index}`,
-        })),
+        extracted_data: EXTRACTED_DATA,
+        sections: [
+          {
+            descriptor: null,
+            items: Array.from({ length: 250 }, (_, index) =>
+              item(`1.${index}`, `Item ${index}`),
+            ),
+          },
+        ],
       }),
     );
 
@@ -181,9 +287,9 @@ describe('parseLicenseExtraction', () => {
     ['malformed JSON', '{"extracted_data": {'],
     [
       'a truncated answer',
-      '{"extracted_data": {"type": "LO"}, "suggested_conditions": [{"description": "x"}',
+      '{"extracted_data": {"type": "LO"}, "sections": [{"descriptor": "x"',
     ],
-    ['a JSON without extracted_data', answer({ suggested_conditions: [] })],
+    ['a JSON without extracted_data', answer({ sections: [] })],
     ['a JSON array', '[1, 2]'],
   ])('rejects %s', (_label, text) => {
     expect(() => parseLicenseExtraction(text)).toThrow(

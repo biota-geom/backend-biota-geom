@@ -1,14 +1,21 @@
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-  ConverseCommandOutput,
-} from '@aws-sdk/client-bedrock-runtime';
+import Anthropic from '@anthropic-ai/sdk';
+import { AnthropicBedrock } from '@anthropic-ai/bedrock-sdk';
 import { LicenseExtractionTimeoutError } from '../../domain/errors/license-extraction-timeout.error';
 import { LicenseExtractionUnavailableError } from '../../domain/errors/license-extraction-unavailable.error';
 import { UnreadableLicenseDocumentError } from '../../domain/errors/unreadable-license-document.error';
 import { LICENSE_EXTRACTION_SYSTEM_PROMPT } from '../../prompts/license-extraction.prompt';
 import { BedrockConfigService } from './bedrock-config.service';
 import { BedrockLicenseDocumentExtractor } from './bedrock-license-document-extractor';
+import { LICENSE_EXTRACTION_OUTPUT_SCHEMA } from './license-extraction.schema';
+
+// The client is replaced by a fake whose messages.stream() is driven by each
+// test; the real SDK error classes are still used to build failures.
+const stream = jest.fn();
+jest.mock('@anthropic-ai/bedrock-sdk', () => ({
+  AnthropicBedrock: jest.fn().mockImplementation(() => ({
+    messages: { stream },
+  })),
+}));
 
 const PDF = Buffer.from('%PDF-1.7\nlicense');
 
@@ -20,29 +27,55 @@ const MODEL_ANSWER = JSON.stringify({
     issue_date: '2020-01-10',
     expiration_date: '2025-01-10',
   },
-  suggested_conditions: [{ description: 'Apresentar relatório semestral' }],
+  sections: [
+    {
+      descriptor: 'Resíduos Sólidos',
+      items: [
+        {
+          number: '1.1',
+          description: 'Apresentar relatório semestral',
+          condition_type: 'PERIODIC',
+          periodicity: 'SEMIANNUAL',
+          due_date: null,
+        },
+      ],
+    },
+  ],
 });
 
-function converseOutput(
+function message(
   text: string,
-  stopReason: ConverseCommandOutput['stopReason'] = 'end_turn',
-): ConverseCommandOutput {
+  overrides: Partial<Anthropic.Message> = {},
+): Anthropic.Message {
   return {
-    output: { message: { role: 'assistant', content: [{ text }] } },
-    stopReason,
-  } as ConverseCommandOutput;
+    content: [{ type: 'text', text }],
+    stop_reason: 'end_turn',
+    usage: { input_tokens: 10, output_tokens: 20 },
+    ...overrides,
+  } as Anthropic.Message;
 }
 
-function namedError(name: string, message = 'provider message'): Error {
-  const error = new Error(message);
-  error.name = name;
-  return error;
+function answers(value: Anthropic.Message | Promise<Anthropic.Message>) {
+  stream.mockReturnValue({ finalMessage: () => Promise.resolve(value) });
+}
+
+function fails(error: Error) {
+  stream.mockReturnValue({ finalMessage: () => Promise.reject(error) });
+}
+
+function apiError(status: number, text = 'provider message') {
+  return Anthropic.APIError.generate(
+    status,
+    { error: { message: text } },
+    text,
+    new Headers(),
+  );
 }
 
 function build(overrides: Partial<BedrockConfigService> = {}) {
   const config = {
     apiKey: 'secret-api-key',
-    modelId: 'us.amazon.nova-2-lite-v1:0',
+    modelId: 'global.anthropic.claude-sonnet-5-5',
     region: 'us-east-1',
     timeoutMs: 60_000,
     ...overrides,
@@ -52,18 +85,12 @@ function build(overrides: Partial<BedrockConfigService> = {}) {
 }
 
 describe('BedrockLicenseDocumentExtractor', () => {
-  let send: jest.SpyInstance;
-
-  beforeEach(() => {
-    send = jest.spyOn(BedrockRuntimeClient.prototype, 'send');
-  });
-
   afterEach(() => {
-    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
-  it('sends the PDF to the configured Nova model and returns the validated suggestions', async () => {
-    send.mockResolvedValue(converseOutput(MODEL_ANSWER));
+  it('sends the PDF to the configured Claude model and returns the validated suggestions', async () => {
+    answers(message(MODEL_ANSWER));
 
     const result = await build().extract(PDF);
 
@@ -76,60 +103,58 @@ describe('BedrockLicenseDocumentExtractor', () => {
     });
     expect(result.suggestedConditions).toHaveLength(1);
 
-    const [command, options] = send.mock.calls[0] as [
-      ConverseCommand,
-      { abortSignal: AbortSignal },
+    const [params, options] = stream.mock.calls[0] as [
+      Anthropic.MessageCreateParams,
+      { signal: AbortSignal },
     ];
-    expect(command).toBeInstanceOf(ConverseCommand);
-    expect(command.input.modelId).toBe('us.amazon.nova-2-lite-v1:0');
-    expect(command.input.system).toEqual([
-      { text: LICENSE_EXTRACTION_SYSTEM_PROMPT },
-    ]);
-    expect(command.input.inferenceConfig?.temperature).toBe(0);
-    expect(command.input.messages?.[0].content?.[0]).toEqual({
-      document: {
-        format: 'pdf',
-        name: 'licenca-ambiental',
-        source: { bytes: PDF },
+    expect(params.model).toBe('global.anthropic.claude-sonnet-5-5');
+    expect(params.system).toBe(LICENSE_EXTRACTION_SYSTEM_PROMPT);
+    expect(params.output_config).toEqual({
+      effort: 'low',
+      format: { type: 'json_schema', schema: LICENSE_EXTRACTION_OUTPUT_SCHEMA },
+    });
+    expect(params.messages[0].content[0]).toEqual({
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: PDF.toString('base64'),
       },
     });
-    expect(options.abortSignal).toBeInstanceOf(AbortSignal);
+    expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it('authenticates with the Bedrock API key as a bearer token in the configured region', async () => {
-    send.mockResolvedValue(converseOutput(MODEL_ANSWER));
+  it('authenticates with the Bedrock API key in the configured region, reusing one client', async () => {
+    answers(message(MODEL_ANSWER));
     const extractor = build();
 
     await extractor.extract(PDF);
     await extractor.extract(PDF);
 
-    const clients = send.mock.contexts as BedrockRuntimeClient[];
-    // One client is built lazily and reused across requests.
-    expect(clients[0]).toBe(clients[1]);
-    await expect(clients[0].config.region()).resolves.toBe('us-east-1');
-    const tokenProvider = clients[0].config.token as unknown as () => Promise<{
-      token: string;
-    }>;
-    await expect(tokenProvider()).resolves.toEqual(
-      expect.objectContaining({ token: 'secret-api-key' }),
-    );
+    expect(AnthropicBedrock).toHaveBeenCalledTimes(1);
+    expect(AnthropicBedrock).toHaveBeenCalledWith({
+      apiKey: 'secret-api-key',
+      awsRegion: 'us-east-1',
+    });
   });
 
   it('is unavailable when no API key is configured, without calling Bedrock', async () => {
     await expect(build({ apiKey: undefined }).extract(PDF)).rejects.toThrow(
       LicenseExtractionUnavailableError,
     );
-    expect(send).not.toHaveBeenCalled();
+    expect(stream).not.toHaveBeenCalled();
   });
 
   it('aborts the call and reports a timeout once the configured limit elapses', async () => {
-    send.mockImplementation(
-      (_command: unknown, options: { abortSignal: AbortSignal }) =>
-        new Promise((_resolve, reject) => {
-          options.abortSignal.addEventListener('abort', () =>
-            reject(namedError('AbortError', 'Request aborted')),
-          );
-        }),
+    stream.mockImplementation(
+      (_params: unknown, options: { signal: AbortSignal }) => ({
+        finalMessage: () =>
+          new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () =>
+              reject(new Anthropic.APIUserAbortError()),
+            );
+          }),
+      }),
     );
 
     await expect(build({ timeoutMs: 10 }).extract(PDF)).rejects.toThrow(
@@ -137,8 +162,8 @@ describe('BedrockLicenseDocumentExtractor', () => {
     );
   });
 
-  it('reports a model-side timeout as a timeout', async () => {
-    send.mockRejectedValue(namedError('ModelTimeoutException'));
+  it('reports a connection timeout as a timeout', async () => {
+    fails(new Anthropic.APIConnectionTimeoutError());
 
     await expect(build().extract(PDF)).rejects.toThrow(
       LicenseExtractionTimeoutError,
@@ -146,9 +171,7 @@ describe('BedrockLicenseDocumentExtractor', () => {
   });
 
   it('reports a document rejected by Bedrock as unreadable', async () => {
-    send.mockRejectedValue(
-      namedError('ValidationException', 'The document could not be processed'),
-    );
+    fails(apiError(400, 'The document could not be processed'));
 
     await expect(build().extract(PDF)).rejects.toThrow(
       UnreadableLicenseDocumentError,
@@ -156,26 +179,26 @@ describe('BedrockLicenseDocumentExtractor', () => {
   });
 
   it('reports a wrong model id as unavailable, not as a bad document', async () => {
-    send.mockRejectedValue(
-      namedError(
-        'ValidationException',
-        'The provided model identifier is invalid.',
-      ),
-    );
+    fails(apiError(400, 'The provided model identifier is invalid.'));
 
     await expect(build().extract(PDF)).rejects.toThrow(
       LicenseExtractionUnavailableError,
     );
   });
 
-  it.each([
-    'AccessDeniedException',
-    'UnrecognizedClientException',
-    'ThrottlingException',
-    'ServiceUnavailableException',
-    'SomethingUnexpected',
-  ])('reports %s as unavailable', async (name) => {
-    send.mockRejectedValue(namedError(name));
+  it.each([401, 403, 404, 429, 500, 503])(
+    'reports HTTP %s as unavailable',
+    async (status) => {
+      fails(apiError(status));
+
+      await expect(build().extract(PDF)).rejects.toThrow(
+        LicenseExtractionUnavailableError,
+      );
+    },
+  );
+
+  it('reports an unexpected failure as unavailable', async () => {
+    fails(new TypeError('fetch failed'));
 
     await expect(build().extract(PDF)).rejects.toThrow(
       LicenseExtractionUnavailableError,
@@ -183,9 +206,7 @@ describe('BedrockLicenseDocumentExtractor', () => {
   });
 
   it('never exposes the provider message in the domain error', async () => {
-    send.mockRejectedValue(
-      namedError('AccessDeniedException', 'token secret-api-key rejected'),
-    );
+    fails(apiError(403, 'token secret-api-key rejected'));
 
     const error = (await build()
       .extract(PDF)
@@ -194,27 +215,33 @@ describe('BedrockLicenseDocumentExtractor', () => {
     expect(error.message).not.toContain('secret-api-key');
   });
 
-  it.each(['content_filtered', 'guardrail_intervened'] as const)(
-    'reports an answer stopped by %s as unreadable',
-    async (stopReason) => {
-      send.mockResolvedValue(converseOutput(MODEL_ANSWER, stopReason));
-
-      await expect(build().extract(PDF)).rejects.toThrow(
-        UnreadableLicenseDocumentError,
-      );
-    },
-  );
-
-  it('reports an answer that is not the expected JSON as unreadable', async () => {
-    send.mockResolvedValue(converseOutput('Desculpe, não consigo ajudar.'));
+  it('reports an answer the model declined as unreadable', async () => {
+    answers(
+      message('', {
+        stop_reason: 'refusal',
+        stop_details: {
+          type: 'refusal',
+          category: 'general_harms',
+          explanation: null,
+        },
+      }),
+    );
 
     await expect(build().extract(PDF)).rejects.toThrow(
       UnreadableLicenseDocumentError,
     );
   });
 
-  it('treats an answer without content as unreadable', async () => {
-    send.mockResolvedValue({ stopReason: 'end_turn' });
+  it('reports an answer cut short by max_tokens as unreadable', async () => {
+    answers(message(MODEL_ANSWER.slice(0, 80), { stop_reason: 'max_tokens' }));
+
+    await expect(build().extract(PDF)).rejects.toThrow(
+      UnreadableLicenseDocumentError,
+    );
+  });
+
+  it('treats an answer without text as unreadable', async () => {
+    answers(message('', { content: [] }));
 
     await expect(build().extract(PDF)).rejects.toThrow(
       UnreadableLicenseDocumentError,

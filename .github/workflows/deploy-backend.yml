@@ -40,7 +40,7 @@ jobs:
               "docker run --rm -e DATABASE_URL=\"$DATABASE_URL\" backend-api npx prisma migrate deploy",
               "docker stop backend-api || true",
               "docker rm backend-api || true",
-              "docker run -d --name backend-api --restart always -p 3000:3000 -e PORT=3000 -e NODE_ENV=production -e DATABASE_URL=\"$DATABASE_URL\" -e JWT_ACCESS_SECRET=\"${JWT_SECRET}_access\" -e JWT_REFRESH_SECRET=\"${JWT_SECRET}_refresh\" -e CORS_ORIGINS=\"$FRONTEND_URL\" -e FRONTEND_URL=\"$FRONTEND_URL\" -e STORAGE_DRIVER=s3 -e AWS_S3_BUCKET=\"biota-geom-private-docs-prod\" -e AWS_REGION=\"${{ secrets.AWS_REGION }}\" -e AWS_ACCESS_KEY_ID=\"instance-profile-managed\" -e AWS_SECRET_ACCESS_KEY=\"instance-profile-managed\" -e AWS_BEARER_TOKEN_BEDROCK=\"$AWS_BEARER_TOKEN_BEDROCK\" -e BEDROCK_MODEL_ID=\"us.amazon.nova-2-lite-v1:0\" backend-api"
+              "docker run -d --name backend-api --restart always -p 3000:3000 -e PORT=3000 -e NODE_ENV=production -e DATABASE_URL=\"$DATABASE_URL\" -e JWT_ACCESS_SECRET=\"${JWT_SECRET}_access\" -e JWT_REFRESH_SECRET=\"${JWT_SECRET}_refresh\" -e CORS_ORIGINS=\"$FRONTEND_URL\" -e FRONTEND_URL=\"$FRONTEND_URL\" -e STORAGE_DRIVER=s3 -e AWS_S3_BUCKET=\"biota-geom-private-docs-prod\" -e AWS_REGION=\"${{ secrets.AWS_REGION }}\" -e AWS_ACCESS_KEY_ID=\"instance-profile-managed\" -e AWS_SECRET_ACCESS_KEY=\"instance-profile-managed\" -e AWS_BEARER_TOKEN_BEDROCK=\"$AWS_BEARER_TOKEN_BEDROCK\" -e BEDROCK_MODEL_ID=\"global.anthropic.claude-sonnet-5-5\" backend-api"
             ]' \
             --query "Command.CommandId" \
             --output text)

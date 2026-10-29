@@ -17,6 +17,80 @@ const MAX_CONDITIONS = 200;
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+const nullable = (schema: Record<string, unknown>) => ({
+  anyOf: [schema, { type: 'null' }],
+});
+
+/*
+ * Answer shape sent to the model as a structured output, so the response is
+ * always well-formed JSON. Conditions come grouped by section (the descriptor
+ * is written once, not once per item) and carry their printed number, which
+ * the parser below uses to drop repeats and to add the parent's context.
+ */
+export const LICENSE_EXTRACTION_OUTPUT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['extracted_data', 'sections'],
+  properties: {
+    extracted_data: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'type',
+        'process_number',
+        'issuing_agency',
+        'issue_date',
+        'expiration_date',
+      ],
+      properties: {
+        type: nullable({ type: 'string' }),
+        process_number: nullable({ type: 'string' }),
+        issuing_agency: nullable({ type: 'string' }),
+        issue_date: nullable({ type: 'string', format: 'date' }),
+        expiration_date: nullable({ type: 'string', format: 'date' }),
+      },
+    },
+    sections: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['descriptor', 'items'],
+        properties: {
+          descriptor: nullable({ type: 'string' }),
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: [
+                'number',
+                'description',
+                'condition_type',
+                'periodicity',
+                'due_date',
+              ],
+              properties: {
+                number: nullable({ type: 'string' }),
+                description: { type: 'string' },
+                condition_type: {
+                  type: 'string',
+                  enum: Object.values(ConditionType),
+                },
+                periodicity: nullable({
+                  type: 'string',
+                  enum: Object.values(ConditionPeriodicity),
+                }),
+                due_date: nullable({ type: 'string', format: 'date' }),
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 function isCalendarDate(value: string): boolean {
   const match = ISO_DATE_PATTERN.exec(value);
   if (!match) return false;
@@ -31,6 +105,24 @@ function isCalendarDate(value: string): boolean {
   );
 }
 
+function collapseSpaces(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toLocaleUpperCase('pt-BR') + value.slice(1);
+}
+
+// Cuts at a word boundary so a long description never ends mid-word.
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+
+  const cut = value.slice(0, maxLength - 1);
+  const lastSpace = cut.lastIndexOf(' ');
+
+  return `${(lastSpace > maxLength / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
 /*
  * Field-level fallbacks (`.catch(null)`) instead of failing the whole answer:
  * one malformed date must not throw away an otherwise good reading. A value
@@ -39,7 +131,7 @@ function isCalendarDate(value: string): boolean {
 const nullableText = (maxLength: number) =>
   z
     .string()
-    .transform((value) => value.replace(/\s+/g, ' ').trim())
+    .transform(collapseSpaces)
     .transform((value) => (value ? value.slice(0, maxLength) : null))
     .nullable()
     .catch(null);
@@ -62,44 +154,95 @@ const extractedDataSchema = z.object({
   expiration_date: nullableDate.default(null),
 });
 
-const suggestedConditionSchema = z.object({
-  environmental_descriptor: nullableText(MAX_DESCRIPTOR_LENGTH).default(null),
-  description: z
+const itemSchema = z.object({
+  number: z
     .string()
-    .transform((value) => value.replace(/\s+/g, ' ').trim())
-    .pipe(z.string().min(1))
-    .transform((value) => value.slice(0, MAX_DESCRIPTION_LENGTH)),
+    .transform((value) => value.trim().replace(/[\s.-]+$/, ''))
+    .transform((value) => value || null)
+    .nullable()
+    .catch(null)
+    .default(null),
+  description: z.string().transform(collapseSpaces).pipe(z.string().min(1)),
   condition_type: nullableEnum(ConditionType).default(null),
   periodicity: nullableEnum(ConditionPeriodicity).default(null),
   due_date: nullableDate.default(null),
 });
 
-const modelAnswerSchema = z.object({
-  extracted_data: extractedDataSchema,
-  suggested_conditions: z.array(z.unknown()).catch([]).default([]),
+const sectionSchema = z.object({
+  descriptor: nullableText(MAX_DESCRIPTOR_LENGTH)
+    .transform((value) => (value ? capitalize(value) : null))
+    .default(null),
+  items: z.array(z.unknown()).catch([]).default([]),
 });
 
+const modelAnswerSchema = z.object({
+  extracted_data: extractedDataSchema,
+  sections: z.array(z.unknown()).catch([]).default([]),
+});
+
+type ParsedItem = z.output<typeof itemSchema> & {
+  descriptor: string | null;
+};
+
+// "2.5.1" -> "2.5"; top-level numbers ("2") have no parent.
+function parentNumber(number: string): string | null {
+  const cut = number.lastIndexOf('.');
+  return cut > 0 ? number.slice(0, cut) : null;
+}
+
+// An item that only introduces its sub-items, such as
+// "2.5- no caso de transporte de resíduos de serviços de saúde:".
+function isIntroductory(description: string): boolean {
+  return description.endsWith(':');
+}
+
+/*
+ * The list is flat, so a sub-item shown alone would lose what its
+ * introductory parent says ("o compartimento de carga deve ser estanque" is
+ * only about health-care waste). Each sub-item therefore starts with the text
+ * of every introductory ancestor, in order. The introductory item itself keeps
+ * only its own text.
+ */
+function withParentContext(items: ParsedItem[]): string[] {
+  const contextByNumber = new Map<string, string>();
+
+  return items.map((item) => {
+    const parent = item.number ? parentNumber(item.number) : null;
+    const parentContext = parent ? contextByNumber.get(parent) : undefined;
+    const description = parentContext
+      ? `${capitalize(parentContext)} ${item.description}`
+      : item.description;
+
+    if (item.number && isIntroductory(item.description)) {
+      contextByNumber.set(item.number, description);
+    }
+
+    return description;
+  });
+}
+
 function toSuggestedCondition(
-  raw: z.output<typeof suggestedConditionSchema>,
+  item: ParsedItem,
+  description: string,
 ): SuggestedCondition {
   // A stated frequency only makes sense on a recurring condition; an
   // informative one never carries a periodicity (same rule as the form).
   const conditionType =
-    raw.condition_type ?? (raw.periodicity ? ConditionType.PERIODIC : null);
+    item.condition_type ?? (item.periodicity ? ConditionType.PERIODIC : null);
 
   return {
-    environmentalDescriptor: raw.environmental_descriptor,
-    description: raw.description,
+    environmentalDescriptor: item.descriptor,
+    description: truncate(description, MAX_DESCRIPTION_LENGTH),
     conditionType,
     periodicity:
-      conditionType === ConditionType.PERIODIC ? raw.periodicity : null,
-    dueDate: raw.due_date,
+      conditionType === ConditionType.PERIODIC ? item.periodicity : null,
+    dueDate: item.due_date,
   };
 }
 
 /*
- * Models sometimes wrap JSON in markdown fences or add a sentence around it
- * despite the prompt; keep only the outermost JSON object.
+ * Structured outputs return bare JSON, but a fence or a sentence around it
+ * costs nothing to tolerate; keep only the outermost JSON object.
  */
 function extractJsonObject(text: string): unknown {
   const start = text.indexOf('{');
@@ -116,6 +259,34 @@ function extractJsonObject(text: string): unknown {
   }
 }
 
+function flattenSections(sections: unknown[]): ParsedItem[] {
+  const seenNumbers = new Set<string>();
+  const items: ParsedItem[] = [];
+
+  for (const rawSection of sections) {
+    const section = sectionSchema.safeParse(rawSection);
+    if (!section.success) continue;
+
+    for (const rawItem of section.data.items) {
+      // An entry without a description is dropped instead of invalidating
+      // the rest of the list.
+      const item = itemSchema.safeParse(rawItem);
+      if (!item.success) continue;
+
+      // Each printed number is one condition: a repeated number is the model
+      // going over the same item twice, never a second obligation.
+      if (item.data.number) {
+        if (seenNumbers.has(item.data.number)) continue;
+        seenNumbers.add(item.data.number);
+      }
+
+      items.push({ ...item.data, descriptor: section.data.descriptor });
+    }
+  }
+
+  return items;
+}
+
 export function parseLicenseExtraction(text: string): LicenseExtraction {
   const result = modelAnswerSchema.safeParse(extractJsonObject(text));
 
@@ -125,16 +296,9 @@ export function parseLicenseExtraction(text: string): LicenseExtraction {
     );
   }
 
-  const { extracted_data: data, suggested_conditions: conditions } =
-    result.data;
-
-  // Conditions are validated one by one: an entry without a description is
-  // dropped instead of invalidating the rest of the list.
-  const suggestedConditions = conditions
-    .map((condition) => suggestedConditionSchema.safeParse(condition))
-    .filter((parsed) => parsed.success)
-    .map((parsed) => toSuggestedCondition(parsed.data))
-    .slice(0, MAX_CONDITIONS);
+  const { extracted_data: data, sections } = result.data;
+  const items = flattenSections(sections);
+  const descriptions = withParentContext(items);
 
   return {
     extractedData: {
@@ -144,6 +308,8 @@ export function parseLicenseExtraction(text: string): LicenseExtraction {
       issueDate: data.issue_date,
       expirationDate: data.expiration_date,
     },
-    suggestedConditions,
+    suggestedConditions: items
+      .map((item, index) => toSuggestedCondition(item, descriptions[index]))
+      .slice(0, MAX_CONDITIONS),
   };
 }

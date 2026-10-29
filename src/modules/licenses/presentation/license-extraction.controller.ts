@@ -65,7 +65,7 @@ export class LicenseExtractionController {
   })
   @ApiOperation({
     summary:
-      'Lê o PDF de uma licença ambiental com IA (Amazon Nova 2 Lite) e devolve sugestões de preenchimento. Não salva nenhum dado.',
+      'Lê o PDF de uma licença ambiental com IA (Claude Sonnet 5.5 no Amazon Bedrock) e devolve sugestões de preenchimento. Não salva nenhum dado.',
   })
   @ApiOkResponse({ type: LicenseExtractionResponseDto })
   @ApiUnprocessableEntityResponse({

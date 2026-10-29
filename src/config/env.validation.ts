@@ -58,13 +58,16 @@ export const envSchema = z
     // of the API boots without it; the extraction endpoint answers 503 then.
     // Reuses AWS_REGION above and authenticates with a Bedrock API key.
     AWS_BEARER_TOKEN_BEDROCK: optionalSecret,
-    BEDROCK_MODEL_ID: z.string().min(1).default('us.amazon.nova-2-lite-v1:0'),
+    BEDROCK_MODEL_ID: z
+      .string()
+      .min(1)
+      .default('global.anthropic.claude-sonnet-5-5'),
     BEDROCK_TIMEOUT_MS: z.coerce
       .number()
       .int()
       .min(1_000)
-      .max(120_000)
-      .default(60_000),
+      .max(300_000)
+      .default(180_000),
   })
   .superRefine((data, ctx) => {
     if (data.JWT_ACCESS_SECRET === data.JWT_REFRESH_SECRET) {

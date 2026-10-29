@@ -6,7 +6,7 @@ describe('BedrockConfigService', () => {
   it('reads every Bedrock setting from ConfigService', () => {
     const values: Partial<EnvVars> = {
       AWS_BEARER_TOKEN_BEDROCK: 'api-key',
-      BEDROCK_MODEL_ID: 'us.amazon.nova-2-lite-v1:0',
+      BEDROCK_MODEL_ID: 'global.anthropic.claude-sonnet-5-5',
       AWS_REGION: 'us-east-1',
       BEDROCK_TIMEOUT_MS: 60_000,
     };
@@ -16,7 +16,7 @@ describe('BedrockConfigService', () => {
     const service = new BedrockConfigService(config);
 
     expect(service.apiKey).toBe('api-key');
-    expect(service.modelId).toBe('us.amazon.nova-2-lite-v1:0');
+    expect(service.modelId).toBe('global.anthropic.claude-sonnet-5-5');
     expect(service.region).toBe('us-east-1');
     expect(service.timeoutMs).toBe(60_000);
   });

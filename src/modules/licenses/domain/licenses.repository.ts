@@ -35,6 +35,10 @@ export abstract class LicenseRepository {
     id: string,
     ownerUserId: string,
   ): Promise<License | null>;
+  abstract findByIdForOwnerWithConditions(
+    id: string,
+    ownerUserId: string,
+  ): Promise<(License & { conditions: LicenseCondition[] }) | null>;
   /*
    * Ordered by expiration date ascending. The panel's criticality order
    * (EXPIRED → ATTENTION → REGULAR) is applied by ListLicensesByCustomerUseCase

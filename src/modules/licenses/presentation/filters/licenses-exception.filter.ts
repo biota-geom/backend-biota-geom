@@ -2,6 +2,7 @@ import {
   ArgumentsHost,
   BadRequestException,
   Catch,
+  ConflictException,
   ExceptionFilter,
   HttpException,
   NotFoundException,
@@ -9,12 +10,15 @@ import {
 import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
+import { DuplicateRenewalConditionError } from '../../domain/errors/duplicate-renewal-condition.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
+import { InvalidRenewalDueDateError } from '../../domain/errors/invalid-renewal-due-date.error';
 import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseAlreadyArchivedError } from '../../domain/errors/license-already-archived.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
+import { RenewalConditionsOutdatedError } from '../../domain/errors/renewal-conditions-outdated.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
 type LicensesDomainError =
@@ -24,7 +28,10 @@ type LicensesDomainError =
   | LicenseNotFoundError
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
-  | InvalidConditionDueDateError;
+  | InvalidConditionDueDateError
+  | RenewalConditionsOutdatedError
+  | DuplicateRenewalConditionError
+  | InvalidRenewalDueDateError;
 
 @Catch(
   CustomerNotFoundError,
@@ -34,6 +41,9 @@ type LicensesDomainError =
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
   InvalidConditionDueDateError,
+  RenewalConditionsOutdatedError,
+  DuplicateRenewalConditionError,
+  InvalidRenewalDueDateError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -78,6 +88,26 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof InvalidConditionDueDateError) {
       return new BadRequestException(
         LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
+      );
+    }
+
+    // 409: the request was valid when built, but the license's conditions
+    // changed since. The client reloads them and asks again.
+    if (error instanceof RenewalConditionsOutdatedError) {
+      return new ConflictException(
+        LICENSES_MESSAGES.RENEWAL_CONDITIONS_OUTDATED,
+      );
+    }
+
+    if (error instanceof DuplicateRenewalConditionError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.RENEWAL_CONDITION_DUPLICATED,
+      );
+    }
+
+    if (error instanceof InvalidRenewalDueDateError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.RENEWAL_COPY_DUE_DATE_INVALID,
       );
     }
 

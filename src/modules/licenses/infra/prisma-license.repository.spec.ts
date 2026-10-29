@@ -2,7 +2,26 @@ import { ConditionStatus, LicenseStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
+import { RenewalConditionsOutdatedError } from '../domain/errors/renewal-conditions-outdated.error';
 import { PrismaLicenseRepository } from './prisma-license.repository';
+
+const CONDITION_ORDER = [
+  { position: 'asc' },
+  { createdAt: 'asc' },
+  { id: 'asc' },
+];
+
+const RENEWAL = {
+  previousLicenseId: 'old-license',
+  customerId: 'customer-1',
+  type: 'LO',
+  processNumber: 'LO nº 119/2026',
+  issuingAgency: 'FEPAM',
+  issueDate: new Date('2026-01-10T00:00:00.000Z'),
+  expirationDate: new Date('2030-01-10T00:00:00.000Z'),
+  status: LicenseStatus.REGULAR,
+  documentUrl: 'https://storage.example.com/new.pdf',
+};
 
 describe('PrismaLicenseRepository', () => {
   it('creates a license connected to its customer', async () => {
@@ -44,7 +63,10 @@ describe('PrismaLicenseRepository', () => {
     const create = jest.fn().mockResolvedValue({ id: 'new-license' });
     const update = jest.fn().mockResolvedValue({ id: 'old-license' });
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
-      callback({ license: { create, update } }),
+      callback({
+        license: { create, update },
+        licenseCondition: { findMany: jest.fn().mockResolvedValue([]) },
+      }),
     );
     const repository = new PrismaLicenseRepository({
       $transaction: transaction,
@@ -64,6 +86,7 @@ describe('PrismaLicenseRepository', () => {
         expirationDate,
         status: LicenseStatus.REGULAR,
         documentUrl: 'https://storage.example.com/new.pdf',
+        conditions: [],
       }),
     ).resolves.toEqual({ id: 'new-license' });
 
@@ -84,6 +107,220 @@ describe('PrismaLicenseRepository', () => {
       where: { id: 'old-license' },
       data: { status: LicenseStatus.ARCHIVED },
     });
+  });
+
+  it('records fulfillment of the previous conditions and copies the marked ones to the renewed license', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'new-license' });
+    const update = jest.fn().mockResolvedValue({ id: 'old-license' });
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'c-1',
+        name: 'Relatório',
+        environmentalDescriptor: 'Resíduos',
+        description: 'Descrição',
+        responsibleAgency: 'FEPAM',
+        responsibleName: 'Ana',
+        conditionType: 'PERIODIC',
+        periodicity: 'ANNUAL',
+        hasDelivery: true,
+      },
+      { id: 'c-2', name: 'Licença de operação' },
+      {
+        id: 'c-3',
+        name: 'Outorga',
+        environmentalDescriptor: 'Recursos Hídricos',
+        description: null,
+        responsibleAgency: null,
+        responsibleName: null,
+        conditionType: null,
+        periodicity: null,
+        hasDelivery: false,
+      },
+    ]);
+    const aggregate = jest.fn().mockResolvedValue({ _max: { position: null } });
+    const createMany = jest.fn().mockResolvedValue({ count: 2 });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        license: { create, update },
+        licenseCondition: { updateMany, findMany, aggregate, createMany },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+    const newDueDate = new Date('2027-10-01T00:00:00.000Z');
+    const otherDueDate = new Date('2027-11-01T00:00:00.000Z');
+
+    await repository.renew({
+      ...RENEWAL,
+      conditions: [
+        // Decided out of order: the copies still follow the license's order.
+        {
+          conditionId: 'c-3',
+          fulfilled: true,
+          copyToNew: true,
+          newDueDate: otherDueDate,
+        },
+        { conditionId: 'c-2', fulfilled: false, copyToNew: false },
+        { conditionId: 'c-1', fulfilled: true, copyToNew: true, newDueDate },
+      ],
+    });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { licenseId: 'old-license' },
+      orderBy: CONDITION_ORDER,
+    });
+    // A condition already fulfilled is left alone, keeping its date.
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        licenseId: 'old-license',
+        id: { in: ['c-3', 'c-1'] },
+        OR: [
+          { conditionStatus: { not: ConditionStatus.FULFILLED } },
+          { completionDate: null },
+        ],
+      },
+      data: {
+        conditionStatus: ConditionStatus.FULFILLED,
+        completionDate: expect.any(Date) as Date,
+      },
+    });
+    // Only a fulfilled condition is reopened; an overdue one stays overdue.
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        licenseId: 'old-license',
+        id: { in: ['c-2'] },
+        conditionStatus: ConditionStatus.FULFILLED,
+      },
+      data: {
+        conditionStatus: ConditionStatus.IN_PROGRESS,
+        completionDate: null,
+      },
+    });
+    expect(aggregate).toHaveBeenCalledWith({
+      where: { licenseId: 'new-license' },
+      _max: { position: true },
+    });
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          licenseId: 'new-license',
+          name: 'Relatório',
+          environmentalDescriptor: 'Resíduos',
+          description: 'Descrição',
+          responsibleAgency: 'FEPAM',
+          responsibleName: 'Ana',
+          conditionType: 'PERIODIC',
+          periodicity: 'ANNUAL',
+          hasDelivery: true,
+          deadline: newDueDate,
+          dueDate: newDueDate,
+          position: 1,
+        },
+        {
+          licenseId: 'new-license',
+          name: 'Outorga',
+          environmentalDescriptor: 'Recursos Hídricos',
+          description: null,
+          responsibleAgency: null,
+          responsibleName: null,
+          conditionType: null,
+          periodicity: null,
+          hasDelivery: false,
+          deadline: otherDueDate,
+          dueDate: otherDueDate,
+          position: 2,
+        },
+      ],
+    });
+  });
+
+  it('does not copy any condition when none is marked to be copied', async () => {
+    const createMany = jest.fn();
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        license: {
+          create: jest.fn().mockResolvedValue({ id: 'new-license' }),
+          update: jest.fn(),
+        },
+        licenseCondition: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'c-1' }]),
+          updateMany: jest.fn(),
+          createMany,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await repository.renew({
+      ...RENEWAL,
+      conditions: [{ conditionId: 'c-1', fulfilled: true, copyToNew: false }],
+    });
+
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects the renewal before writing anything when the conditions changed', async () => {
+    const create = jest.fn();
+    const updateMany = jest.fn();
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        license: { create, update: jest.fn() },
+        licenseCondition: {
+          // c-2 was added after the caller loaded the list.
+          findMany: jest.fn().mockResolvedValue([{ id: 'c-1' }, { id: 'c-2' }]),
+          updateMany,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.renew({
+        ...RENEWAL,
+        conditions: [{ conditionId: 'c-1', fulfilled: true, copyToNew: false }],
+      }),
+    ).rejects.toThrow(RenewalConditionsOutdatedError);
+    expect(create).not.toHaveBeenCalled();
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it('finds a license with its ordered conditions only when it belongs to the owner', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'license-1',
+      conditions: [
+        { id: 'c-1', name: 'Relatório', conditionStatus: 'IN_PROGRESS' },
+      ],
+    });
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForOwnerWithConditions('license-1', 'owner-1'),
+    ).resolves.toEqual({
+      id: 'license-1',
+      conditions: [expect.objectContaining({ id: 'c-1', title: 'Relatório' })],
+    });
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'license-1', customer: { ownerUserId: 'owner-1' } },
+      include: { conditions: { orderBy: CONDITION_ORDER } },
+    });
+  });
+
+  it('returns null when the owner has no such license', async () => {
+    const repository = new PrismaLicenseRepository({
+      license: { findFirst: jest.fn().mockResolvedValue(null) },
+    } as unknown as PrismaService);
+
+    await expect(
+      repository.findByIdForOwnerWithConditions('license-1', 'owner-1'),
+    ).resolves.toBeNull();
   });
 
   it('finds all licenses for a customer ordered by soonest expiration first', async () => {
@@ -129,16 +366,57 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
-  it('creates conditions and returns the count', async () => {
+  it('appends the created conditions after the existing ones, in order', async () => {
+    const aggregate = jest.fn().mockResolvedValue({ _max: { position: 3 } });
     const createMany = jest.fn().mockResolvedValue({ count: 2 });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ licenseCondition: { aggregate, createMany } }),
+    );
     const repository = new PrismaLicenseRepository({
-      licenseCondition: { createMany },
+      $transaction: transaction,
+    } as unknown as PrismaService);
+    const condition = {
+      licenseId: 'license-1',
+      environmentalDescriptor: 'Resíduos',
+      description: 'Relatório',
+      responsibleName: 'Ana',
+      conditionType: 'INFORMATIVE' as const,
+      dueDate: new Date('2027-01-01T00:00:00.000Z'),
+      conditionStatus: ConditionStatus.IN_PROGRESS,
+      hasDelivery: true,
+    };
+
+    await expect(
+      repository.createConditions([
+        { ...condition, name: 'Primeira' },
+        { ...condition, name: 'Segunda' },
+      ]),
+    ).resolves.toEqual({ count: 2 });
+    expect(aggregate).toHaveBeenCalledWith({
+      where: { licenseId: 'license-1' },
+      _max: { position: true },
+    });
+    expect(createMany).toHaveBeenCalledWith({
+      data: [
+        { ...condition, name: 'Primeira', position: 4 },
+        { ...condition, name: 'Segunda', position: 5 },
+      ],
+    });
+  });
+
+  it('creates nothing when there are no conditions', async () => {
+    const createMany = jest.fn();
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ licenseCondition: { createMany } }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
     } as unknown as PrismaService);
 
     await expect(repository.createConditions([])).resolves.toEqual({
-      count: 2,
+      count: 0,
     });
-    expect(createMany).toHaveBeenCalledWith({ data: [] });
+    expect(createMany).not.toHaveBeenCalled();
   });
 
   it('finds a customer license and maps its conditions', async () => {
@@ -165,7 +443,7 @@ describe('PrismaLicenseRepository', () => {
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: 'license-1', customerId: 'customer-1' },
       include: {
-        conditions: { orderBy: { createdAt: 'asc' } },
+        conditions: { orderBy: CONDITION_ORDER },
       },
     });
   });
@@ -215,7 +493,7 @@ describe('PrismaLicenseRepository', () => {
     ]);
     expect(findMany).toHaveBeenCalledWith({
       where: { customerId: 'customer-1' },
-      include: { conditions: { orderBy: { createdAt: 'asc' } } },
+      include: { conditions: { orderBy: CONDITION_ORDER } },
     });
   });
 
@@ -316,8 +594,10 @@ describe('PrismaLicenseRepository', () => {
         licenseCondition: {
           findFirst: jest.fn().mockResolvedValue({
             id: 'condition-1',
+            licenseId: 'license-1',
             environmentalDescriptor: 'Água',
           }),
+          aggregate: jest.fn().mockResolvedValue({ _max: { position: 4 } }),
           update,
         },
       }),
@@ -333,21 +613,19 @@ describe('PrismaLicenseRepository', () => {
       data: { environmentalDescriptor: 'Resíduos' },
     });
 
-    const updateArguments: unknown = update.mock.calls[0]?.[0];
-    expect(updateArguments).toMatchObject({
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
       where: { id: 'condition-1' },
       data: {
         environmentalDescriptor: 'Resíduos',
+        position: 5,
       },
     });
-    expect(
-      (updateArguments as { data: { createdAt: unknown } }).data.createdAt,
-    ).toBeInstanceOf(Date);
   });
 
   it('updates a condition that belongs to the authenticated owner', async () => {
     const findFirst = jest.fn().mockResolvedValue({
       id: 'condition-1',
+      licenseId: 'license-1',
       environmentalDescriptor: 'Water',
     });
     const update = jest.fn((updateArguments: unknown) => {
@@ -359,8 +637,9 @@ describe('PrismaLicenseRepository', () => {
         isViolated: true,
       });
     });
+    const aggregate = jest.fn().mockResolvedValue({ _max: { position: 0 } });
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
-      callback({ licenseCondition: { findFirst, update } }),
+      callback({ licenseCondition: { findFirst, aggregate, update } }),
     );
     const repository = new PrismaLicenseRepository({
       $transaction: transaction,
@@ -393,11 +672,13 @@ describe('PrismaLicenseRepository', () => {
         conditionStatus: 'OVERDUE',
         isViolated: true,
         environmentalDescriptor: 'Waste',
+        position: 1,
       },
     });
-    expect(
-      (updateArguments as { data: { createdAt: unknown } }).data.createdAt,
-    ).toBeInstanceOf(Date);
+    expect(aggregate).toHaveBeenCalledWith({
+      where: { licenseId: 'license-1' },
+      _max: { position: true },
+    });
   });
 
   it('does not reorder a condition when its environmental descriptor is unchanged', async () => {
@@ -535,14 +816,13 @@ describe('PrismaLicenseRepository', () => {
     ).resolves.toBeNull();
   });
 
-  it('saves conditions fulfillment with FULFILLED and IN_PROGRESS statuses', async () => {
-    const update = jest.fn().mockResolvedValue({ id: 'ok' });
-    const transaction = jest.fn(async (promises: unknown[]) =>
-      Promise.all(promises),
+  it('saves conditions fulfillment without rewriting what is already recorded', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ licenseCondition: { updateMany } }),
     );
     const repository = new PrismaLicenseRepository({
       $transaction: transaction,
-      licenseCondition: { update },
     } as unknown as PrismaService);
 
     await repository.saveConditionsFulfillment({
@@ -555,20 +835,49 @@ describe('PrismaLicenseRepository', () => {
     });
 
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledTimes(2);
-    expect(update).toHaveBeenNthCalledWith(1, {
-      where: { id: 'c-1' },
+    expect(updateMany).toHaveBeenCalledTimes(2);
+    expect(updateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        licenseId: 'license-1',
+        id: { in: ['c-1'] },
+        OR: [
+          { conditionStatus: { not: ConditionStatus.FULFILLED } },
+          { completionDate: null },
+        ],
+      },
       data: {
         conditionStatus: ConditionStatus.FULFILLED,
         completionDate: expect.any(Date) as Date,
       },
     });
-    expect(update).toHaveBeenNthCalledWith(2, {
-      where: { id: 'c-2' },
+    expect(updateMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        licenseId: 'license-1',
+        id: { in: ['c-2'] },
+        conditionStatus: ConditionStatus.FULFILLED,
+      },
       data: {
         conditionStatus: ConditionStatus.IN_PROGRESS,
         completionDate: null,
       },
     });
+  });
+
+  it('skips the reopen query when every condition was fulfilled', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({ licenseCondition: { updateMany } }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await repository.saveConditionsFulfillment({
+      licenseId: 'license-1',
+      customerId: 'customer-1',
+      items: [{ conditionId: 'c-1', fulfilled: true }],
+    });
+
+    expect(updateMany).toHaveBeenCalledTimes(1);
   });
 });

@@ -35,3 +35,17 @@ export function calculateLicenseStatus(
 
   return LicenseStatus.REGULAR;
 }
+
+/*
+ * Status to show for a stored license. The persisted status was computed at
+ * creation time and goes stale, so it is re-derived from expirationDate;
+ * an archived license is a historical record and keeps its status.
+ */
+export function currentLicenseStatus(
+  license: { status: LicenseStatus; expirationDate: Date },
+  now: Date = new Date(),
+): LicenseStatus {
+  return license.status === LicenseStatus.ARCHIVED
+    ? LicenseStatus.ARCHIVED
+    : calculateLicenseStatus(license.expirationDate, now);
+}

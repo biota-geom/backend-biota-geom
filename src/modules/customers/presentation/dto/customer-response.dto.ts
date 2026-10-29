@@ -32,6 +32,15 @@ export class CustomerResponseDTO {
   @ApiProperty({ example: 'Ativo' })
   status!: string;
 
+  @ApiProperty({ example: 'Ana Silva' })
+  responsible_name!: string;
+
+  @ApiProperty({ example: 'ana.silva@empresa.com' })
+  responsible_email!: string;
+
+  @ApiProperty({ format: 'uuid', nullable: true })
+  sector_id!: string | null;
+
   @ApiProperty({ type: SectorName })
   sector!: SectorName;
 

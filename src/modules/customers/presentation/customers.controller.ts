@@ -10,9 +10,12 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Res,
+  StreamableFile,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiConflictResponse,
@@ -34,6 +37,7 @@ import {
 } from '../../esg-metrics/presentation/dtos/esg-metric-response.dto';
 import { LinkCustomerEsgMetricsUseCase } from '../application/link-customer-esg-metrics.use-case';
 import { ListCustomerEsgMetricsUseCase } from '../application/list-customer-esg-metrics.use-case';
+import { GenerateCustomerReportUseCase } from '../application/generate-customer-report.use-case';
 import { GetCustomerDashboardConditionsUseCase } from '../application/get-customer-dashboard-conditions.use-case';
 import { CustomersService } from '../infra/customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -76,6 +80,7 @@ export class CustomerController {
     private readonly linkCustomerEsgMetricsUseCase: LinkCustomerEsgMetricsUseCase,
     private readonly listCustomerEsgMetricsUseCase: ListCustomerEsgMetricsUseCase,
     private readonly getCustomerDashboardConditionsUseCase: GetCustomerDashboardConditionsUseCase,
+    private readonly generateCustomerReportUseCase: GenerateCustomerReportUseCase,
   ) {}
 
   @Get()
@@ -277,5 +282,39 @@ export class CustomerController {
     );
 
     return licensesDetails;
+  }
+
+  @Get(':id/report.pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Generate the executive KPI report of a company as a PDF.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({
+    description: 'PDF stream.',
+    content: {
+      'application/pdf': { schema: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Customer not found.' })
+  async downloadCustomerReport(
+    @Param('id', uuidPipe) customerId: string,
+    @CurrentUser() user: { id: string },
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const report = await this.generateCustomerReportUseCase.execute(
+      customerId,
+      user.id,
+    );
+
+    response.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${report.fileName}"`,
+      // Lets the browser read the file name on a cross-origin download.
+      'Access-Control-Expose-Headers': 'Content-Disposition',
+    });
+
+    return new StreamableFile(report.content);
   }
 }

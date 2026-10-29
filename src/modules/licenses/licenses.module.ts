@@ -25,6 +25,11 @@ import { DeleteLicenseConditionUseCase } from './application/delete-license-cond
 import { RenewLicenseUseCase } from './application/renew-license.use-case';
 import { ListLicenseHistoryUseCase } from './application/list-license-history.use-case';
 import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
+import { ExtractLicenseDataUseCase } from './application/extract-license-data.use-case';
+import { LicenseDocumentExtractor } from './domain/license-extraction';
+import { BedrockConfigService } from './infra/extraction/bedrock-config.service';
+import { BedrockLicenseDocumentExtractor } from './infra/extraction/bedrock-license-document-extractor';
+import { LicenseExtractionController } from './presentation/license-extraction.controller';
 import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-fulfillment.use-case';
 @Module({
   imports: [
@@ -38,6 +43,7 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     LicenseRenewalsController,
     LicenseConditionsController,
     LicenseDocumentsController,
+    LicenseExtractionController,
   ],
   providers: [
     { provide: LicenseRepository, useClass: PrismaLicenseRepository },
@@ -58,6 +64,12 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     SaveConditionsFulfillmentUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
+    ExtractLicenseDataUseCase,
+    BedrockConfigService,
+    {
+      provide: LicenseDocumentExtractor,
+      useClass: BedrockLicenseDocumentExtractor,
+    },
   ],
   exports: [
     GetLicenseConditionsComplianceUseCase,

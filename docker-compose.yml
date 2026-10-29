@@ -16,6 +16,10 @@ services:
       JWT_AUDIENCE: ${JWT_AUDIENCE:-biota-geom-web}
       AUTH_ALLOWED_EMAIL_DOMAIN: ${AUTH_ALLOWED_EMAIL_DOMAIN:-biotageom.com.br}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-global.anthropic.claude-sonnet-5-5}
+      BEDROCK_TIMEOUT_MS: ${BEDROCK_TIMEOUT_MS:-180000}
     ports:
       - '3000:3000'
     depends_on:

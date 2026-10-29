@@ -55,4 +55,15 @@ export class PrismaDocumentRepository implements DocumentsRepository {
       orderBy: [{ documentDate: 'desc' }, { createdAt: 'desc' }],
     });
   }
+
+  async softDelete(id: string, deletedById: string): Promise<void> {
+    /*
+     * The row and the stored file are kept on purpose: deletedAt only hides
+     * the document from the listing, and deletedById records who hid it.
+     */
+    await this.prisma.document.update({
+      where: { id },
+      data: { deletedAt: new Date(), deletedById },
+    });
+  }
 }

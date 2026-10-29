@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { FileStorageModule } from '../../common/storage/file-storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
@@ -29,10 +29,11 @@ import { LicenseDocumentExtractor } from './domain/license-extraction';
 import { BedrockConfigService } from './infra/extraction/bedrock-config.service';
 import { BedrockLicenseDocumentExtractor } from './infra/extraction/bedrock-license-document-extractor';
 import { LicenseExtractionController } from './presentation/license-extraction.controller';
+import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-fulfillment.use-case';
 @Module({
   imports: [
     AuthModule,
-    CustomerModule,
+    forwardRef(() => CustomerModule),
     IssuingAgenciesModule,
     FileStorageModule,
   ],
@@ -58,6 +59,7 @@ import { LicenseExtractionController } from './presentation/license-extraction.c
     DeleteLicenseConditionUseCase,
     RenewLicenseUseCase,
     GetLicenseDocumentUrlUseCase,
+    SaveConditionsFulfillmentUseCase,
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
     ExtractLicenseDataUseCase,
@@ -66,6 +68,10 @@ import { LicenseExtractionController } from './presentation/license-extraction.c
       provide: LicenseDocumentExtractor,
       useClass: BedrockLicenseDocumentExtractor,
     },
+  ],
+  exports: [
+    GetLicenseConditionsComplianceUseCase,
+    ListLicenseConditionsByCustomerUseCase,
   ],
 })
 export class LicensesModule {}

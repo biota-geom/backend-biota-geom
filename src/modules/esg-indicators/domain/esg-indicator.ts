@@ -1,22 +1,69 @@
+import { EsgPillar } from '../../esg-metrics/domain/esg-pillar';
+
 /*
- * The four operational indicators a customer reports every month (US11).
- * Values match the Prisma `EsgIndicator` enum, so they can be passed to the
- * database as they are.
+ * An indicator is a catalog entry (an ESG metric) that a customer reports
+ * every month. Which ones a customer reports is decided when the customer is
+ * created/edited (customer_esg_metrics) or by creating one inline.
  */
-export const ESG_INDICATORS = [
-  'WATER',
-  'WASTE',
-  'EMPLOYEES',
-  'ENERGY',
+export const INDICATOR_CATEGORIES = [
+  'Ambiental',
+  'Social',
+  'Governança',
 ] as const;
 
-export type EsgIndicator = (typeof ESG_INDICATORS)[number];
+export type IndicatorCategory = (typeof INDICATOR_CATEGORIES)[number];
 
-// What is stored for one month: null means no record for that indicator.
-export type EsgIndicatorValues = Record<EsgIndicator, number | null>;
+const CATEGORY_BY_PILLAR: Record<EsgPillar, IndicatorCategory> = {
+  AMBIENTAL: 'Ambiental',
+  SOCIAL: 'Social',
+  GOVERNANCA: 'Governança',
+};
+
+export function pillarToCategory(pillar: EsgPillar): IndicatorCategory {
+  return CATEGORY_BY_PILLAR[pillar];
+}
+
+export function categoryToPillar(category: IndicatorCategory): EsgPillar {
+  const entry = Object.entries(CATEGORY_BY_PILLAR).find(
+    ([, label]) => label === category,
+  );
+
+  return (entry as [EsgPillar, IndicatorCategory])[0];
+}
+
+export interface IndicatorDefinition {
+  id: string;
+  name: string;
+  unit: string;
+  category: IndicatorCategory;
+}
+
+export interface NewIndicator {
+  name: string;
+  unit: string;
+  category: IndicatorCategory;
+}
+
+// An indicator of a customer for one month; null means nothing was recorded.
+export interface MonthlyIndicator extends IndicatorDefinition {
+  value: number | null;
+}
 
 /*
- * What a save asks to change. An indicator that is left out is untouched,
- * a number creates or corrects its record, and null removes the record.
+ * What a save asks to change for one indicator: a number creates or corrects
+ * its record, null removes it. Indicators that are not listed stay untouched.
  */
-export type EsgIndicatorChanges = Partial<Record<EsgIndicator, number | null>>;
+export interface IndicatorRecordChange {
+  indicatorId: string;
+  value: number | null;
+}
+
+export function toMonthlyIndicators(
+  indicators: IndicatorDefinition[],
+  values: Map<string, number>,
+): MonthlyIndicator[] {
+  return indicators.map((indicator) => ({
+    ...indicator,
+    value: values.get(indicator.id) ?? null,
+  }));
+}

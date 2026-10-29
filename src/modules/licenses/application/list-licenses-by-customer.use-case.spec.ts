@@ -1,4 +1,4 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
 import { License } from '../domain/license.entity';
@@ -30,9 +30,9 @@ function buildLicense(overrides: Partial<License>): License {
   return {
     id: 'license-1',
     customerId: 'customer-1',
-    type: LicenseType.LO,
+    type: 'LO',
     processNumber: 'LO nº 118/2020',
-    issuingAgencyId: 'agency-1',
+    issuingAgency: 'FEPAM',
     issueDate: new Date('2020-01-10T00:00:00.000Z'),
     expirationDate: new Date('2099-01-10T00:00:00.000Z'),
     status: LicenseStatus.REGULAR,

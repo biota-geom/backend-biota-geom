@@ -1,13 +1,11 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
-import { IssuingAgency } from '../../issuing-agencies/domain/issuing-agency.entity';
+import { LicenseStatus } from '@prisma/client';
 
 export interface License {
   id: string;
   customerId: string;
-  type: LicenseType;
+  type: string;
   processNumber: string;
-  issuingAgencyId: string;
-  issuingAgency?: IssuingAgency;
+  issuingAgency: string;
   issueDate: Date;
   expirationDate: Date;
   status: LicenseStatus;

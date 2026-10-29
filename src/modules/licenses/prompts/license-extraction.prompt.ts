@@ -22,7 +22,7 @@ Rules:
 JSON shape:
 {
   "extracted_data": {
-    "type": "LP" | "LI" | "LO" | null,
+    "type": string | null,
     "process_number": string | null,
     "issuing_agency": string | null,
     "issue_date": "YYYY-MM-DD" | null,
@@ -40,7 +40,7 @@ JSON shape:
 }
 
 Field guidance for "extracted_data":
-- type: "LP" for Licença Prévia, "LI" for Licença de Instalação, "LO" for Licença de Operação. If the document is another kind of license (for example "Licença Única" or "Licença de Operação e Regularização") use the stage it authorizes only when the document explicitly names it (for example "Assunto: Licença de Operação"); otherwise null.
+- type: the acronym of the license type as printed in the document (for example "LP", "LI", "LO", "LU" or "LAO"). When the document only spells the type out, use its usual acronym ("Licença Prévia" is "LP", "Licença de Instalação" is "LI", "Licença de Operação" is "LO", "Licença Única" is "LU"). When no type is stated, use null.
 - process_number: the license document number as printed in the document header, including its prefix (for example "LO nº 118/2020" or "LU Nº 00865/2022"). Prefer it over the administrative process number ("Processo nº"), which is only a fallback when the document has no license number.
 - issuing_agency: the acronym of the issuing agency when available (for example "FEPAM"), otherwise its full name.
 - issue_date: the issue date ("Data de emissão", "emitida em"). If absent, use the start of the validity period.

@@ -2,7 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
@@ -21,6 +24,7 @@ import {
   ApiConsumes,
   ApiCreatedResponse,
   ApiConflictResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -33,6 +37,7 @@ import { CurrentUser } from '../../auth/presentation/decorators/current-user.dec
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { CreateDocumentUseCase } from '../application/create-document.use-case';
+import { DeleteDocumentUseCase } from '../application/delete-document.use-case';
 import { CreateDocumentFolderUseCase } from '../application/create-document-folder.use-case';
 import { GetDocumentUrlUseCase } from '../application/get-document-url.use-case';
 import { ListDocumentFoldersUseCase } from '../application/list-document-folders.use-case';
@@ -96,6 +101,7 @@ export class DocumentsController {
     private readonly createDocumentUseCase: CreateDocumentUseCase,
     private readonly listDocumentsUseCase: ListDocumentsUseCase,
     private readonly getDocumentUrlUseCase: GetDocumentUrlUseCase,
+    private readonly deleteDocumentUseCase: DeleteDocumentUseCase,
     private readonly createDocumentFolderUseCase: CreateDocumentFolderUseCase,
     private readonly listDocumentFoldersUseCase: ListDocumentFoldersUseCase,
   ) {}
@@ -106,7 +112,7 @@ export class DocumentsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['file', 'title', 'document_date'],
+      required: ['file', 'title'],
       properties: {
         file: { type: 'string', format: 'binary' },
         title: { type: 'string', example: 'Noise Report 2026' },
@@ -151,7 +157,9 @@ export class DocumentsController {
       customerId,
       ownerUserId: user.id,
       title: dto.title,
-      documentDate: new Date(`${dto.document_date}T00:00:00.000Z`),
+      documentDate: new Date(
+        `${dto.document_date ?? new Date().toISOString().slice(0, 10)}T00:00:00.000Z`,
+      ),
       folderId: dto.folder_id ?? null,
       file: {
         buffer: file.buffer,
@@ -239,5 +247,23 @@ export class DocumentsController {
     );
 
     return toDocumentUrlResponse(accessUrl);
+  }
+
+  @Delete(':documentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiParam({ name: 'customerId', format: 'uuid' })
+  @ApiParam({ name: 'documentId', format: 'uuid' })
+  @ApiOperation({ summary: 'Logically delete a company document.' })
+  @ApiNoContentResponse({ description: 'Document deleted.' })
+  @ApiNotFoundResponse({
+    description:
+      'Document not found, already deleted or owned by another user.',
+  })
+  async remove(
+    @Param('customerId', routeUuidPipe) customerId: string,
+    @Param('documentId', routeUuidPipe) documentId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<void> {
+    await this.deleteDocumentUseCase.execute(documentId, customerId, user.id);
   }
 }

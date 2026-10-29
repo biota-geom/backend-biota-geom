@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LicenseType } from '@prisma/client';
 import { License } from '../../domain/license.entity';
 import { STATUS_LABELS } from './license-labels';
 
@@ -10,17 +9,14 @@ export class LicenseCreatedResponseDto {
   @ApiProperty({ format: 'uuid' })
   customer_id!: string;
 
-  @ApiProperty({ enum: LicenseType, example: LicenseType.LO })
-  type!: LicenseType;
+  @ApiProperty({ example: 'LO' })
+  type!: string;
 
   @ApiProperty({ example: 'LO nº 118/2020' })
   process_number!: string;
 
-  @ApiProperty({ format: 'uuid' })
-  issuing_agency_id!: string;
-
-  @ApiProperty({ example: 'FEPAM', nullable: true })
-  issuing_agency_name!: string | null;
+  @ApiProperty({ example: 'FEPAM' })
+  issuing_agency!: string;
 
   @ApiProperty({ format: 'date-time' })
   issue_date!: string;
@@ -51,8 +47,7 @@ export function toLicenseCreatedResponse(
     customer_id: license.customerId,
     type: license.type,
     process_number: license.processNumber,
-    issuing_agency_id: license.issuingAgencyId,
-    issuing_agency_name: license.issuingAgency?.name ?? null,
+    issuing_agency: license.issuingAgency,
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: STATUS_LABELS[license.status],

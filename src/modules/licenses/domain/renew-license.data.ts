@@ -1,11 +1,11 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 
 export interface RenewLicenseData {
   previousLicenseId: string;
   customerId: string;
-  type: LicenseType;
+  type: string;
   processNumber: string;
-  issuingAgencyId: string;
+  issuingAgency: string;
   issueDate: Date;
   expirationDate: Date;
   status: LicenseStatus;

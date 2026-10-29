@@ -16,3 +16,19 @@ export function parseReferenceMonth(month: string): Date {
 
   return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
 }
+
+// The first day of the month before `referenceMonth`, also at UTC midnight.
+export function previousReferenceMonth(referenceMonth: Date): Date {
+  return new Date(
+    Date.UTC(
+      referenceMonth.getUTCFullYear(),
+      referenceMonth.getUTCMonth() - 1,
+      1,
+    ),
+  );
+}
+
+// Back from the stored date to the "YYYY-MM" the API speaks.
+export function formatReferenceMonth(referenceMonth: Date): string {
+  return referenceMonth.toISOString().slice(0, 7);
+}

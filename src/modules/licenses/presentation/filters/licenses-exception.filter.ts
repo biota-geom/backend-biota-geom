@@ -5,7 +5,6 @@ import {
   ExceptionFilter,
   HttpException,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
@@ -13,7 +12,6 @@ import { CustomerNotFoundError } from '../../../customers/domain/errors/customer
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
-import { IssuingAgencyNotFoundError } from '../../domain/errors/issuing-agency-not-found.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseAlreadyArchivedError } from '../../domain/errors/license-already-archived.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
@@ -21,7 +19,6 @@ import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
 type LicensesDomainError =
   | CustomerNotFoundError
-  | IssuingAgencyNotFoundError
   | InvalidLicenseDateRangeError
   | LicenseAlreadyArchivedError
   | LicenseNotFoundError
@@ -31,7 +28,6 @@ type LicensesDomainError =
 
 @Catch(
   CustomerNotFoundError,
-  IssuingAgencyNotFoundError,
   InvalidLicenseDateRangeError,
   LicenseAlreadyArchivedError,
   LicenseNotFoundError,
@@ -57,12 +53,6 @@ export class LicensesExceptionFilter implements ExceptionFilter {
      */
     if (error instanceof CustomerNotFoundError) {
       return new NotFoundException(AUTH_MESSAGES.CUSTOMER_NOT_FOUND);
-    }
-
-    if (error instanceof IssuingAgencyNotFoundError) {
-      return new UnprocessableEntityException(
-        LICENSES_MESSAGES.ISSUING_AGENCY_NOT_FOUND,
-      );
     }
 
     if (error instanceof LicenseNotFoundError) {

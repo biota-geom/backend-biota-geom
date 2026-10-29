@@ -1,8 +1,4 @@
-import {
-  ConditionPeriodicity,
-  ConditionType,
-  LicenseType,
-} from '@prisma/client';
+import { ConditionPeriodicity, ConditionType } from '@prisma/client';
 import { z } from 'zod';
 import { UnreadableLicenseDocumentError } from '../../domain/errors/unreadable-license-document.error';
 import {
@@ -14,6 +10,7 @@ import {
 // suggestion never arrives already invalid for the form it pre-fills.
 const MAX_DESCRIPTION_LENGTH = 500;
 const MAX_DESCRIPTOR_LENGTH = 120;
+const MAX_TYPE_LENGTH = 50;
 const MAX_PROCESS_NUMBER_LENGTH = 100;
 const MAX_AGENCY_LENGTH = 150;
 const MAX_CONDITIONS = 200;
@@ -58,7 +55,7 @@ const nullableEnum = <T extends Record<string, string>>(values: T) =>
   z.enum(values).nullable().catch(null);
 
 const extractedDataSchema = z.object({
-  type: nullableEnum(LicenseType).default(null),
+  type: nullableText(MAX_TYPE_LENGTH).default(null),
   process_number: nullableText(MAX_PROCESS_NUMBER_LENGTH).default(null),
   issuing_agency: nullableText(MAX_AGENCY_LENGTH).default(null),
   issue_date: nullableDate.default(null),

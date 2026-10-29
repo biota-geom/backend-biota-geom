@@ -56,7 +56,7 @@ describe('parseLicenseExtraction', () => {
     const result = parseLicenseExtraction(
       answer({
         extracted_data: {
-          type: 'LU',
+          type: 42,
           process_number: '   ',
           issue_date: '28/04/2022',
           expiration_date: '2027-02-30',
@@ -74,6 +74,14 @@ describe('parseLicenseExtraction', () => {
       },
       suggestedConditions: [],
     });
+  });
+
+  it('keeps any license type as printed, since the type is free text', () => {
+    const result = parseLicenseExtraction(
+      answer({ extracted_data: { type: '  LAO ' } }),
+    );
+
+    expect(result.extractedData.type).toBe('LAO');
   });
 
   it('drops conditions without a description and keeps the valid ones', () => {

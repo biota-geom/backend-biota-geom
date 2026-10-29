@@ -1,14 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { EsgIndicatorRecord } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
-import {
-  ESG_INDICATORS,
-  EsgIndicatorChanges,
-  EsgIndicatorValues,
-} from '../domain/esg-indicator';
+import { IndicatorRecordChange } from '../domain/esg-indicator';
 import { EsgIndicatorRecordRepository } from '../domain/esg-indicator-records.repository';
-
-type StoredValue = Pick<EsgIndicatorRecord, 'indicator' | 'value'>;
 
 @Injectable()
 export class PrismaEsgIndicatorRecordRepository extends EsgIndicatorRecordRepository {
@@ -16,32 +9,42 @@ export class PrismaEsgIndicatorRecordRepository extends EsgIndicatorRecordReposi
     super();
   }
 
-  async findByMonth(
+  async findValuesByMonth(
     customerId: string,
     referenceMonth: Date,
-  ): Promise<EsgIndicatorValues> {
+  ): Promise<Map<string, number>> {
     const records = await this.prisma.esgIndicatorRecord.findMany({
       where: { customerId, referenceMonth },
-      select: { indicator: true, value: true },
+      select: { indicatorId: true, value: true },
     });
 
-    return this.toValues(records);
+    return new Map(
+      records.map((record) => [record.indicatorId, record.value.toNumber()]),
+    );
+  }
+
+  async findLatestMonth(customerId: string): Promise<Date | null> {
+    const latest = await this.prisma.esgIndicatorRecord.findFirst({
+      where: {
+        customerId,
+        // Old records of an indicator unlinked from the customer don't count.
+        indicator: { customerLinks: { some: { customerId } } },
+      },
+      orderBy: { referenceMonth: 'desc' },
+      select: { referenceMonth: true },
+    });
+
+    return latest?.referenceMonth ?? null;
   }
 
   async saveMonth(
     customerId: string,
     referenceMonth: Date,
-    changes: EsgIndicatorChanges,
-  ): Promise<EsgIndicatorValues> {
-    return this.prisma.$transaction(async (tx) => {
-      for (const indicator of ESG_INDICATORS) {
-        const value = changes[indicator];
-
-        if (value === undefined) {
-          continue;
-        }
-
-        const key = { customerId, indicator, referenceMonth };
+    changes: IndicatorRecordChange[],
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      for (const { indicatorId, value } of changes) {
+        const key = { customerId, indicatorId, referenceMonth };
 
         if (value === null) {
           await tx.esgIndicatorRecord.deleteMany({ where: key });
@@ -51,33 +54,11 @@ export class PrismaEsgIndicatorRecordRepository extends EsgIndicatorRecordReposi
         // The unique index (customer, indicator, month) is what keeps this a
         // correction of the existing row instead of a second record.
         await tx.esgIndicatorRecord.upsert({
-          where: { customerId_indicator_referenceMonth: key },
+          where: { customerId_indicatorId_referenceMonth: key },
           create: { ...key, value },
           update: { value },
         });
       }
-
-      const records = await tx.esgIndicatorRecord.findMany({
-        where: { customerId, referenceMonth },
-        select: { indicator: true, value: true },
-      });
-
-      return this.toValues(records);
     });
-  }
-
-  private toValues(records: StoredValue[]): EsgIndicatorValues {
-    const values: EsgIndicatorValues = {
-      WATER: null,
-      WASTE: null,
-      EMPLOYEES: null,
-      ENERGY: null,
-    };
-
-    for (const record of records) {
-      values[record.indicator] = record.value.toNumber();
-    }
-
-    return values;
   }
 }

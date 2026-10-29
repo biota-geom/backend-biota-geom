@@ -1,8 +1,4 @@
-import {
-  ConditionPeriodicity,
-  ConditionType,
-  LicenseType,
-} from '@prisma/client';
+import { ConditionPeriodicity, ConditionType } from '@prisma/client';
 
 /*
  * What an AI reading of a license PDF can suggest. Every field is nullable on
@@ -13,10 +9,10 @@ import {
  * no time zone is involved, so they map 1:1 onto the form's date inputs.
  */
 export interface ExtractedLicenseData {
-  type: LicenseType | null;
+  // Type and agency are free text on the license, so both are reported as
+  // printed (e.g. "LU", "FEPAM") rather than mapped to a fixed list.
+  type: string | null;
   processNumber: string | null;
-  // Name or acronym as printed; matching it to a registered agency is the
-  // caller's job (the extraction never invents an issuing_agency_id).
   issuingAgency: string | null;
   issueDate: string | null;
   expirationDate: string | null;

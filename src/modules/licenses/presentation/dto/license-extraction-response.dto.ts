@@ -1,17 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  ConditionPeriodicity,
-  ConditionType,
-  LicenseType,
-} from '@prisma/client';
+import { ConditionPeriodicity, ConditionType } from '@prisma/client';
 import {
   LicenseExtraction,
   SuggestedCondition,
 } from '../../domain/license-extraction';
 
 export class ExtractedLicenseDataDto {
-  @ApiProperty({ enum: LicenseType, nullable: true, example: 'LO' })
-  type!: LicenseType | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'LO',
+    description: 'Sigla do tipo de licença como impressa no documento.',
+  })
+  type!: string | null;
 
   @ApiProperty({ type: String, nullable: true, example: 'LO nº 118/2020' })
   process_number!: string | null;
@@ -20,8 +21,7 @@ export class ExtractedLicenseDataDto {
     type: String,
     nullable: true,
     example: 'FEPAM',
-    description:
-      'Nome ou sigla do órgão emissor como impresso no documento. O cliente faz a correspondência com a lista de órgãos cadastrados.',
+    description: 'Nome ou sigla do órgão emissor como impresso no documento.',
   })
   issuing_agency!: string | null;
 

@@ -1,10 +1,10 @@
-import { LicenseStatus, LicenseType } from '@prisma/client';
+import { LicenseStatus } from '@prisma/client';
 
 export interface CreateLicenseData {
   customerId: string;
-  type: LicenseType;
+  type: string;
   processNumber: string;
-  issuingAgencyId: string;
+  issuingAgency: string;
   issueDate: Date;
   expirationDate: Date;
   // Computed by CreateLicenseUseCase from expirationDate — never accepted

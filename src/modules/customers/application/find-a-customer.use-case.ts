@@ -31,6 +31,9 @@ export class FindCustomerUseCase {
       document: customer.document,
       document_type: customer.documentType,
       status: customer.isActive ? 'active' : 'inactive',
+      responsible_name: customer.ownerName,
+      responsible_email: customer.ownerEmail,
+      sector_id: customer.sector?.id ?? null,
       sector: { id: sectorId, name: sectorName },
       address: { city, state },
     };

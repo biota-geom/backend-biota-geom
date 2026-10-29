@@ -339,6 +339,10 @@ model LicenseCondition {
   conditionStatus         ConditionStatus        @default(IN_PROGRESS) @map("condition_status")
   hasDelivery             Boolean                @default(true) @map("has_delivery")
   isViolated              Boolean                @default(false) @map("is_violated")
+  // Order of the condition inside its license, read by the item numbering.
+  // Rows written before this column existed all hold 0 and keep their
+  // created_at order as the tie-break.
+  position                Int                    @default(0)
   createdAt               DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt               DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
 

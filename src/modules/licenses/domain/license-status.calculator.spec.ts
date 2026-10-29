@@ -1,5 +1,8 @@
 import { LicenseStatus } from '@prisma/client';
-import { calculateLicenseStatus } from './license-status.calculator';
+import {
+  calculateLicenseStatus,
+  currentLicenseStatus,
+} from './license-status.calculator';
 
 describe('calculateLicenseStatus', () => {
   const now = new Date('2026-01-01T00:00:00.000Z');
@@ -42,5 +45,33 @@ describe('calculateLicenseStatus', () => {
     const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
     expect(calculateLicenseStatus(farFuture)).toBe(LicenseStatus.REGULAR);
+  });
+});
+
+describe('currentLicenseStatus', () => {
+  const now = new Date('2026-01-01T00:00:00.000Z');
+
+  it('re-derives a stored status that went stale', () => {
+    expect(
+      currentLicenseStatus(
+        {
+          status: LicenseStatus.REGULAR,
+          expirationDate: new Date('2025-12-31T00:00:00.000Z'),
+        },
+        now,
+      ),
+    ).toBe(LicenseStatus.EXPIRED);
+  });
+
+  it('keeps an archived license archived', () => {
+    expect(
+      currentLicenseStatus(
+        {
+          status: LicenseStatus.ARCHIVED,
+          expirationDate: new Date('2025-12-31T00:00:00.000Z'),
+        },
+        now,
+      ),
+    ).toBe(LicenseStatus.ARCHIVED);
   });
 });

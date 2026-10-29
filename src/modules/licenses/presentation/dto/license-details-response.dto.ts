@@ -141,8 +141,10 @@ export function toLicenseConditionDetailsResponse(
 function toNumberedEnvironmentalDescriptorRows(
   conditions: LicenseCondition[],
 ): LicenseConditionDetailsResponseDto[] {
+  // Same order as CONDITION_ORDER in the repository.
   const orderedConditions = [...conditions].sort(
     (left, right) =>
+      left.position - right.position ||
       left.createdAt.getTime() - right.createdAt.getTime() ||
       left.id.localeCompare(right.id),
   );

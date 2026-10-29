@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { CreateCustomerIndicatorUseCase } from './application/create-customer-indicator.use-case';
@@ -13,7 +13,13 @@ import { CustomerIndicatorsController } from './presentation/customer-indicators
 import { EsgIndicatorsController } from './presentation/esg-indicators.controller';
 
 @Module({
-  imports: [AuthModule, CustomerModule],
+  /*
+   * Both sides of the cycle need forwardRef: this module imports CustomerModule
+   * and CustomerModule imports this one back for the executive report. With it
+   * on one side only, whichever file is evaluated first sees the other as
+   * undefined and Nest refuses to build the graph.
+   */
+  imports: [AuthModule, forwardRef(() => CustomerModule)],
   controllers: [EsgIndicatorsController, CustomerIndicatorsController],
   providers: [
     {

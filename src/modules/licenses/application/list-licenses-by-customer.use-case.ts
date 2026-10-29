@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { LicenseStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
-import { calculateLicenseStatus } from '../domain/license-status.calculator';
+import { currentLicenseStatus } from '../domain/license-status.calculator';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
 
@@ -59,16 +59,9 @@ export class ListLicensesByCustomerUseCase {
     let attention = 0;
     let expired = 0;
 
-    // Re-derived from expirationDate against the server clock rather than
-    // trusting the status persisted at creation time, so a license created
-    // long ago still reports its current status on the panel. Archived
-    // licenses are historical records and must never be overwritten by this
-    // live calculation or counted as active compliance.
+    // Archived licenses are never counted as active compliance.
     const licenses = storedLicenses.map((license) => {
-      const status =
-        license.status === LicenseStatus.ARCHIVED
-          ? LicenseStatus.ARCHIVED
-          : calculateLicenseStatus(license.expirationDate, now);
+      const status = currentLicenseStatus(license, now);
 
       if (status === LicenseStatus.REGULAR) {
         regular += 1;

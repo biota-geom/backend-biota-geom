@@ -387,7 +387,7 @@ export class LicenseRenewalsController {
   @ApiParam({ name: 'licenseId', format: 'uuid' })
   @ApiOperation({
     summary:
-      'Lista a cadeia de versões da licença, da mais nova à mais antiga.',
+      'Lista todas as versões da cadeia de renovação da licença, da mais nova à mais antiga.',
   })
   @ApiOkResponse({ type: LicenseHistoryItemDto, isArray: true })
   @ApiNotFoundResponse({ description: 'License not found.' })
@@ -400,7 +400,7 @@ export class LicenseRenewalsController {
       user.id,
     );
 
-    return toLicenseHistoryResponse(history);
+    return toLicenseHistoryResponse(history, licenseId);
   }
 
   @Post(':licenseId/renew')

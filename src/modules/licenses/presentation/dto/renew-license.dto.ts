@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   ValidateIf,
   ValidateNested,
@@ -31,9 +32,16 @@ export class RenewConditionDto {
   @IsBoolean()
   copy_to_new?: boolean;
 
-  @ApiPropertyOptional({ example: '2027-10-01' })
+  /*
+   * A calendar date only: strict ISO rejects impossible days like 02-30, and
+   * the pattern rejects partial dates like "2027" that would silently widen
+   * to January 1st. The range is checked against the new license's validity
+   * by the use case.
+   */
+  @ApiPropertyOptional({ example: '2027-10-01', format: 'date' })
   @ValidateIf((item: RenewConditionDto) => item.copy_to_new === true)
-  @IsDateString()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   new_due_date?: string;
 }
 
@@ -66,11 +74,11 @@ export class RenewLicenseDto {
   process_number!: string;
 
   @ApiProperty({ example: '2026-01-10T00:00:00.000Z' })
-  @IsDateString()
+  @IsDateString({ strict: true })
   issue_date!: string;
 
   @ApiProperty({ example: '2030-01-10T00:00:00.000Z' })
-  @IsDateString()
+  @IsDateString({ strict: true })
   expiration_date!: string;
 
   @ApiPropertyOptional({

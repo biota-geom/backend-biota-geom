@@ -18,5 +18,4 @@ export interface ConditionData {
   completionDate?: Date;
   conditionStatus: ConditionStatus;
   hasDelivery: boolean;
-  createdAt: Date;
 }

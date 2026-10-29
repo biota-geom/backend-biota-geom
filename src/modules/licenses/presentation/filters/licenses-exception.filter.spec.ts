@@ -5,7 +5,9 @@ import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condit
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
 import { LicenseNotFoundError } from '../../domain/errors/license-not-found.error';
-import { RenewalConditionsIncompleteError } from '../../domain/errors/renewal-conditions-incomplete.error';
+import { DuplicateRenewalConditionError } from '../../domain/errors/duplicate-renewal-condition.error';
+import { InvalidRenewalDueDateError } from '../../domain/errors/invalid-renewal-due-date.error';
+import { RenewalConditionsOutdatedError } from '../../domain/errors/renewal-conditions-outdated.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 import { LicensesExceptionFilter } from './licenses-exception.filter';
 
@@ -87,16 +89,34 @@ describe('LicensesExceptionFilter', () => {
     });
   });
 
-  it('maps RenewalConditionsIncompleteError to 400', () => {
+  it('maps RenewalConditionsOutdatedError to 409 so the client reloads the list', () => {
     const { host, status, json } = buildHost();
 
-    filter.catch(new RenewalConditionsIncompleteError(), host);
+    filter.catch(new RenewalConditionsOutdatedError(), host);
 
-    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: LICENSES_MESSAGES.RENEWAL_CONDITIONS_INCOMPLETE,
+        message: LICENSES_MESSAGES.RENEWAL_CONDITIONS_OUTDATED,
       }),
     );
+  });
+
+  it.each([
+    [
+      new DuplicateRenewalConditionError(),
+      LICENSES_MESSAGES.RENEWAL_CONDITION_DUPLICATED,
+    ],
+    [
+      new InvalidRenewalDueDateError(),
+      LICENSES_MESSAGES.RENEWAL_COPY_DUE_DATE_INVALID,
+    ],
+  ])('maps %p to 400', (error, message) => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(error, host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ message }));
   });
 });

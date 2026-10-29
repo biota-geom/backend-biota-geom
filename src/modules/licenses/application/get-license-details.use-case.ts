@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
+import { currentLicenseStatus } from '../domain/license-status.calculator';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
@@ -30,6 +31,6 @@ export class GetLicenseDetailsUseCase {
     );
     if (!license) throw new LicenseNotFoundError(licenseId);
 
-    return license;
+    return { ...license, status: currentLicenseStatus(license) };
   }
 }

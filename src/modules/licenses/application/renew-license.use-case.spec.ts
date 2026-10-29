@@ -4,8 +4,9 @@ import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-d
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { FileStorage } from '../../../common/storage/file-storage';
 import { LicenseRepository } from '../domain/licenses.repository';
-import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
-import { RenewalConditionsIncompleteError } from '../domain/errors/renewal-conditions-incomplete.error';
+import { DuplicateRenewalConditionError } from '../domain/errors/duplicate-renewal-condition.error';
+import { InvalidRenewalDueDateError } from '../domain/errors/invalid-renewal-due-date.error';
+import { RenewalConditionsOutdatedError } from '../domain/errors/renewal-conditions-outdated.error';
 import { RenewLicenseUseCase } from './renew-license.use-case';
 
 function buildUseCase(overrides?: {
@@ -13,7 +14,7 @@ function buildUseCase(overrides?: {
   documentStorage?: Partial<FileStorage>;
 }) {
   const licenseRepository: Partial<LicenseRepository> = {
-    findByIdForOwner: jest.fn().mockResolvedValue({
+    findByIdForOwnerWithConditions: jest.fn().mockResolvedValue({
       id: 'old-license',
       customerId: 'customer-1',
       type: 'LO',
@@ -25,8 +26,8 @@ function buildUseCase(overrides?: {
       documentUrl: 'https://storage.example.com/old.pdf',
       createdAt: new Date('2020-01-10T00:00:00.000Z'),
       updatedAt: new Date('2020-01-10T00:00:00.000Z'),
+      conditions: [],
     }),
-    findConditionsByLicenseId: jest.fn().mockResolvedValue([]),
     renew: jest.fn().mockImplementation((data) =>
       Promise.resolve({
         id: 'new-license',
@@ -59,6 +60,14 @@ const FILE = {
 };
 
 describe('RenewLicenseUseCase', () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-15T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('creates a new license from the previous one and archives it transactionally in the repository', async () => {
     const { useCase, licenseRepository, documentStorage } = buildUseCase();
 
@@ -72,10 +81,9 @@ describe('RenewLicenseUseCase', () => {
       conditions: [],
     });
 
-    expect(licenseRepository.findByIdForOwner).toHaveBeenCalledWith(
-      'old-license',
-      'owner-1',
-    );
+    expect(
+      licenseRepository.findByIdForOwnerWithConditions,
+    ).toHaveBeenCalledWith('old-license', 'owner-1');
     expect(documentStorage.upload).toHaveBeenCalledWith(FILE, {
       category: 'licenses',
       customerId: 'customer-1',
@@ -97,7 +105,7 @@ describe('RenewLicenseUseCase', () => {
   it('returns 404 semantics when the license is missing or belongs to another owner', async () => {
     const { useCase, documentStorage } = buildUseCase({
       licenseRepository: {
-        findByIdForOwner: jest.fn().mockResolvedValue(null),
+        findByIdForOwnerWithConditions: jest.fn().mockResolvedValue(null),
       },
     });
 
@@ -118,9 +126,10 @@ describe('RenewLicenseUseCase', () => {
   it('does not renew an archived license', async () => {
     const { useCase, documentStorage } = buildUseCase({
       licenseRepository: {
-        findByIdForOwner: jest.fn().mockResolvedValue({
+        findByIdForOwnerWithConditions: jest.fn().mockResolvedValue({
           id: 'old-license',
           status: LicenseStatus.ARCHIVED,
+          conditions: [],
         }),
       },
     });
@@ -165,13 +174,24 @@ describe('RenewLicenseUseCase', () => {
       expirationDate: new Date('2030-01-10T00:00:00.000Z'),
       file: FILE,
     };
-    const findConditions = jest
-      .fn()
-      .mockResolvedValue([{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }]);
+    const withConditions = () =>
+      jest.fn().mockResolvedValue({
+        id: 'old-license',
+        customerId: 'customer-1',
+        type: 'LO',
+        issuingAgency: 'FEPAM',
+        status: LicenseStatus.REGULAR,
+        conditions: [{ id: 'c-1' }, { id: 'c-2' }, { id: 'c-3' }],
+      });
+    const keep = (conditionId: string) => ({
+      conditionId,
+      fulfilled: true,
+      copyToNew: false,
+    });
 
     it('passes every decision to the repository when all conditions are marked', async () => {
       const { useCase, licenseRepository } = buildUseCase({
-        licenseRepository: { findConditionsByLicenseId: findConditions },
+        licenseRepository: { findByIdForOwnerWithConditions: withConditions() },
       });
       const conditions = [
         {
@@ -191,61 +211,101 @@ describe('RenewLicenseUseCase', () => {
 
       await useCase.execute({ ...baseInput, conditions });
 
-      expect(findConditions).toHaveBeenCalledWith('old-license');
       expect(licenseRepository.renew).toHaveBeenCalledWith(
         expect.objectContaining({ conditions }),
       );
     });
 
-    it('rejects the renewal when some condition was not marked', async () => {
+    it('rejects the renewal as outdated when some condition was not marked', async () => {
       const { useCase, documentStorage, licenseRepository } = buildUseCase({
-        licenseRepository: { findConditionsByLicenseId: findConditions },
+        licenseRepository: { findByIdForOwnerWithConditions: withConditions() },
       });
 
       await expect(
-        useCase.execute({
-          ...baseInput,
-          conditions: [
-            { conditionId: 'c-1', fulfilled: true, copyToNew: false },
-          ],
-        }),
-      ).rejects.toThrow(RenewalConditionsIncompleteError);
+        useCase.execute({ ...baseInput, conditions: [keep('c-1')] }),
+      ).rejects.toThrow(RenewalConditionsOutdatedError);
       expect(documentStorage.upload).not.toHaveBeenCalled();
       expect(licenseRepository.renew).not.toHaveBeenCalled();
     });
 
     it('rejects the renewal when a condition is marked twice', async () => {
-      const { useCase } = buildUseCase({
-        licenseRepository: { findConditionsByLicenseId: findConditions },
+      const { useCase, documentStorage } = buildUseCase({
+        licenseRepository: { findByIdForOwnerWithConditions: withConditions() },
       });
-      const item = { conditionId: 'c-1', fulfilled: true, copyToNew: false };
 
       await expect(
         useCase.execute({
           ...baseInput,
-          conditions: [
-            item,
-            item,
-            { conditionId: 'c-2', fulfilled: true, copyToNew: false },
-          ],
+          conditions: [keep('c-1'), keep('c-1'), keep('c-2'), keep('c-3')],
         }),
-      ).rejects.toThrow(RenewalConditionsIncompleteError);
+      ).rejects.toThrow(DuplicateRenewalConditionError);
+      expect(documentStorage.upload).not.toHaveBeenCalled();
     });
 
-    it('rejects a condition id that does not belong to the previous license', async () => {
+    it('rejects as outdated a condition id that is no longer on the previous license', async () => {
       const { useCase, documentStorage } = buildUseCase({
-        licenseRepository: { findConditionsByLicenseId: findConditions },
+        licenseRepository: { findByIdForOwnerWithConditions: withConditions() },
       });
 
       await expect(
         useCase.execute({
           ...baseInput,
-          conditions: [
-            { conditionId: 'other', fulfilled: true, copyToNew: false },
-          ],
+          conditions: [keep('c-1'), keep('c-2'), keep('other')],
         }),
-      ).rejects.toThrow(LicenseConditionLicenseMismatchError);
+      ).rejects.toThrow(RenewalConditionsOutdatedError);
       expect(documentStorage.upload).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['missing', undefined],
+      ['in the past', new Date('2026-06-14T00:00:00.000Z')],
+      ['after the new expiration date', new Date('2030-01-11T00:00:00.000Z')],
+    ])(
+      'rejects a copied condition whose new due date is %s',
+      async (_case, newDueDate) => {
+        const { useCase, documentStorage } = buildUseCase({
+          licenseRepository: {
+            findByIdForOwnerWithConditions: withConditions(),
+          },
+        });
+
+        await expect(
+          useCase.execute({
+            ...baseInput,
+            conditions: [
+              {
+                conditionId: 'c-1',
+                fulfilled: true,
+                copyToNew: true,
+                newDueDate,
+              },
+              keep('c-2'),
+              keep('c-3'),
+            ],
+          }),
+        ).rejects.toThrow(InvalidRenewalDueDateError);
+        expect(documentStorage.upload).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['today', new Date('2026-06-15T00:00:00.000Z')],
+      ['the new expiration date', new Date('2030-01-10T00:00:00.000Z')],
+    ])('accepts a new due date on %s', async (_case, newDueDate) => {
+      const { useCase, licenseRepository } = buildUseCase({
+        licenseRepository: { findByIdForOwnerWithConditions: withConditions() },
+      });
+
+      await useCase.execute({
+        ...baseInput,
+        conditions: [
+          { conditionId: 'c-1', fulfilled: true, copyToNew: true, newDueDate },
+          keep('c-2'),
+          keep('c-3'),
+        ],
+      });
+
+      expect(licenseRepository.renew).toHaveBeenCalled();
     });
   });
 });

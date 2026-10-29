@@ -27,14 +27,15 @@ export class LicenseHistoryItemDto {
 
 export function toLicenseHistoryResponse(
   licenses: License[],
+  requestedLicenseId: string,
 ): LicenseHistoryItemDto[] {
-  return licenses.map((license, index) => ({
+  return licenses.map((license) => ({
     id: license.id,
     customer_id: license.customerId,
     process_number: license.processNumber,
     issue_date: license.issueDate.toISOString(),
     expiration_date: license.expirationDate.toISOString(),
     status: STATUS_LABELS[license.status],
-    is_current: index === 0,
+    is_current: license.id === requestedLicenseId,
   }));
 }

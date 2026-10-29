@@ -22,6 +22,7 @@ export interface LicenseCondition {
   status: ConditionStatus;
   hasDelivery: boolean;
   isViolated: boolean;
+  position: number;
   createdAt: Date;
   updatedAt: Date;
 }

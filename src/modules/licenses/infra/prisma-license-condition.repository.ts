@@ -7,6 +7,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { AddLicenseConditionData } from '../domain/add-license-condition.data';
 import { LicenseCondition } from '../domain/license-condition.entity';
 import { LicenseConditionRepository } from '../domain/license-conditions.repository';
+import { withNextPositions } from './license-condition-position';
 
 @Injectable()
 export class PrismaLicenseConditionRepository implements LicenseConditionRepository {
@@ -15,12 +16,10 @@ export class PrismaLicenseConditionRepository implements LicenseConditionReposit
   async addMany(
     conditions: AddLicenseConditionData[],
   ): Promise<LicenseCondition[]> {
-    const created = await this.prisma.$transaction(
-      conditions.map((condition) =>
-        this.prisma.licenseCondition.create({
-          data: condition,
-        }),
-      ),
+    const created = await this.prisma.$transaction(async (transaction) =>
+      transaction.licenseCondition.createManyAndReturn({
+        data: await withNextPositions(transaction, conditions),
+      }),
     );
 
     return created.map((condition) => this.toDomain(condition));

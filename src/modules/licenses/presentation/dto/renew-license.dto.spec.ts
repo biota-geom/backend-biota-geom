@@ -51,6 +51,14 @@ describe('RenewLicenseDto', () => {
     );
   });
 
+  it('rejects an impossible calendar date', () => {
+    const { errors } = validate(
+      buildPayload({ expiration_date: '2030-02-30T00:00:00.000Z' }),
+    );
+
+    expect(errors.map((error) => error.property)).toContain('expiration_date');
+  });
+
   it('rejects malformed dates', () => {
     expect(
       validate(buildPayload({ issue_date: '10/01/2026' })).errors.map(
@@ -127,6 +135,26 @@ describe('RenewLicenseDto', () => {
 
       expect(errors.map((error) => error.property)).toContain('conditions');
     });
+
+    it.each(['2027-02-30', '2027', '2027-10', '2027-10-01T00:00:00.000Z'])(
+      'rejects %p as the new due date of a copied condition',
+      (newDueDate) => {
+        const { errors } = validate(
+          buildPayload({
+            conditions: JSON.stringify([
+              {
+                condition_id: uuid,
+                fulfilled: true,
+                copy_to_new: true,
+                new_due_date: newDueDate,
+              },
+            ]),
+          }),
+        );
+
+        expect(errors.map((error) => error.property)).toContain('conditions');
+      },
+    );
 
     it('rejects an item without a valid condition_id or fulfilled flag', () => {
       const { errors } = validate(

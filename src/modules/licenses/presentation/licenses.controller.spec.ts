@@ -381,6 +381,40 @@ describe('LicenseRenewalsController', () => {
       }),
     ]);
   });
+
+  it('flags the requested version even when newer ones come before it', async () => {
+    const execute = jest.fn().mockResolvedValue([
+      {
+        id: 'new-license',
+        customerId: 'customer-1',
+        processNumber: 'LO nº 119/2026',
+        issueDate: new Date('2026-01-10T00:00:00.000Z'),
+        expirationDate: new Date('2030-01-10T00:00:00.000Z'),
+        status: LicenseStatus.REGULAR,
+      },
+      {
+        id: 'old-license',
+        customerId: 'customer-1',
+        processNumber: 'LO nº 118/2020',
+        issueDate: new Date('2020-01-10T00:00:00.000Z'),
+        expirationDate: new Date('2025-01-10T00:00:00.000Z'),
+        status: LicenseStatus.ARCHIVED,
+      },
+    ]);
+    const controller = new LicenseRenewalsController(
+      {} as RenewLicenseUseCase,
+      { execute } as unknown as ListLicenseHistoryUseCase,
+    );
+
+    const response = await controller.getLicenseHistory('old-license', {
+      id: 'owner-1',
+    });
+
+    expect(response.map((item) => [item.id, item.is_current])).toEqual([
+      ['new-license', false],
+      ['old-license', true],
+    ]);
+  });
 });
 
 describe('LicensesController — saveConditionsFulfillment', () => {

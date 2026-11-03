@@ -8,7 +8,9 @@ import {
   ConditionType,
   DocumentType,
   EsgPillar,
-  GovernmentSphere,
+  LegislationImpact,
+  LegislationType,
+  LicenseLegislationSource,
   LicenseStatus,
   PrismaClient,
 } from '@prisma/client';
@@ -171,33 +173,41 @@ const seedGriStandards = [
 
 const seedLegislations = [
   {
-    title: 'Resolução CONAMA nº 237 — Licenciamento ambiental',
-    number: '237/1997',
-    sphere: GovernmentSphere.FEDERAL,
-    publicationDate: new Date('1997-12-22'),
+    type: LegislationType.LEI,
+    number: '12.305',
+    year: 2010,
+    issuingBody: 'Governo Federal',
+    summary: 'Institui a Política Nacional de Resíduos Sólidos.',
+  },
+  {
+    type: LegislationType.RESOLUCAO,
+    number: '237',
+    year: 1997,
+    issuingBody: 'CONAMA',
     summary:
       'Dispõe sobre os procedimentos e critérios do licenciamento ambiental.',
-    sourceUrl: 'https://conama.mma.gov.br/',
-    isNew: false,
   },
   {
-    title: 'Lei nº 12.305 — Política Nacional de Resíduos Sólidos',
-    number: '12.305/2010',
-    sphere: GovernmentSphere.FEDERAL,
-    publicationDate: new Date('2010-08-03'),
-    summary: 'Institui a Política Nacional de Resíduos Sólidos.',
-    sourceUrl:
-      'https://www.planalto.gov.br/ccivil_03/_ato2007-2010/2010/lei/l12305.htm',
-    isNew: false,
+    type: LegislationType.LEI,
+    number: '9.605',
+    year: 1998,
+    issuingBody: 'Governo Federal',
+    summary:
+      'Dispõe sobre as sanções penais e administrativas derivadas de condutas e atividades lesivas ao meio ambiente.',
   },
   {
-    title: 'Resolução CONAMA nº 491 — Padrões de qualidade do ar',
-    number: '491/2018',
-    sphere: GovernmentSphere.FEDERAL,
-    publicationDate: new Date('2018-11-21'),
+    type: LegislationType.RESOLUCAO,
+    number: '491',
+    year: 2018,
+    issuingBody: 'CONAMA',
     summary: 'Dispõe sobre os padrões de qualidade do ar.',
-    sourceUrl: 'https://conama.mma.gov.br/',
-    isNew: true,
+  },
+  {
+    type: LegislationType.LEI,
+    number: '6.938',
+    year: 1981,
+    issuingBody: 'Governo Federal',
+    summary: 'Dispõe sobre a Política Nacional do Meio Ambiente.',
   },
 ];
 
@@ -456,6 +466,19 @@ interface SeedLicense {
   issuedInDays: number;
   expiresInDays: number;
   conditions: SeedCondition[];
+  // Radar da licença: aponta para uma entrada de seedLegislations.
+  legislations?: SeedLicenseLegislation[];
+}
+
+interface SeedLicenseLegislation {
+  type: LegislationType;
+  number: string;
+  year: number;
+  source: LicenseLegislationSource;
+  citedExcerpt?: string;
+  impact?: LegislationImpact;
+  technicalAnalysis?: string;
+  read?: boolean;
 }
 
 /*
@@ -473,6 +496,35 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '2023.05.01.003.0001234',
     issuedInDays: -900,
     expiresInDays: 400, // REGULAR
+    legislations: [
+      {
+        type: LegislationType.LEI,
+        number: '12.305',
+        year: 2010,
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…a destinação final dos resíduos deve observar a Lei nº 12.305/2010…',
+        impact: LegislationImpact.HIGH,
+      },
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '237',
+        year: 1997,
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…licença emitida nos termos da Resolução CONAMA nº 237/1997…',
+        read: true,
+      },
+      {
+        type: LegislationType.LEI,
+        number: '9.605',
+        year: 1998,
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.MODERATE,
+        technicalAnalysis:
+          'O descumprimento das condicionantes pode configurar infração administrativa e penal ambiental.',
+      },
+    ],
     conditions: [
       {
         title: 'Monitoramento da qualidade da água',
@@ -524,6 +576,16 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '02001.009876/2021-17',
     issuedInDays: -700,
     expiresInDays: 45, // ATTENTION
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '237',
+        year: 1997,
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt: '…conforme a Resolução CONAMA nº 237/1997…',
+        impact: LegislationImpact.LOW,
+      },
+    ],
     conditions: [
       {
         title: 'Inventário de emissões atmosféricas',
@@ -554,6 +616,22 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '000123-05.67/23.4',
     issuedInDays: -365,
     expiresInDays: 700, // REGULAR
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '491',
+        year: 2018,
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.MODERATE,
+      },
+      {
+        type: LegislationType.LEI,
+        number: '6.938',
+        year: 1981,
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt: '…Lei nº 6.938/1981, que institui a PNMA…',
+      },
+    ],
     conditions: [
       {
         title: 'Monitoramento de efluentes',
@@ -830,19 +908,13 @@ async function seedGriStandardsTable(metrics: Map<string, string>) {
 
 async function seedLegislationsTable() {
   for (const legislation of seedLegislations) {
-    // Sem índice único: a identidade no seed é (esfera, número).
-    const existing = await prisma.legislation.findFirst({
-      where: { sphere: legislation.sphere, number: legislation.number },
-    });
+    const { type, number, year } = legislation;
 
-    if (existing) {
-      await prisma.legislation.update({
-        where: { id: existing.id },
-        data: legislation,
-      });
-    } else {
-      await prisma.legislation.create({ data: legislation });
-    }
+    await prisma.legislation.upsert({
+      where: { type_number_year: { type, number, year } },
+      create: legislation,
+      update: legislation,
+    });
   }
 }
 
@@ -979,6 +1051,43 @@ async function seedLicensesTable(companies: Map<string, string>) {
           },
         });
 
+    for (const entry of license.legislations ?? []) {
+      const legislation = await prisma.legislation.findUnique({
+        where: {
+          type_number_year: {
+            type: entry.type,
+            number: entry.number,
+            year: entry.year,
+          },
+        },
+      });
+
+      if (!legislation) {
+        throw new Error(
+          `Licença "${license.processNumber}" referencia a legislação ${entry.type} ${entry.number}/${entry.year}, que não está em seedLegislations.`,
+        );
+      }
+
+      const link = {
+        source: entry.source,
+        citedExcerpt: entry.citedExcerpt ?? null,
+        impact: entry.impact ?? null,
+        technicalAnalysis: entry.technicalAnalysis ?? null,
+        readAt: entry.read ? now : null,
+      };
+
+      await prisma.licenseLegislation.upsert({
+        where: {
+          licenseId_legislationId: {
+            licenseId: saved.id,
+            legislationId: legislation.id,
+          },
+        },
+        create: { ...link, licenseId: saved.id, legislationId: legislation.id },
+        update: link,
+      });
+    }
+
     for (const [index, condition] of license.conditions.entries()) {
       const conditionData = {
         name: condition.title,
@@ -1114,7 +1223,7 @@ async function main() {
     `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
   );
   console.log(
-    `Padrões GRI: ${seedGriStandards.length} · Legislações: ${seedLegislations.length}`,
+    `Padrões GRI: ${seedGriStandards.length} · Legislações: ${seedLegislations.length} · Vínculos no radar: ${seedLicenses.reduce((total, license) => total + (license.legislations?.length ?? 0), 0)}`,
   );
 }
 

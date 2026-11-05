@@ -474,6 +474,7 @@ interface SeedLicenseLegislation {
   type: LegislationType;
   number: string;
   year: number;
+  issuingBody: string;
   source: LicenseLegislationSource;
   citedExcerpt?: string;
   impact?: LegislationImpact;
@@ -501,6 +502,7 @@ const seedLicenses: SeedLicense[] = [
         type: LegislationType.LEI,
         number: '12.305',
         year: 2010,
+        issuingBody: 'Governo Federal',
         source: LicenseLegislationSource.SCAN,
         citedExcerpt:
           '…a destinação final dos resíduos deve observar a Lei nº 12.305/2010…',
@@ -510,6 +512,7 @@ const seedLicenses: SeedLicense[] = [
         type: LegislationType.RESOLUCAO,
         number: '237',
         year: 1997,
+        issuingBody: 'CONAMA',
         source: LicenseLegislationSource.SCAN,
         citedExcerpt:
           '…licença emitida nos termos da Resolução CONAMA nº 237/1997…',
@@ -519,6 +522,7 @@ const seedLicenses: SeedLicense[] = [
         type: LegislationType.LEI,
         number: '9.605',
         year: 1998,
+        issuingBody: 'Governo Federal',
         source: LicenseLegislationSource.MANUAL,
         impact: LegislationImpact.MODERATE,
         technicalAnalysis:
@@ -581,6 +585,7 @@ const seedLicenses: SeedLicense[] = [
         type: LegislationType.RESOLUCAO,
         number: '237',
         year: 1997,
+        issuingBody: 'CONAMA',
         source: LicenseLegislationSource.SCAN,
         citedExcerpt: '…conforme a Resolução CONAMA nº 237/1997…',
         impact: LegislationImpact.LOW,
@@ -621,6 +626,7 @@ const seedLicenses: SeedLicense[] = [
         type: LegislationType.RESOLUCAO,
         number: '491',
         year: 2018,
+        issuingBody: 'CONAMA',
         source: LicenseLegislationSource.MANUAL,
         impact: LegislationImpact.MODERATE,
       },
@@ -628,6 +634,7 @@ const seedLicenses: SeedLicense[] = [
         type: LegislationType.LEI,
         number: '6.938',
         year: 1981,
+        issuingBody: 'Governo Federal',
         source: LicenseLegislationSource.SCAN,
         citedExcerpt: '…Lei nº 6.938/1981, que institui a PNMA…',
       },
@@ -908,10 +915,12 @@ async function seedGriStandardsTable(metrics: Map<string, string>) {
 
 async function seedLegislationsTable() {
   for (const legislation of seedLegislations) {
-    const { type, number, year } = legislation;
+    const { type, number, year, issuingBody } = legislation;
 
     await prisma.legislation.upsert({
-      where: { type_number_year: { type, number, year } },
+      where: {
+        type_number_year_issuingBody: { type, number, year, issuingBody },
+      },
       create: legislation,
       update: legislation,
     });
@@ -1054,17 +1063,18 @@ async function seedLicensesTable(companies: Map<string, string>) {
     for (const entry of license.legislations ?? []) {
       const legislation = await prisma.legislation.findUnique({
         where: {
-          type_number_year: {
+          type_number_year_issuingBody: {
             type: entry.type,
             number: entry.number,
             year: entry.year,
+            issuingBody: entry.issuingBody,
           },
         },
       });
 
       if (!legislation) {
         throw new Error(
-          `Licença "${license.processNumber}" referencia a legislação ${entry.type} ${entry.number}/${entry.year}, que não está em seedLegislations.`,
+          `Licença "${license.processNumber}" referencia a legislação ${entry.type} ${entry.number}/${entry.year} (${entry.issuingBody}), que não está em seedLegislations.`,
         );
       }
 

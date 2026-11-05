@@ -8,10 +8,10 @@ export interface LegislationIdentity {
   type: LegislationType;
   number: string;
   year: number;
+  issuingBody: string;
 }
 
 export interface CreateLegislationData extends LegislationIdentity {
-  issuingBody: string;
   summary?: string | null;
 }
 

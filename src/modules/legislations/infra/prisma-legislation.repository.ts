@@ -19,19 +19,24 @@ export class PrismaLegislationRepository implements LegislationRepository {
     type,
     number,
     year,
+    issuingBody,
   }: LegislationIdentity): Promise<Legislation | null> {
     return this.prisma.legislation.findUnique({
-      where: { type_number_year: { type, number, year } },
+      where: {
+        type_number_year_issuingBody: { type, number, year, issuingBody },
+      },
     });
   }
 
   // `update: {}` keeps whatever the catalog already holds: a scan or a manual
   // entry citing an act must never overwrite its curated summary.
   async findOrCreate(data: CreateLegislationData): Promise<Legislation> {
-    const { type, number, year } = data;
+    const { type, number, year, issuingBody } = data;
 
     return this.prisma.legislation.upsert({
-      where: { type_number_year: { type, number, year } },
+      where: {
+        type_number_year_issuingBody: { type, number, year, issuingBody },
+      },
       create: data,
       update: {},
     });

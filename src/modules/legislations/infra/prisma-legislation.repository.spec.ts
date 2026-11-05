@@ -6,6 +6,7 @@ const IDENTITY = {
   type: LegislationType.LEI,
   number: '12.305',
   year: 2010,
+  issuingBody: 'Governo Federal',
 };
 
 describe('PrismaLegislationRepository', () => {
@@ -29,7 +30,7 @@ describe('PrismaLegislationRepository', () => {
 
     await expect(repository.findByIdentity(IDENTITY)).resolves.toBeNull();
     expect(findUnique).toHaveBeenCalledWith({
-      where: { type_number_year: IDENTITY },
+      where: { type_number_year_issuingBody: IDENTITY },
     });
   });
 
@@ -38,13 +39,13 @@ describe('PrismaLegislationRepository', () => {
     const repository = new PrismaLegislationRepository({
       legislation: { upsert },
     } as unknown as PrismaService);
-    const data = { ...IDENTITY, issuingBody: 'Governo Federal', summary: null };
+    const data = { ...IDENTITY, summary: null };
 
     await expect(repository.findOrCreate(data)).resolves.toEqual({
       id: 'legislation-1',
     });
     expect(upsert).toHaveBeenCalledWith({
-      where: { type_number_year: IDENTITY },
+      where: { type_number_year_issuingBody: IDENTITY },
       create: data,
       update: {},
     });

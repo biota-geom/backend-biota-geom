@@ -388,8 +388,8 @@ enum LegislationImpact {
   @@map("legislation_impact")
 }
 
-// Catalog of environmental acts. An act is identified by (type, number, year);
-// what a license says about it lives in LicenseLegislation.
+// Catalog of environmental acts, identified by (type, number, year, issuingBody):
+// municipal and state acts reuse numbers across issuers. What a license says about it lives in LicenseLegislation.
 model Legislation {
   id          String          @id @default(uuid(7)) @db.Uuid
   type        LegislationType
@@ -412,7 +412,7 @@ model Legislation {
   licenses LicenseLegislation[]
   alerts   Alert[]
 
-  @@unique([type, number, year])
+  @@unique([type, number, year, issuingBody])
   @@map("legislation")
 }
 

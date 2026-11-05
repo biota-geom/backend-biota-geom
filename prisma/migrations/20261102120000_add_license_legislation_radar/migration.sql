@@ -37,8 +37,11 @@ UPDATE "legislation" SET
   "issuing_body" = CASE
     WHEN "title" ~* 'conama' THEN 'CONAMA'
     WHEN "sphere" = 'FEDERAL' THEN 'Governo Federal'
-    WHEN "sphere" = 'STATE' THEN 'Governo Estadual'
-    ELSE 'Governo Municipal'
+    -- State and municipal acts reuse numbers across issuers and the old table
+    -- never recorded which one, so the title stays in the issuing body to keep
+    -- distinct acts apart instead of folding them into one.
+    WHEN "sphere" = 'STATE' THEN left('Governo Estadual - ' || "title", 150)
+    ELSE left('Governo Municipal - ' || "title", 150)
   END,
   "number" = trim(regexp_replace("number", '/[0-9]{4}\s*$', ''));
 
@@ -47,7 +50,7 @@ UPDATE "legislation" SET
 CREATE TEMP TABLE "legislation_keeper" AS
 SELECT "id" AS "duplicate_id",
        first_value("id") OVER (
-         PARTITION BY "type", "number", "year" ORDER BY "created_at", "id"
+         PARTITION BY "type", "number", "year", "issuing_body" ORDER BY "created_at", "id"
        ) AS "keeper_id"
 FROM "legislation";
 
@@ -93,7 +96,7 @@ CREATE INDEX "license_legislation_legislation_id_idx" ON "license_legislation"("
 CREATE UNIQUE INDEX "license_legislation_license_id_legislation_id_key" ON "license_legislation"("license_id", "legislation_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "legislation_type_number_year_key" ON "legislation"("type", "number", "year");
+CREATE UNIQUE INDEX "legislation_type_number_year_issuing_body_key" ON "legislation"("type", "number", "year", "issuing_body");
 
 -- AddForeignKey
 ALTER TABLE "license_legislation" ADD CONSTRAINT "license_legislation_license_id_fkey" FOREIGN KEY ("license_id") REFERENCES "licenses"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -113,11 +113,32 @@ describe('License legislation radar (integration)', () => {
         type: data.type,
         number: data.number,
         year: data.year,
+        issuingBody: data.issuingBody,
       }),
     ).resolves.toMatchObject({ id: first.id });
     await expect(
       prisma.legislation.create({ data: { ...data, summary: null } }),
     ).rejects.toMatchObject({ code: 'P2002' });
+  });
+
+  it('keeps same-numbered acts from different issuers apart', async () => {
+    const act = {
+      type: LegislationType.LEI,
+      number: `${run}-M`,
+      year: 2005,
+    };
+
+    const portoAlegre = await legislations.findOrCreate({
+      ...act,
+      issuingBody: 'Prefeitura de Porto Alegre',
+    });
+    const canoas = await legislations.findOrCreate({
+      ...act,
+      issuingBody: 'Prefeitura de Canoas',
+    });
+
+    expect(canoas.id).not.toBe(portoAlegre.id);
+    expect(canoas.issuingBody).toBe('Prefeitura de Canoas');
   });
 
   it('links an act to a license once, with the contract defaults', async () => {

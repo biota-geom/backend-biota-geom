@@ -1,8 +1,10 @@
 import {
   Controller,
   HttpCode,
+  Get,
   HttpStatus,
   MaxFileSizeValidator,
+  Param,
   ParseFilePipe,
   Post,
   UploadedFile,
@@ -15,19 +17,23 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
-  ApiGatewayTimeoutResponse,
+  ApiAcceptedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiServiceUnavailableResponse,
+  ApiParam,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
-import { ExtractLicenseDataUseCase } from '../application/extract-license-data.use-case';
+import { GetLicenseExtractionJobUseCase } from '../application/get-license-extraction-job.use-case';
+import { StartLicenseExtractionUseCase } from '../application/start-license-extraction.use-case';
+import { CurrentUser } from '../../auth/presentation/decorators/current-user.decorator';
 import {
-  LicenseExtractionResponseDto,
-  toLicenseExtractionResponse,
+  LicenseExtractionJobResponseDto,
+  StartLicenseExtractionResponseDto,
+  toLicenseExtractionJobResponse,
 } from './dto/license-extraction-response.dto';
 import { LicenseExtractionExceptionFilter } from './filters/license-extraction-exception.filter';
 import { fileValidationExceptionFactory } from './licenses.controller';
@@ -47,11 +53,12 @@ interface UploadedDocument {
 @Controller('licenses')
 export class LicenseExtractionController {
   constructor(
-    private readonly extractLicenseDataUseCase: ExtractLicenseDataUseCase,
+    private readonly startLicenseExtractionUseCase: StartLicenseExtractionUseCase,
+    private readonly getLicenseExtractionJobUseCase: GetLicenseExtractionJobUseCase,
   ) {}
 
   @Post('extract')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('document', { storage: memoryStorage() }))
@@ -65,18 +72,12 @@ export class LicenseExtractionController {
   })
   @ApiOperation({
     summary:
-      'Lê o PDF de uma licença ambiental com IA (Claude Sonnet 5.5 no Amazon Bedrock) e devolve sugestões de preenchimento. Não salva nenhum dado.',
+      'Inicia a leitura do PDF de uma licença ambiental com IA (Claude Sonnet 5.5 no Amazon Bedrock) em segundo plano e devolve o id do job. Consulte o resultado em GET /licenses/extract/:jobId. Não salva nenhum dado.',
   })
-  @ApiOkResponse({ type: LicenseExtractionResponseDto })
+  @ApiAcceptedResponse({ type: StartLicenseExtractionResponseDto })
   @ApiUnprocessableEntityResponse({
     description:
       'Arquivo ausente, inválido ou documento do qual não foi possível extrair dados.',
-  })
-  @ApiServiceUnavailableResponse({
-    description: 'Serviço de IA indisponível ou não configurado.',
-  })
-  @ApiGatewayTimeoutResponse({
-    description: 'A leitura do documento excedeu o tempo limite.',
   })
   async extract(
     @UploadedFile(
@@ -92,11 +93,37 @@ export class LicenseExtractionController {
       }),
     )
     file: UploadedDocument,
-  ): Promise<LicenseExtractionResponseDto> {
-    const extraction = await this.extractLicenseDataUseCase.execute(
+    @CurrentUser() user: { id: string },
+  ): Promise<StartLicenseExtractionResponseDto> {
+    const jobId = await this.startLicenseExtractionUseCase.execute(
       file.buffer,
+      user.id,
     );
 
-    return toLicenseExtractionResponse(extraction);
+    return { job_id: jobId };
+  }
+
+  @Get('extract/:jobId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'jobId', format: 'uuid' })
+  @ApiOperation({
+    summary:
+      'Consulta o andamento da leitura iniciada em POST /licenses/extract. Falhas da IA voltam como status FAILED, não como erro HTTP.',
+  })
+  @ApiOkResponse({ type: LicenseExtractionJobResponseDto })
+  @ApiNotFoundResponse({
+    description: 'Job inexistente, expirado ou de outro usuário.',
+  })
+  async getExtraction(
+    @Param('jobId') jobId: string,
+    @CurrentUser() user: { id: string },
+  ): Promise<LicenseExtractionJobResponseDto> {
+    const job = await this.getLicenseExtractionJobUseCase.execute(
+      jobId,
+      user.id,
+    );
+
+    return toLicenseExtractionJobResponse(job);
   }
 }

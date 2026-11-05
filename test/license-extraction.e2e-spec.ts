@@ -20,7 +20,7 @@ import { LICENSES_MESSAGES } from '../src/modules/licenses/presentation/messages
 import { PrismaService } from '../src/prisma/prisma.service';
 
 /*
- * POST /api/licenses/extract over real HTTP, with the Bedrock adapter
+ * POST /api/licenses/extract and GET /api/licenses/extract/:jobId over real HTTP, with the Bedrock adapter
  * replaced by a fake: the suite checks the HTTP contract, error mapping and
  * the "extraction never persists" rule without calling (or paying for) the
  * model. The Bedrock adapter itself is covered by its unit tests.
@@ -72,6 +72,34 @@ describe('License extraction (e2e)', () => {
     return request(app.getHttpServer())
       .post('/api/licenses/extract')
       .set('Authorization', `Bearer ${token}`);
+  }
+
+  interface JobBody {
+    status: 'PENDING' | 'DONE' | 'FAILED';
+    result: Record<string, unknown> | null;
+    error: string | null;
+  }
+
+  // Starts a job and polls it the way the frontend does, until it settles.
+  async function extractAndWait(document: Buffer = PDF): Promise<JobBody> {
+    const started = await postExtract()
+      .attach('document', document, {
+        filename: 'licenca.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(202);
+    const { job_id: jobId } = started.body as { job_id: string };
+
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const polled = await request(app.getHttpServer())
+        .get(`/api/licenses/extract/${jobId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      const body = polled.body as JobBody;
+      if (body.status !== 'PENDING') return body;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error('extraction job never settled');
   }
 
   // Every file under the local storage dir, so a stray write is detectable.
@@ -156,38 +184,38 @@ describe('License extraction (e2e)', () => {
     const filesBefore = await listStoredFiles();
     const upload = jest.spyOn(app.get(FileStorage), 'upload');
 
-    const response = await postExtract()
-      .attach('document', PDF, {
-        filename: 'licenca.pdf',
-        contentType: 'application/pdf',
-      })
-      .expect(200);
+    const job = await extractAndWait();
 
-    expect(response.body).toEqual({
-      extracted_data: {
-        type: 'LO',
-        process_number: 'LO nº 118/2020',
-        issuing_agency: 'FEPAM',
-        issue_date: '2020-01-10',
-        expiration_date: '2035-01-10',
+    expect(job).toEqual({
+      status: 'DONE',
+      error: null,
+      result: {
+        extracted_data: {
+          type: 'LO',
+          process_number: 'LO nº 118/2020',
+          issuing_agency: 'FEPAM',
+          issue_date: '2020-01-10',
+          expiration_date: '2035-01-10',
+        },
+        suggested_conditions: [
+          {
+            environmental_descriptor: 'Resíduos Sólidos',
+            description: 'Apresentar relatório semestral de resíduos.',
+            condition_type: 'PERIODIC',
+            periodicity: 'SEMIANNUAL',
+            due_date: '2034-07-10',
+          },
+          {
+            environmental_descriptor: 'Empreendimento',
+            description: 'Manter cópia da licença no local.',
+            condition_type: 'INFORMATIVE',
+            periodicity: null,
+            due_date: null,
+          },
+        ],
       },
-      suggested_conditions: [
-        {
-          environmental_descriptor: 'Resíduos Sólidos',
-          description: 'Apresentar relatório semestral de resíduos.',
-          condition_type: 'PERIODIC',
-          periodicity: 'SEMIANNUAL',
-          due_date: '2034-07-10',
-        },
-        {
-          environmental_descriptor: 'Empreendimento',
-          description: 'Manter cópia da licença no local.',
-          condition_type: 'INFORMATIVE',
-          periodicity: null,
-          due_date: null,
-        },
-      ],
     });
+
     expect(extract).toHaveBeenCalledWith(PDF);
     // The PDF only lives in memory: no DB rows, no storage upload (local or
     // S3), no file written.
@@ -220,53 +248,97 @@ describe('License extraction (e2e)', () => {
     expect(extract).not.toHaveBeenCalled();
   });
 
-  it('rejects a file labelled as PDF whose bytes are not a PDF with 422', async () => {
-    const response = await postExtract()
-      .attach('document', Buffer.from('not really a pdf'), {
-        filename: 'licenca.pdf',
-        contentType: 'application/pdf',
-      })
-      .expect(422);
+  it('reports a file labelled as PDF whose bytes are not a PDF as FAILED', async () => {
+    const job = await extractAndWait(Buffer.from('not really a pdf'));
 
-    expect((response.body as { message: string }).message).toBe(
-      LICENSES_MESSAGES.EXTRACTION_UNREADABLE,
-    );
+    expect(job).toEqual({
+      status: 'FAILED',
+      result: null,
+      error: LICENSES_MESSAGES.EXTRACTION_UNREADABLE,
+    });
     expect(extract).not.toHaveBeenCalled();
   });
 
-  it('answers 422 when the document cannot be read', async () => {
+  it('reports an unreadable document as FAILED', async () => {
     extract.mockRejectedValue(new UnreadableLicenseDocumentError('test'));
 
-    const response = await postExtract()
-      .attach('document', PDF, {
-        filename: 'licenca.pdf',
-        contentType: 'application/pdf',
-      })
-      .expect(422);
-
-    expect((response.body as { message: string }).message).toBe(
-      LICENSES_MESSAGES.EXTRACTION_UNREADABLE,
-    );
+    await expect(extractAndWait()).resolves.toEqual({
+      status: 'FAILED',
+      result: null,
+      error: LICENSES_MESSAGES.EXTRACTION_UNREADABLE,
+    });
   });
 
-  it('answers 503 with a generic message when the AI provider is unavailable', async () => {
+  it('reports a generic message as FAILED when the AI provider is unavailable', async () => {
     extract.mockRejectedValue(
       new LicenseExtractionUnavailableError('AccessDeniedException'),
     );
 
-    const response = await postExtract()
+    const job = await extractAndWait();
+
+    expect(job).toEqual({
+      status: 'FAILED',
+      result: null,
+      error: LICENSES_MESSAGES.EXTRACTION_UNAVAILABLE,
+    });
+    expect(JSON.stringify(job)).not.toContain('AccessDeniedException');
+  });
+
+  it('answers the upload immediately while the model is still running', async () => {
+    let finish!: (value: LicenseExtraction) => void;
+    extract.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+
+    const started = await postExtract()
       .attach('document', PDF, {
         filename: 'licenca.pdf',
         contentType: 'application/pdf',
       })
-      .expect(503);
+      .expect(202);
+    const { job_id: jobId } = started.body as { job_id: string };
 
-    expect((response.body as { message: string }).message).toBe(
-      LICENSES_MESSAGES.EXTRACTION_UNAVAILABLE,
-    );
-    expect(JSON.stringify(response.body)).not.toContain(
-      'AccessDeniedException',
-    );
+    const pending = await request(app.getHttpServer())
+      .get(`/api/licenses/extract/${jobId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(pending.body).toEqual({
+      status: 'PENDING',
+      result: null,
+      error: null,
+    });
+    finish(EXTRACTION);
+  });
+
+  it('answers 404 for an unknown job and for a job owned by another user', async () => {
+    const started = await postExtract()
+      .attach('document', PDF, {
+        filename: 'licenca.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(202);
+    const { job_id: jobId } = started.body as { job_id: string };
+
+    const email = `intruder-${uniqueSuffix()}@biotageom.com.br`;
+    await prisma.user.create({
+      data: {
+        name: 'Outro Usuário',
+        email,
+        passwordHash: await app.get(PasswordHasher).hash(PASSWORD),
+      },
+    });
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password: PASSWORD })
+      .expect(200);
+    const otherToken = (login.body as { access_token: string }).access_token;
+
+    await request(app.getHttpServer())
+      .get(`/api/licenses/extract/${jobId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/licenses/extract/${randomUUID()}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
   });
 
   it('lets the reviewed suggestions be saved through the existing routes', async () => {
@@ -294,14 +366,9 @@ describe('License extraction (e2e)', () => {
     const customerId = (customer.body as { id: string }).id;
 
     // 1. Extract (nothing saved yet).
-    const extraction = await postExtract()
-      .attach('document', PDF, {
-        filename: 'licenca.pdf',
-        contentType: 'application/pdf',
-      })
-      .expect(200);
+    const job = await extractAndWait();
     const { extracted_data: data, suggested_conditions: suggestions } =
-      extraction.body as {
+      job.result as {
         extracted_data: Record<string, string>;
         suggested_conditions: Array<Record<string, string | null>>;
       };

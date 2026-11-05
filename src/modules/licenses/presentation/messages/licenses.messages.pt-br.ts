@@ -30,4 +30,5 @@ export const LICENSES_MESSAGES = {
     'A leitura automática do documento está indisponível no momento. Preencha os campos manualmente.',
   EXTRACTION_TIMEOUT:
     'A leitura do documento demorou mais que o esperado. Tente novamente ou preencha os campos manualmente.',
+  EXTRACTION_JOB_NOT_FOUND: 'Leitura do documento não encontrada.',
 } as const;

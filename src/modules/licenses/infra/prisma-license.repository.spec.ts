@@ -1,4 +1,9 @@
-import { ConditionStatus, LicenseStatus } from '@prisma/client';
+import {
+  ConditionStatus,
+  LegislationImpact,
+  LicenseLegislationSource,
+  LicenseStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
@@ -66,6 +71,7 @@ describe('PrismaLicenseRepository', () => {
       callback({
         license: { create, update },
         licenseCondition: { findMany: jest.fn().mockResolvedValue([]) },
+        licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
     const repository = new PrismaLicenseRepository({
@@ -109,6 +115,60 @@ describe('PrismaLicenseRepository', () => {
     });
   });
 
+  it('copies legislation links to the renewed license and resets their read state', async () => {
+    const links = [
+      {
+        legislationId: 'legislation-1',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt: 'Article 1',
+        impact: LegislationImpact.HIGH,
+        technicalAnalysis: 'Requires immediate action.',
+      },
+      {
+        legislationId: 'legislation-2',
+        source: LicenseLegislationSource.MANUAL,
+        citedExcerpt: null,
+        impact: null,
+        technicalAnalysis: null,
+      },
+    ];
+    const findMany = jest.fn().mockResolvedValue(links);
+    const createMany = jest.fn().mockResolvedValue({ count: links.length });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        license: {
+          create: jest.fn().mockResolvedValue({ id: 'new-license' }),
+          update: jest.fn(),
+        },
+        licenseCondition: { findMany: jest.fn().mockResolvedValue([]) },
+        licenseLegislation: { findMany, createMany },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+
+    await repository.renew({ ...RENEWAL, conditions: [] });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { licenseId: 'old-license' },
+      select: {
+        legislationId: true,
+        source: true,
+        citedExcerpt: true,
+        impact: true,
+        technicalAnalysis: true,
+      },
+    });
+    expect(createMany).toHaveBeenCalledWith({
+      data: links.map((link) => ({
+        ...link,
+        licenseId: 'new-license',
+        readAt: null,
+      })),
+    });
+  });
+
   it('records fulfillment of the previous conditions and copies the marked ones to the renewed license', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'new-license' });
     const update = jest.fn().mockResolvedValue({ id: 'old-license' });
@@ -144,6 +204,7 @@ describe('PrismaLicenseRepository', () => {
       callback({
         license: { create, update },
         licenseCondition: { updateMany, findMany, aggregate, createMany },
+        licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
     const repository = new PrismaLicenseRepository({
@@ -249,6 +310,7 @@ describe('PrismaLicenseRepository', () => {
           updateMany: jest.fn(),
           createMany,
         },
+        licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
     const repository = new PrismaLicenseRepository({

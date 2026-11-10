@@ -9,7 +9,7 @@ function build(model: Record<string, jest.Mock>) {
 }
 
 describe('PrismaLicenseLegislationRepository', () => {
-  it('lists a license radar newest first, with the legislation', async () => {
+  it('lists a license radar by legislation year, most recent first', async () => {
     const findMany = jest.fn().mockResolvedValue([{ id: 'link-1' }]);
 
     await expect(
@@ -18,7 +18,11 @@ describe('PrismaLicenseLegislationRepository', () => {
     expect(findMany).toHaveBeenCalledWith({
       where: { licenseId: 'license-1' },
       include: { legislation: true },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [
+        { legislation: { year: 'desc' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
   });
 

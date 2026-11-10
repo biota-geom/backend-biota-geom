@@ -7,7 +7,7 @@ import { LicenseLegislation } from './license-legislation.entity';
 
 @Injectable()
 export abstract class LicenseLegislationRepository {
-  /** Newest first. */
+  /** Most recent legislation year first; ties keep the newest link first. */
   abstract findAllByLicenseId(licenseId: string): Promise<LicenseLegislation[]>;
   abstract findByIdForLicense(
     id: string,

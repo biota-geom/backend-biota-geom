@@ -66,6 +66,7 @@ describe('CreateLicenseConditionUseCase', () => {
     expect(repository.createConditions).toHaveBeenCalledWith([
       {
         licenseId: 'license-1',
+        parentConditionId: null,
         environmentalDescriptor: 'Resíduos sólidos',
         name: 'Relatório',
         description: 'Relatório',
@@ -120,6 +121,18 @@ describe('CreateLicenseConditionUseCase', () => {
         periodicity: 'MONTHLY',
         hasDelivery: false,
       }),
+    ]);
+  });
+
+  it('passes a parent condition id to persistence', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await useCase.execute(
+      buildInput({ parent_condition_id: 'parent-condition' }),
+    );
+
+    expect(repository.createConditions).toHaveBeenCalledWith([
+      expect.objectContaining({ parentConditionId: 'parent-condition' }),
     ]);
   });
 

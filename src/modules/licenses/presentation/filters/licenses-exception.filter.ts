@@ -12,6 +12,9 @@ import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { DuplicateRenewalConditionError } from '../../domain/errors/duplicate-renewal-condition.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
+import { ConditionNestingNotAllowedError } from '../../domain/errors/condition-nesting-not-allowed.error';
+import { InvalidConditionParentError } from '../../domain/errors/invalid-condition-parent.error';
+import { InvalidRenewalConditionHierarchyError } from '../../domain/errors/invalid-renewal-condition-hierarchy.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { InvalidRenewalDueDateError } from '../../domain/errors/invalid-renewal-due-date.error';
 import { LicenseConditionNotFoundError } from '../../domain/errors/license-condition-not-found.error';
@@ -29,6 +32,9 @@ type LicensesDomainError =
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
   | InvalidConditionDueDateError
+  | InvalidConditionParentError
+  | ConditionNestingNotAllowedError
+  | InvalidRenewalConditionHierarchyError
   | RenewalConditionsOutdatedError
   | DuplicateRenewalConditionError
   | InvalidRenewalDueDateError;
@@ -41,9 +47,12 @@ type LicensesDomainError =
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
   InvalidConditionDueDateError,
+  InvalidConditionParentError,
+  ConditionNestingNotAllowedError,
   RenewalConditionsOutdatedError,
   DuplicateRenewalConditionError,
   InvalidRenewalDueDateError,
+  InvalidRenewalConditionHierarchyError,
 )
 export class LicensesExceptionFilter implements ExceptionFilter {
   catch(error: LicensesDomainError, host: ArgumentsHost): void {
@@ -91,6 +100,18 @@ export class LicensesExceptionFilter implements ExceptionFilter {
       );
     }
 
+    if (error instanceof InvalidConditionParentError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_PARENT_INVALID,
+      );
+    }
+
+    if (error instanceof ConditionNestingNotAllowedError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_NESTING_NOT_ALLOWED,
+      );
+    }
+
     // 409: the request was valid when built, but the license's conditions
     // changed since. The client reloads them and asks again.
     if (error instanceof RenewalConditionsOutdatedError) {
@@ -108,6 +129,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof InvalidRenewalDueDateError) {
       return new BadRequestException(
         LICENSES_MESSAGES.RENEWAL_COPY_DUE_DATE_INVALID,
+      );
+    }
+
+    if (error instanceof InvalidRenewalConditionHierarchyError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.RENEWAL_SUBITEM_REQUIRES_PARENT,
       );
     }
 

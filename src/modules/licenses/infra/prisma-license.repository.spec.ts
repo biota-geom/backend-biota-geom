@@ -23,6 +23,24 @@ const RENEWAL = {
   documentUrl: 'https://storage.example.com/new.pdf',
 };
 
+type ConditionCreateInput = {
+  data: {
+    licenseId: string;
+    parentConditionId: string | null;
+    name: string;
+    environmentalDescriptor: string;
+    description: string | null;
+    responsibleAgency: string | null;
+    responsibleName: string | null;
+    conditionType: string | null;
+    periodicity: string | null;
+    hasDelivery: boolean;
+    deadline: Date;
+    dueDate: Date;
+    position: number;
+  };
+};
+
 describe('PrismaLicenseRepository', () => {
   it('creates a license connected to its customer', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'license-1' });
@@ -111,11 +129,17 @@ describe('PrismaLicenseRepository', () => {
 
   it('records fulfillment of the previous conditions and copies the marked ones to the renewed license', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'new-license' });
+    const createCondition = jest
+      .fn<Promise<{ id: string }>, [ConditionCreateInput]>()
+      .mockImplementation(({ data }) =>
+        Promise.resolve({ id: `copy-${data.position}` }),
+      );
     const update = jest.fn().mockResolvedValue({ id: 'old-license' });
     const updateMany = jest.fn().mockResolvedValue({ count: 1 });
     const findMany = jest.fn().mockResolvedValue([
       {
         id: 'c-1',
+        parentConditionId: null,
         name: 'Relatório',
         environmentalDescriptor: 'Resíduos',
         description: 'Descrição',
@@ -125,9 +149,14 @@ describe('PrismaLicenseRepository', () => {
         periodicity: 'ANNUAL',
         hasDelivery: true,
       },
-      { id: 'c-2', name: 'Licença de operação' },
+      {
+        id: 'c-2',
+        parentConditionId: null,
+        name: 'Licença de operação',
+      },
       {
         id: 'c-3',
+        parentConditionId: null,
         name: 'Outorga',
         environmentalDescriptor: 'Recursos Hídricos',
         description: null,
@@ -138,12 +167,10 @@ describe('PrismaLicenseRepository', () => {
         hasDelivery: false,
       },
     ]);
-    const aggregate = jest.fn().mockResolvedValue({ _max: { position: null } });
-    const createMany = jest.fn().mockResolvedValue({ count: 2 });
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({
         license: { create, update },
-        licenseCondition: { updateMany, findMany, aggregate, createMany },
+        licenseCondition: { updateMany, findMany, create: createCondition },
       }),
     );
     const repository = new PrismaLicenseRepository({
@@ -198,46 +225,50 @@ describe('PrismaLicenseRepository', () => {
         completionDate: null,
       },
     });
-    expect(aggregate).toHaveBeenCalledWith({
-      where: { licenseId: 'new-license' },
-      _max: { position: true },
-    });
-    expect(createMany).toHaveBeenCalledWith({
-      data: [
+    expect(createCondition.mock.calls).toEqual([
+      [
         {
-          licenseId: 'new-license',
-          name: 'Relatório',
-          environmentalDescriptor: 'Resíduos',
-          description: 'Descrição',
-          responsibleAgency: 'FEPAM',
-          responsibleName: 'Ana',
-          conditionType: 'PERIODIC',
-          periodicity: 'ANNUAL',
-          hasDelivery: true,
-          deadline: newDueDate,
-          dueDate: newDueDate,
-          position: 1,
-        },
-        {
-          licenseId: 'new-license',
-          name: 'Outorga',
-          environmentalDescriptor: 'Recursos Hídricos',
-          description: null,
-          responsibleAgency: null,
-          responsibleName: null,
-          conditionType: null,
-          periodicity: null,
-          hasDelivery: false,
-          deadline: otherDueDate,
-          dueDate: otherDueDate,
-          position: 2,
+          data: {
+            licenseId: 'new-license',
+            parentConditionId: null,
+            name: 'Relatório',
+            environmentalDescriptor: 'Resíduos',
+            description: 'Descrição',
+            responsibleAgency: 'FEPAM',
+            responsibleName: 'Ana',
+            conditionType: 'PERIODIC',
+            periodicity: 'ANNUAL',
+            hasDelivery: true,
+            deadline: newDueDate,
+            dueDate: newDueDate,
+            position: 1,
+          },
         },
       ],
-    });
+      [
+        {
+          data: {
+            licenseId: 'new-license',
+            parentConditionId: null,
+            name: 'Outorga',
+            environmentalDescriptor: 'Recursos Hídricos',
+            description: null,
+            responsibleAgency: null,
+            responsibleName: null,
+            conditionType: null,
+            periodicity: null,
+            hasDelivery: false,
+            deadline: otherDueDate,
+            dueDate: otherDueDate,
+            position: 2,
+          },
+        },
+      ],
+    ]);
   });
 
   it('does not copy any condition when none is marked to be copied', async () => {
-    const createMany = jest.fn();
+    const createCondition = jest.fn();
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({
         license: {
@@ -247,7 +278,7 @@ describe('PrismaLicenseRepository', () => {
         licenseCondition: {
           findMany: jest.fn().mockResolvedValue([{ id: 'c-1' }]),
           updateMany: jest.fn(),
-          createMany,
+          create: createCondition,
         },
       }),
     );
@@ -260,7 +291,73 @@ describe('PrismaLicenseRepository', () => {
       conditions: [{ conditionId: 'c-1', fulfilled: true, copyToNew: false }],
     });
 
-    expect(createMany).not.toHaveBeenCalled();
+    expect(createCondition).not.toHaveBeenCalled();
+  });
+
+  it('copies selected sub-items with their copied parent', async () => {
+    const createCondition = jest
+      .fn<Promise<{ id: string }>, [ConditionCreateInput]>()
+      .mockResolvedValueOnce({ id: 'new-parent' })
+      .mockResolvedValueOnce({ id: 'new-child' });
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+      callback({
+        license: {
+          create: jest.fn().mockResolvedValue({ id: 'new-license' }),
+          update: jest.fn(),
+        },
+        licenseCondition: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 'parent',
+              parentConditionId: null,
+              environmentalDescriptor: 'Resíduos',
+              name: 'Relatório',
+              hasDelivery: true,
+            },
+            {
+              id: 'child',
+              parentConditionId: 'parent',
+              environmentalDescriptor: 'Resíduos',
+              name: 'Anexo',
+              hasDelivery: true,
+            },
+          ]),
+          updateMany: jest.fn(),
+          create: createCondition,
+        },
+      }),
+    );
+    const repository = new PrismaLicenseRepository({
+      $transaction: transaction,
+    } as unknown as PrismaService);
+    const newDueDate = new Date('2027-10-01T00:00:00.000Z');
+
+    await repository.renew({
+      ...RENEWAL,
+      conditions: [
+        {
+          conditionId: 'parent',
+          fulfilled: false,
+          copyToNew: true,
+          newDueDate,
+        },
+        {
+          conditionId: 'child',
+          fulfilled: false,
+          copyToNew: true,
+          newDueDate,
+        },
+      ],
+    });
+
+    expect(createCondition.mock.calls[0]?.[0].data).toMatchObject({
+      name: 'Relatório',
+      parentConditionId: null,
+    });
+    expect(createCondition.mock.calls[1]?.[0].data).toMatchObject({
+      name: 'Anexo',
+      parentConditionId: 'new-parent',
+    });
   });
 
   it('rejects the renewal before writing anything when the conditions changed', async () => {
@@ -592,11 +689,15 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({
         licenseCondition: {
-          findFirst: jest.fn().mockResolvedValue({
-            id: 'condition-1',
-            licenseId: 'license-1',
-            environmentalDescriptor: 'Água',
-          }),
+          findFirst: jest
+            .fn()
+            .mockResolvedValueOnce({
+              id: 'condition-1',
+              licenseId: 'license-1',
+              parentConditionId: null,
+              environmentalDescriptor: 'Água',
+            })
+            .mockResolvedValueOnce(null),
           aggregate: jest.fn().mockResolvedValue({ _max: { position: 4 } }),
           update,
         },
@@ -623,11 +724,15 @@ describe('PrismaLicenseRepository', () => {
   });
 
   it('updates a condition that belongs to the authenticated owner', async () => {
-    const findFirst = jest.fn().mockResolvedValue({
-      id: 'condition-1',
-      licenseId: 'license-1',
-      environmentalDescriptor: 'Water',
-    });
+    const findFirst = jest
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'condition-1',
+        licenseId: 'license-1',
+        parentConditionId: null,
+        environmentalDescriptor: 'Water',
+      })
+      .mockResolvedValueOnce(null);
     const update = jest.fn((updateArguments: unknown) => {
       void updateArguments;
       return Promise.resolve({

@@ -1,8 +1,10 @@
 import { DuplicateRenewalConditionError } from './errors/duplicate-renewal-condition.error';
 import { InvalidRenewalDueDateError } from './errors/invalid-renewal-due-date.error';
+import { InvalidRenewalConditionHierarchyError } from './errors/invalid-renewal-condition-hierarchy.error';
 import { RenewalConditionsOutdatedError } from './errors/renewal-conditions-outdated.error';
 import {
   assertEveryConditionDecided,
+  assertValidRenewalConditionHierarchy,
   assertValidRenewalDecisions,
 } from './renewal-conditions.policy';
 
@@ -78,5 +80,30 @@ describe('assertEveryConditionDecided', () => {
     expect(() =>
       assertEveryConditionDecided(current, decided.map(decide)),
     ).toThrow(RenewalConditionsOutdatedError);
+  });
+});
+
+describe('assertValidRenewalConditionHierarchy', () => {
+  const conditions = [
+    { id: 'parent', parentConditionId: null },
+    { id: 'child', parentConditionId: 'parent' },
+  ];
+
+  it('accepts a copied sub-item when its parent is also copied', () => {
+    expect(() =>
+      assertValidRenewalConditionHierarchy(conditions, [
+        { conditionId: 'parent', fulfilled: false, copyToNew: true },
+        { conditionId: 'child', fulfilled: false, copyToNew: true },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('rejects copying a sub-item without copying its parent', () => {
+    expect(() =>
+      assertValidRenewalConditionHierarchy(conditions, [
+        { conditionId: 'parent', fulfilled: false, copyToNew: false },
+        { conditionId: 'child', fulfilled: false, copyToNew: true },
+      ]),
+    ).toThrow(InvalidRenewalConditionHierarchyError);
   });
 });

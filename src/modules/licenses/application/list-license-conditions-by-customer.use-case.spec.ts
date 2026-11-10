@@ -33,6 +33,7 @@ function buildCondition(
   return {
     id: 'condition-1',
     licenseId: 'license-1',
+    parentConditionId: null,
     name: 'Automonitoramento Atmosférico',
     description: 'Avaliação periódica de emissões.',
     environmentalDescriptor: 'Emissões',

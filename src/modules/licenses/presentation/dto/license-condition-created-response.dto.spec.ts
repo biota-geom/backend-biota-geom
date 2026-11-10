@@ -11,6 +11,7 @@ describe('toLicenseConditionCreatedResponse', () => {
       toLicenseConditionCreatedResponse({
         id: 'condition-1',
         licenseId: 'license-1',
+        parentConditionId: null,
         name: 'MTR',
         environmentalDescriptor: 'Resíduos sólidos',
         responsibleAgency: 'FEPAM',

@@ -51,6 +51,7 @@ export class CreateLicenseConditionUseCase {
 
         return {
           licenseId: input.licenseId,
+          parentConditionId: condition.parent_condition_id ?? null,
           environmentalDescriptor: condition.environmental_descriptor,
           name: condition.title ?? condition.description.slice(0, 160),
           description: condition.description,

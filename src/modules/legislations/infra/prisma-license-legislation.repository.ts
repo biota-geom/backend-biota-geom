@@ -17,7 +17,11 @@ export class PrismaLicenseLegislationRepository implements LicenseLegislationRep
     return this.prisma.licenseLegislation.findMany({
       where: { licenseId },
       include: WITH_LEGISLATION,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [
+        { legislation: { year: 'desc' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
     });
   }
 

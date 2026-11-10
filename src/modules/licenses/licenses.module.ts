@@ -72,6 +72,7 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     },
   ],
   exports: [
+    LicenseRepository,
     GetLicenseConditionsComplianceUseCase,
     ListLicenseConditionsByCustomerUseCase,
   ],

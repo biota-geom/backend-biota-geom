@@ -3,7 +3,15 @@ import { randomUUID } from 'node:crypto';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { AddressType, DocumentType, EsgPillar } from '@prisma/client';
+import {
+  AddressType,
+  DocumentType,
+  EsgPillar,
+  LegislationImpact,
+  LegislationType,
+  type LicenseLegislation as LicenseLegislationRecord,
+  LicenseLegislationSource,
+} from '@prisma/client';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PasswordHasher } from '../src/modules/auth/domain/password-hasher';
@@ -917,6 +925,97 @@ describe('Licenses (e2e)', () => {
       expect(byId.get(conditionIds[0])?.completionDate).not.toBeNull();
       expect(byId.get(conditionIds[1])?.conditionStatus).toBe('IN_PROGRESS');
       expect(byId.get(conditionIds[2])?.conditionStatus).toBe('FULFILLED');
+    });
+
+    it('copies the license radar, resets read state and preserves the archived license radar', async () => {
+      const radarEntries = [
+        {
+          source: LicenseLegislationSource.SCAN,
+          citedExcerpt: 'Article 1',
+          impact: LegislationImpact.HIGH,
+          technicalAnalysis: 'Requires immediate action.',
+          readAt: new Date('2026-10-01T12:00:00.000Z'),
+        },
+        {
+          source: LicenseLegislationSource.MANUAL,
+          citedExcerpt: 'Article 2',
+          impact: LegislationImpact.MODERATE,
+          technicalAnalysis: 'Monitor during the next reporting cycle.',
+          readAt: null,
+        },
+        {
+          source: LicenseLegislationSource.MANUAL,
+          citedExcerpt: null,
+          impact: LegislationImpact.LOW,
+          technicalAnalysis: null,
+          readAt: new Date('2026-10-03T12:00:00.000Z'),
+        },
+      ];
+
+      const sourceLinks: LicenseLegislationRecord[] = [];
+      for (const [index, entry] of radarEntries.entries()) {
+        const legislation = await prisma.legislation.create({
+          data: {
+            type: LegislationType.LEI,
+            number: `${index + 1}-${uniqueSuffix()}`,
+            year: 2026,
+            issuingBody: `Agency ${uniqueSuffix()}`,
+          },
+        });
+        sourceLinks.push(
+          await prisma.licenseLegislation.create({
+            data: {
+              licenseId: previousLicenseId,
+              legislationId: legislation.id,
+              ...entry,
+            },
+          }),
+        );
+      }
+
+      const response = await renew(
+        previousLicenseId,
+        conditionIds.map((id) => ({ condition_id: id, fulfilled: true })),
+      ).expect(201);
+      const renewedId = (response.body as { id: string }).id;
+
+      const copiedLinks = await prisma.licenseLegislation.findMany({
+        where: { licenseId: renewedId },
+      });
+      expect(copiedLinks).toHaveLength(3);
+
+      const copyByLegislationId = new Map(
+        copiedLinks.map((link) => [link.legislationId, link]),
+      );
+      for (const source of sourceLinks) {
+        const copy = copyByLegislationId.get(source.legislationId);
+        expect(copy).toMatchObject({
+          licenseId: renewedId,
+          legislationId: source.legislationId,
+          source: source.source,
+          citedExcerpt: source.citedExcerpt,
+          impact: source.impact,
+          technicalAnalysis: source.technicalAnalysis,
+          readAt: null,
+        });
+        expect(copy?.id).not.toBe(source.id);
+      }
+
+      const archived = await prisma.license.findUniqueOrThrow({
+        where: { id: previousLicenseId },
+        include: { legislations: true },
+      });
+      expect(archived.status).toBe('ARCHIVED');
+      expect(archived.legislations).toHaveLength(3);
+      expect(archived.legislations.map((link) => link.id).sort()).toEqual(
+        sourceLinks.map((link) => link.id).sort(),
+      );
+      const archivedById = new Map(
+        archived.legislations.map((link) => [link.id, link]),
+      );
+      for (const source of sourceLinks) {
+        expect(archivedById.get(source.id)).toEqual(source);
+      }
     });
 
     it('does not conclude when some condition is left unmarked, leaving everything untouched', async () => {

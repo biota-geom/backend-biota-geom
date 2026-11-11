@@ -13,6 +13,7 @@ import { LicensesModule } from './modules/licenses/licenses.module';
 import { SectorsModule } from './modules/sectors/sectors.module';
 import { EsgIndicatorsModule } from './modules/esg-indicators/esg-indicators.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { LegislationsModule } from './modules/legislations/legislations.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
     IssuingAgenciesModule,
     LicensesModule,
     DocumentsModule,
+    LegislationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

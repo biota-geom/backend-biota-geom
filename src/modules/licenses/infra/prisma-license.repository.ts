@@ -69,6 +69,17 @@ export class PrismaLicenseRepository implements LicenseRepository {
           data.conditions,
         );
 
+        const legislationLinks = await transaction.licenseLegislation.findMany({
+          where: { licenseId: data.previousLicenseId },
+          select: {
+            legislationId: true,
+            source: true,
+            citedExcerpt: true,
+            impact: true,
+            technicalAnalysis: true,
+          },
+        });
+
         const renewed = await transaction.license.create({
           data: {
             customer: { connect: { id: data.customerId } },
@@ -82,6 +93,20 @@ export class PrismaLicenseRepository implements LicenseRepository {
             previousLicense: { connect: { id: data.previousLicenseId } },
           },
         });
+
+        if (legislationLinks.length > 0) {
+          await transaction.licenseLegislation.createMany({
+            data: legislationLinks.map((link) => ({
+              licenseId: renewed.id,
+              legislationId: link.legislationId,
+              source: link.source,
+              citedExcerpt: link.citedExcerpt,
+              impact: link.impact,
+              technicalAnalysis: link.technicalAnalysis,
+              readAt: null,
+            })),
+          });
+        }
 
         await transaction.license.update({
           where: { id: data.previousLicenseId },

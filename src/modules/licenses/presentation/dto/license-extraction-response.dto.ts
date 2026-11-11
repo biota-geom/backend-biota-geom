@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ConditionPeriodicity, ConditionType } from '@prisma/client';
+import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
+import {
+  ExtractionFailureReason,
+  ExtractionJob,
+} from '../../domain/extraction-job';
 import {
   LicenseExtraction,
   SuggestedCondition,
@@ -101,4 +106,52 @@ export function toLicenseExtractionResponse(
       toSuggestedConditionDto,
     ),
   };
+}
+
+export class StartLicenseExtractionResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  job_id!: string;
+}
+
+export class LicenseExtractionJobResponseDto {
+  @ApiProperty({ enum: ['PENDING', 'DONE', 'FAILED'] })
+  status!: ExtractionJob['status'];
+
+  @ApiProperty({ type: LicenseExtractionResponseDto, nullable: true })
+  result!: LicenseExtractionResponseDto | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Mensagem amigável quando status é FAILED; o motivo interno fica nos logs.',
+  })
+  error!: string | null;
+}
+
+const FAILURE_MESSAGES: Record<ExtractionFailureReason, string> = {
+  UNREADABLE: LICENSES_MESSAGES.EXTRACTION_UNREADABLE,
+  UNAVAILABLE: LICENSES_MESSAGES.EXTRACTION_UNAVAILABLE,
+  TIMEOUT: LICENSES_MESSAGES.EXTRACTION_TIMEOUT,
+};
+
+export function toLicenseExtractionJobResponse(
+  job: ExtractionJob,
+): LicenseExtractionJobResponseDto {
+  switch (job.status) {
+    case 'PENDING':
+      return { status: 'PENDING', result: null, error: null };
+    case 'DONE':
+      return {
+        status: 'DONE',
+        result: toLicenseExtractionResponse(job.extraction),
+        error: null,
+      };
+    case 'FAILED':
+      return {
+        status: 'FAILED',
+        result: null,
+        error: FAILURE_MESSAGES[job.reason],
+      };
+  }
 }

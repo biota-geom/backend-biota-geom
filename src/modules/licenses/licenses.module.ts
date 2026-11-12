@@ -26,6 +26,10 @@ import { RenewLicenseUseCase } from './application/renew-license.use-case';
 import { ListLicenseHistoryUseCase } from './application/list-license-history.use-case';
 import { GetLicenseDocumentUrlUseCase } from './application/get-license-document-url.use-case';
 import { ExtractLicenseDataUseCase } from './application/extract-license-data.use-case';
+import { GetLicenseExtractionJobUseCase } from './application/get-license-extraction-job.use-case';
+import { StartLicenseExtractionUseCase } from './application/start-license-extraction.use-case';
+import { ExtractionJobStore } from './domain/extraction-job';
+import { InMemoryExtractionJobStore } from './infra/extraction/in-memory-extraction-job.store';
 import { LicenseDocumentExtractor } from './domain/license-extraction';
 import { BedrockConfigService } from './infra/extraction/bedrock-config.service';
 import { BedrockLicenseDocumentExtractor } from './infra/extraction/bedrock-license-document-extractor';
@@ -65,6 +69,9 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     ListLicenseConditionsByCustomerUseCase,
     GetLicenseConditionsComplianceUseCase,
     ExtractLicenseDataUseCase,
+    StartLicenseExtractionUseCase,
+    GetLicenseExtractionJobUseCase,
+    { provide: ExtractionJobStore, useClass: InMemoryExtractionJobStore },
     BedrockConfigService,
     {
       provide: LicenseDocumentExtractor,
@@ -72,6 +79,7 @@ import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-
     },
   ],
   exports: [
+    LicenseRepository,
     GetLicenseConditionsComplianceUseCase,
     ListLicenseConditionsByCustomerUseCase,
   ],

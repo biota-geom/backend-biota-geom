@@ -309,16 +309,13 @@ model License {
   previousLicense License?           @relation("LicenseRenewalHistory", fields: [previousLicenseId], references: [id], onDelete: SetNull)
   renewals        License[]          @relation("LicenseRenewalHistory")
 
-  // Legislation the license is grounded on. Optional: licenses registered
-  // before the legislation catalog existed have none.
-  legislationId String?      @map("legislation_id") @db.Uuid
-  legislation   Legislation? @relation(fields: [legislationId], references: [id], onDelete: SetNull)
+  // Radar: the legislations extracted from or assigned to this license.
+  legislations LicenseLegislation[]
 
   alerts Alert[]
 
   @@index([customerId])
   @@index([previousLicenseId])
-  @@index([legislationId])
   @@map("licenses")
 }
 
@@ -361,6 +358,7 @@ model LicenseCondition {
   @@map("license_condition")
 }
 
+// Legacy: only the nullable `sphere` column of `legislation` still uses it.
 enum GovernmentSphere {
   FEDERAL
   STATE
@@ -369,26 +367,81 @@ enum GovernmentSphere {
   @@map("government_sphere")
 }
 
-// Global legislation catalog fed by the Biota-Geom staff (Epic 7 — Radar).
-model Legislation {
-  id              String           @id @default(uuid(7)) @db.Uuid
-  title           String           @db.VarChar(255)
-  // Official act number, e.g. "491/2018". Free text: formats vary by sphere.
-  number          String           @db.VarChar(50)
-  sphere          GovernmentSphere
-  publicationDate DateTime         @map("publication_date") @db.Date
-  summary         String?          @db.VarChar(4095)
-  sourceUrl       String?          @map("source_url") @db.VarChar(2048)
-  // Highlights recently published acts in the radar feed.
-  isNew           Boolean          @default(true) @map("is_new")
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+enum LegislationType {
+  LEI
+  DECRETO
+  RESOLUCAO
+  PORTARIA
+  INSTRUCAO_NORMATIVA
+  OUTRO
 
-  licenses License[]
+  @@map("legislation_type")
+}
+
+enum LicenseLegislationSource {
+  SCAN
+  MANUAL
+
+  @@map("license_legislation_source")
+}
+
+enum LegislationImpact {
+  HIGH
+  MODERATE
+  LOW
+
+  @@map("legislation_impact")
+}
+
+// Catalog of environmental acts, identified by (type, number, year, issuingBody):
+// municipal and state acts reuse numbers across issuers. What a license says about it lives in LicenseLegislation.
+model Legislation {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  type        LegislationType
+  // Official act number as written, e.g. "12.305". Free text: formats vary.
+  number      String          @db.VarChar(50)
+  year        Int
+  issuingBody String          @map("issuing_body") @db.VarChar(150)
+  summary     String?         @db.VarChar(4095)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // Legacy columns from the pre-radar catalog, kept (nullable) so no data is
+  // lost. Nothing reads or writes them; drop in a follow-up once confirmed.
+  title           String?           @db.VarChar(255)
+  sphere          GovernmentSphere?
+  publicationDate DateTime?         @map("publication_date") @db.Date
+  sourceUrl       String?           @map("source_url") @db.VarChar(2048)
+  isNew           Boolean?          @map("is_new")
+
+  licenses LicenseLegislation[]
   alerts   Alert[]
 
-  @@index([publicationDate(sort: Desc)])
+  @@unique([type, number, year, issuingBody])
   @@map("legislation")
+}
+
+// Radar of one license: links it to a legislation, with the license-specific
+// reading of that act (where it was cited, its impact and the analysis).
+model LicenseLegislation {
+  id                String                   @id @default(uuid(7)) @db.Uuid
+  source            LicenseLegislationSource
+  citedExcerpt      String?                  @map("cited_excerpt") @db.VarChar(4095)
+  impact            LegislationImpact?
+  technicalAnalysis String?                  @map("technical_analysis") @db.Text
+  readAt            DateTime?                @map("read_at") @db.Timestamptz(3)
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  licenseId String  @map("license_id") @db.Uuid
+  license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  legislationId String      @map("legislation_id") @db.Uuid
+  legislation   Legislation @relation(fields: [legislationId], references: [id], onDelete: Restrict)
+
+  @@unique([licenseId, legislationId])
+  @@index([legislationId])
+  @@map("license_legislation")
 }
 
 enum AlertType {

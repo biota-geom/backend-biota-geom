@@ -2,56 +2,27 @@ import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
-  GatewayTimeoutException,
-  HttpException,
-  ServiceUnavailableException,
-  UnprocessableEntityException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { LicenseExtractionTimeoutError } from '../../domain/errors/license-extraction-timeout.error';
-import { LicenseExtractionUnavailableError } from '../../domain/errors/license-extraction-unavailable.error';
-import { UnreadableLicenseDocumentError } from '../../domain/errors/unreadable-license-document.error';
+import { LicenseExtractionJobNotFoundError } from '../../domain/errors/license-extraction-job-not-found.error';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 
-type LicenseExtractionError =
-  | UnreadableLicenseDocumentError
-  | LicenseExtractionUnavailableError
-  | LicenseExtractionTimeoutError;
-
 /*
- * Every extraction failure gets a generic PT-BR message: the internal reason
- * (provider error name, validation detail) stays in the logs, never in the
- * response. The client only needs to know whether to retry or fill the form
- * manually.
+ * Extraction failures are reported through the job (`status: FAILED`), so the
+ * only extraction error that reaches HTTP is a job the caller cannot see:
+ * unknown, expired, or owned by another user.
  */
-@Catch(
-  UnreadableLicenseDocumentError,
-  LicenseExtractionUnavailableError,
-  LicenseExtractionTimeoutError,
-)
+@Catch(LicenseExtractionJobNotFoundError)
 export class LicenseExtractionExceptionFilter implements ExceptionFilter {
-  catch(error: LicenseExtractionError, host: ArgumentsHost): void {
+  catch(_error: LicenseExtractionJobNotFoundError, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const httpException = this.toHttpException(error);
+    const httpException = new NotFoundException(
+      LICENSES_MESSAGES.EXTRACTION_JOB_NOT_FOUND,
+    );
 
     response
       .status(httpException.getStatus())
       .json(httpException.getResponse());
-  }
-
-  private toHttpException(error: LicenseExtractionError): HttpException {
-    if (error instanceof UnreadableLicenseDocumentError) {
-      return new UnprocessableEntityException(
-        LICENSES_MESSAGES.EXTRACTION_UNREADABLE,
-      );
-    }
-
-    if (error instanceof LicenseExtractionTimeoutError) {
-      return new GatewayTimeoutException(LICENSES_MESSAGES.EXTRACTION_TIMEOUT);
-    }
-
-    return new ServiceUnavailableException(
-      LICENSES_MESSAGES.EXTRACTION_UNAVAILABLE,
-    );
   }
 }

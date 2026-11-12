@@ -10,6 +10,44 @@ const IDENTITY = {
 };
 
 describe('PrismaLegislationRepository', () => {
+  it('searches by number and summary and limits the catalog to ten results', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PrismaLegislationRepository({
+      legislation: { findMany },
+    } as unknown as PrismaService);
+
+    await expect(repository.findAllBySearch('12.305')).resolves.toEqual([]);
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { number: { contains: '12.305', mode: 'insensitive' } },
+          { summary: { contains: '12.305', mode: 'insensitive' } },
+        ],
+      },
+      take: 10,
+    });
+  });
+
+  it('also searches by an exact year', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PrismaLegislationRepository({
+      legislation: { findMany },
+    } as unknown as PrismaService);
+
+    await repository.findAllBySearch('1997');
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { number: { contains: '1997', mode: 'insensitive' } },
+          { summary: { contains: '1997', mode: 'insensitive' } },
+          { year: { equals: 1997 } },
+        ],
+      },
+      take: 10,
+    });
+  });
+
   it('finds a legislation by id', async () => {
     const findUnique = jest.fn().mockResolvedValue({ id: 'legislation-1' });
     const repository = new PrismaLegislationRepository({

@@ -4,6 +4,7 @@ import {
   LegislationType,
   LicenseLegislationSource,
 } from '@prisma/client';
+import { IsNotEmpty, IsString, Matches } from 'class-validator';
 import { LicenseLegislation } from '../../domain/license-legislation.entity';
 
 export class LegislationResponseDto {
@@ -28,6 +29,19 @@ export class LegislationResponseDto {
     example: 'Institui a Política Nacional de Resíduos Sólidos.',
   })
   summary!: string | null;
+}
+
+export class SearchLegislationsQueryDto {
+  @ApiProperty({ example: '12.305' })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/)
+  search!: string;
+}
+
+export class SearchLegislationsResponseDto {
+  @ApiProperty({ type: LegislationResponseDto, isArray: true })
+  legislations!: LegislationResponseDto[];
 }
 
 export class LicenseLegislationResponseDto {

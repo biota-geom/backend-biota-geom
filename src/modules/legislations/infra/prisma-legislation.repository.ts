@@ -41,4 +41,21 @@ export class PrismaLegislationRepository implements LegislationRepository {
       update: {},
     });
   }
+
+  async findAllBySearch(search: string): Promise<Legislation[]> {
+    const term = search.trim();
+    const yearNumber = Number(term);
+    const isYear = term !== '' && Number.isInteger(yearNumber);
+
+    return this.prisma.legislation.findMany({
+      where: {
+        OR: [
+          { number: { contains: term, mode: 'insensitive' } },
+          { summary: { contains: term, mode: 'insensitive' } },
+          ...(isYear ? [{ year: { equals: yearNumber } }] : []),
+        ],
+      },
+      take: 10,
+    });
+  }
 }

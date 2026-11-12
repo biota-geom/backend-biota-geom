@@ -50,4 +50,20 @@ describe('PrismaLegislationRepository', () => {
       update: {},
     });
   });
+
+  it('updates an act', async () => {
+    const update = jest.fn().mockResolvedValue({ id: 'legislation-1' });
+    const repository = new PrismaLegislationRepository({
+      legislation: { update },
+    } as unknown as PrismaService);
+    const data = { ...IDENTITY, summary: 'Nova ementa' };
+
+    await expect(repository.update('legislation-1', data)).resolves.toEqual({
+      id: 'legislation-1',
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 'legislation-1' },
+      data,
+    });
+  });
 });

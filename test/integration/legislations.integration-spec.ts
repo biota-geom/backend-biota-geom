@@ -5,9 +5,9 @@ import {
   LegislationType,
   LicenseLegislationSource,
   LicenseStatus,
-  Prisma,
 } from '@prisma/client';
 import { validateEnv } from '../../src/config/env.validation';
+import { LegislationAlreadyLinkedError } from '../../src/modules/legislations/domain/errors/legislation-already-linked.error';
 import { LegislationRepository } from '../../src/modules/legislations/domain/legislations.repository';
 import { LicenseLegislationRepository } from '../../src/modules/legislations/domain/license-legislations.repository';
 import { LegislationsModule } from '../../src/modules/legislations/legislations.module';
@@ -169,7 +169,7 @@ describe('License legislation radar (integration)', () => {
         legislationId: legislation.id,
         source: LicenseLegislationSource.MANUAL,
       }),
-    ).rejects.toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+    ).rejects.toBeInstanceOf(LegislationAlreadyLinkedError);
     await expect(links.findAllByLicenseId(license.id)).resolves.toHaveLength(1);
     await expect(
       links.findByIdForLicense(link.id, 'a0000000-0000-7000-8000-000000000000'),

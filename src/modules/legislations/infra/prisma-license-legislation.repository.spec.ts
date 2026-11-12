@@ -1,6 +1,14 @@
-import { LicenseLegislationSource } from '@prisma/client';
+import { LicenseLegislationSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { LegislationAlreadyLinkedError } from '../domain/errors/legislation-already-linked.error';
 import { PrismaLicenseLegislationRepository } from './prisma-license-legislation.repository';
+
+function prismaError(code: string) {
+  return new Prisma.PrismaClientKnownRequestError('failed', {
+    code,
+    clientVersion: 'test',
+  });
+}
 
 function build(model: Record<string, jest.Mock>) {
   return new PrismaLicenseLegislationRepository({
@@ -74,5 +82,74 @@ describe('PrismaLicenseLegislationRepository', () => {
       build({ delete: del }).delete('link-1'),
     ).resolves.toBeUndefined();
     expect(del).toHaveBeenCalledWith({ where: { id: 'link-1' } });
+  });
+
+  it('finds the link between a license and an act', async () => {
+    const findUnique = jest.fn().mockResolvedValue(null);
+
+    await expect(
+      build({ findUnique }).findByLicenseAndLegislation(
+        'license-1',
+        'legislation-1',
+      ),
+    ).resolves.toBeNull();
+    expect(findUnique).toHaveBeenCalledWith({
+      where: {
+        licenseId_legislationId: {
+          licenseId: 'license-1',
+          legislationId: 'legislation-1',
+        },
+      },
+      include: { legislation: true },
+    });
+  });
+
+  it('counts the licenses citing an act', async () => {
+    const count = jest.fn().mockResolvedValue(2);
+
+    await expect(
+      build({ count }).countByLegislationId('legislation-1'),
+    ).resolves.toBe(2);
+    expect(count).toHaveBeenCalledWith({
+      where: { legislationId: 'legislation-1' },
+    });
+  });
+
+  it('turns a duplicated link on create into a domain error', async () => {
+    const create = jest.fn().mockRejectedValue(prismaError('P2002'));
+
+    await expect(
+      build({ create }).create({
+        licenseId: 'license-1',
+        legislationId: 'legislation-1',
+        source: LicenseLegislationSource.MANUAL,
+      }),
+    ).rejects.toThrow(LegislationAlreadyLinkedError);
+  });
+
+  it('turns a duplicated relink on update into a domain error', async () => {
+    const update = jest.fn().mockRejectedValue(prismaError('P2002'));
+
+    await expect(
+      build({ update }).update('link-1', { legislationId: 'legislation-2' }),
+    ).rejects.toThrow(LegislationAlreadyLinkedError);
+  });
+
+  it('rethrows any other database error', async () => {
+    const failure = prismaError('P2025');
+    const create = jest.fn().mockRejectedValue(failure);
+    const update = jest.fn().mockRejectedValue(failure);
+    const repository = build({ create, update });
+
+    await expect(
+      repository.create({
+        licenseId: 'license-1',
+        legislationId: 'legislation-1',
+        source: LicenseLegislationSource.MANUAL,
+      }),
+    ).rejects.toBe(failure);
+    await expect(
+      repository.update('link-1', { citedExcerpt: null }),
+    ).rejects.toBe(failure);
   });
 });

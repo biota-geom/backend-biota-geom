@@ -10,4 +10,8 @@ export abstract class LegislationRepository {
   ): Promise<Legislation | null>;
   /** Returns the existing act for the (type, number, year) identity, creating it when missing. */
   abstract findOrCreate(data: CreateLegislationData): Promise<Legislation>;
+  abstract update(
+    id: string,
+    data: CreateLegislationData,
+  ): Promise<Legislation>;
 }

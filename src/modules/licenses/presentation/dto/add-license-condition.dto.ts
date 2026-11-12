@@ -41,6 +41,11 @@ export function toLicenseConditionStatus(
 }
 
 export class AddLicenseConditionDto {
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsUUID()
+  parent_condition_id?: string | null;
+
   // Legacy clients may still send this value; numbering is computed on read.
   @Allow()
   item_number?: unknown;

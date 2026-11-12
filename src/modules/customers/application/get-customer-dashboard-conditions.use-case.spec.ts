@@ -13,6 +13,7 @@ function buildCondition(
   return {
     id,
     licenseId: 'license-1',
+    parentConditionId: null,
     name: `Condition ${id}`,
     description: null,
     environmentalDescriptor: 'Emissions',

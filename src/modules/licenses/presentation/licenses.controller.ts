@@ -290,6 +290,9 @@ export class LicensesController {
       conditionId,
       ownerUserId: user.id,
       data: {
+        ...(dto.parent_condition_id !== undefined
+          ? { parentConditionId: dto.parent_condition_id }
+          : {}),
         title: dto.name ?? dto.title,
         environmentalDescriptor: dto.environmental_descriptor,
         description: dto.description,

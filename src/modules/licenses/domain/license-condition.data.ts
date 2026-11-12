@@ -6,6 +6,7 @@ import {
 
 export interface ConditionData {
   licenseId: string;
+  parentConditionId?: string | null;
   environmentalDescriptor: string;
   name: string;
   description: string;

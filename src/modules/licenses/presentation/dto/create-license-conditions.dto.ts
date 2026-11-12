@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   Allow,
@@ -8,11 +9,17 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
 
 export class ConditionDto {
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsUUID()
+  parent_condition_id?: string | null;
+
   // Legacy clients may still send this value; numbering is computed on read.
   @Allow()
   item_number?: unknown;

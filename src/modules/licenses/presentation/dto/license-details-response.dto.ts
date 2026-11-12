@@ -15,6 +15,12 @@ export class LicenseConditionDetailsResponseDto {
   @ApiProperty({ example: '1.1' })
   item_number!: string;
 
+  @ApiProperty({ format: 'uuid', nullable: true })
+  parent_condition_id!: string | null;
+
+  @ApiProperty({ enum: [1, 2], nullable: true, example: 1 })
+  level!: 1 | 2 | null;
+
   @ApiProperty({ type: Boolean })
   is_environmental_descriptor!: boolean;
 
@@ -120,6 +126,8 @@ export function toLicenseConditionDetailsResponse(
   return {
     id: condition.id,
     item_number: itemNumber,
+    parent_condition_id: condition.parentConditionId ?? null,
+    level: condition.parentConditionId ? 2 : 1,
     is_environmental_descriptor: false,
     environmental_descriptor: condition.environmentalDescriptor,
     name: condition.title,
@@ -148,12 +156,28 @@ function toNumberedEnvironmentalDescriptorRows(
       left.createdAt.getTime() - right.createdAt.getTime() ||
       left.id.localeCompare(right.id),
   );
+  const rootConditions = orderedConditions.filter(
+    (condition) => !condition.parentConditionId,
+  );
+  const subItemsByParent = new Map<string, LicenseCondition[]>();
+  orderedConditions
+    .filter(
+      (
+        condition,
+      ): condition is LicenseCondition & { parentConditionId: string } =>
+        typeof condition.parentConditionId === 'string',
+    )
+    .forEach((condition) => {
+      const subItems = subItemsByParent.get(condition.parentConditionId) ?? [];
+      subItems.push(condition);
+      subItemsByParent.set(condition.parentConditionId, subItems);
+    });
   const conditionsByEnvironmentalDescriptor = new Map<
     string,
     LicenseCondition[]
   >();
 
-  orderedConditions.forEach((condition) => {
+  rootConditions.forEach((condition) => {
     const descriptorConditions =
       conditionsByEnvironmentalDescriptor.get(
         condition.environmentalDescriptor,
@@ -173,6 +197,8 @@ function toNumberedEnvironmentalDescriptorRows(
         item_number: descriptorNumber,
         is_environmental_descriptor: true,
         environmental_descriptor: environmentalDescriptor,
+        parent_condition_id: null,
+        level: null,
         name: null,
         description: null,
         condition_type: null,
@@ -187,12 +213,19 @@ function toNumberedEnvironmentalDescriptorRows(
 
       return [
         descriptorRow,
-        ...descriptorConditions.map((condition, conditionIndex) =>
-          toLicenseConditionDetailsResponse(
-            condition,
-            `${descriptorNumber}.${conditionIndex + 1}`,
-          ),
-        ),
+        ...descriptorConditions.flatMap((condition, conditionIndex) => {
+          const itemNumber = `${descriptorNumber}.${conditionIndex + 1}`;
+          return [
+            toLicenseConditionDetailsResponse(condition, itemNumber),
+            ...(subItemsByParent.get(condition.id) ?? []).map(
+              (subItem, subItemIndex) =>
+                toLicenseConditionDetailsResponse(
+                  subItem,
+                  `${itemNumber}.${subItemIndex + 1}`,
+                ),
+            ),
+          ];
+        }),
       ];
     },
   );

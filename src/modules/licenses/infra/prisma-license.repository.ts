@@ -9,8 +9,12 @@ import { ConditionData } from '../domain/license-condition.data';
 import { LicenseCondition } from '../domain/condition.entity';
 import { UpdateLicenseConditionData } from '../domain/update-license-condition.data';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
+import { InvalidRenewalDueDateError } from '../domain/errors/invalid-renewal-due-date.error';
 import { RenewLicenseData } from '../domain/renew-license.data';
-import { assertEveryConditionDecided } from '../domain/renewal-conditions.policy';
+import {
+  assertEveryConditionDecided,
+  assertValidRenewalConditionHierarchy,
+} from '../domain/renewal-conditions.policy';
 import {
   ConditionFulfillmentItem,
   SaveConditionsFulfillmentData,
@@ -20,6 +24,7 @@ import {
   nextConditionPosition,
   withNextPositions,
 } from './license-condition-position';
+import { assertValidConditionHierarchy } from './license-condition-hierarchy';
 
 function toDomainCondition(
   condition: Prisma.LicenseConditionGetPayload<{
@@ -28,6 +33,7 @@ function toDomainCondition(
 ) {
   return {
     ...condition,
+    parentConditionId: condition.parentConditionId ?? null,
     title: condition.name,
     status: condition.conditionStatus,
   } as LicenseCondition;
@@ -68,6 +74,7 @@ export class PrismaLicenseRepository implements LicenseRepository {
           conditions.map((condition) => condition.id),
           data.conditions,
         );
+        assertValidRenewalConditionHierarchy(conditions, data.conditions);
 
         const legislationLinks = await transaction.licenseLegislation.findMany({
           where: { licenseId: data.previousLicenseId },
@@ -125,32 +132,44 @@ export class PrismaLicenseRepository implements LicenseRepository {
             dueDateById.set(decision.conditionId, decision.newDueDate);
           }
         });
-        // `conditions` is in the previous license's order, so the copies are
-        // numbered the same way on the new one.
-        await this.insertConditions(
-          transaction,
-          conditions
-            .filter((source) => dueDateById.has(source.id))
-            .map((source) => {
-              const dueDate = dueDateById.get(source.id) as Date;
-
-              return {
-                licenseId: renewed.id,
-                name: source.name,
-                environmentalDescriptor: source.environmentalDescriptor,
-                description: source.description,
-                responsibleAgency: source.responsibleAgency,
-                responsibleName: source.responsibleName,
-                conditionType: source.conditionType,
-                periodicity: source.periodicity,
-                hasDelivery: source.hasDelivery,
-                // Same pair the condition form writes: the page shows
-                // `deadline`, the compliance rules read `dueDate`.
-                deadline: dueDate,
-                dueDate,
-              };
-            }),
+        const conditionsToCopy = conditions.filter((source) =>
+          dueDateById.has(source.id),
         );
+
+        const copiedIdBySourceId = new Map<string, string>();
+        let position = 1;
+        // Copy roots first so every sub-item can connect to its copied parent.
+        const orderedCopies = [
+          ...conditionsToCopy.filter((source) => !source.parentConditionId),
+          ...conditionsToCopy.filter((source) => source.parentConditionId),
+        ];
+        for (const source of orderedCopies) {
+          const dueDate = dueDateById.get(source.id);
+          if (!dueDate) {
+            throw new InvalidRenewalDueDateError();
+          }
+
+          const copied = await transaction.licenseCondition.create({
+            data: {
+              licenseId: renewed.id,
+              parentConditionId: source.parentConditionId
+                ? (copiedIdBySourceId.get(source.parentConditionId) ?? null)
+                : null,
+              name: source.name,
+              environmentalDescriptor: source.environmentalDescriptor,
+              description: source.description,
+              responsibleAgency: source.responsibleAgency,
+              responsibleName: source.responsibleName,
+              conditionType: source.conditionType,
+              periodicity: source.periodicity,
+              hasDelivery: source.hasDelivery,
+              deadline: dueDate,
+              dueDate,
+              position: position++,
+            },
+          });
+          copiedIdBySourceId.set(source.id, copied.id);
+        }
 
         return renewed;
       },
@@ -159,9 +178,17 @@ export class PrismaLicenseRepository implements LicenseRepository {
   }
 
   async createConditions(data: ConditionData[]): Promise<ConditionResponse> {
-    const count = await this.prisma.$transaction((transaction) =>
-      this.insertConditions(transaction, data),
-    );
+    const count = await this.prisma.$transaction(async (transaction) => {
+      for (const condition of data) {
+        await assertValidConditionHierarchy(transaction, {
+          parentConditionId: condition.parentConditionId ?? null,
+          licenseId: condition.licenseId,
+          environmentalDescriptor: condition.environmentalDescriptor,
+        });
+      }
+
+      return this.insertConditions(transaction, data);
+    });
     return { count };
   }
 
@@ -213,6 +240,20 @@ export class PrismaLicenseRepository implements LicenseRepository {
         const environmentalDescriptorChanged =
           fields.environmentalDescriptor !== undefined &&
           fields.environmentalDescriptor !== condition.environmentalDescriptor;
+        const parentConditionChanged =
+          fields.parentConditionId !== undefined &&
+          fields.parentConditionId !== (condition.parentConditionId ?? null);
+        await assertValidConditionHierarchy(transaction, {
+          conditionId: condition.id,
+          parentConditionId:
+            fields.parentConditionId === undefined
+              ? (condition.parentConditionId ?? null)
+              : fields.parentConditionId,
+          licenseId: condition.licenseId,
+          environmentalDescriptor:
+            fields.environmentalDescriptor ?? condition.environmentalDescriptor,
+          environmentalDescriptorChanged,
+        });
         const updated = await transaction.licenseCondition.update({
           where: { id: data.id },
           data: {
@@ -220,9 +261,8 @@ export class PrismaLicenseRepository implements LicenseRepository {
             ...(title !== undefined ? { name: title } : {}),
             ...(status !== undefined ? { conditionStatus: status } : {}),
             ...(isViolated !== undefined ? { isViolated } : {}),
-            // Moving to another descriptor appends the condition, so it is
-            // numbered last in its new group.
-            ...(environmentalDescriptorChanged
+            // Moving groups appends the condition at the end of its new group.
+            ...(environmentalDescriptorChanged || parentConditionChanged
               ? {
                   position: await nextConditionPosition(
                     transaction,
@@ -256,6 +296,20 @@ export class PrismaLicenseRepository implements LicenseRepository {
         const environmentalDescriptorChanged =
           fields.environmentalDescriptor !== undefined &&
           fields.environmentalDescriptor !== condition.environmentalDescriptor;
+        const parentConditionChanged =
+          fields.parentConditionId !== undefined &&
+          fields.parentConditionId !== (condition.parentConditionId ?? null);
+        await assertValidConditionHierarchy(transaction, {
+          conditionId: condition.id,
+          parentConditionId:
+            fields.parentConditionId === undefined
+              ? (condition.parentConditionId ?? null)
+              : fields.parentConditionId,
+          licenseId: condition.licenseId,
+          environmentalDescriptor:
+            fields.environmentalDescriptor ?? condition.environmentalDescriptor,
+          environmentalDescriptorChanged,
+        });
         const updated = await transaction.licenseCondition.update({
           where: { id },
           data: {
@@ -263,9 +317,8 @@ export class PrismaLicenseRepository implements LicenseRepository {
             ...(title !== undefined ? { name: title } : {}),
             ...(status !== undefined ? { conditionStatus: status } : {}),
             ...(isViolated !== undefined ? { isViolated } : {}),
-            // Moving to another descriptor appends the condition, so it is
-            // numbered last in its new group.
-            ...(environmentalDescriptorChanged
+            // Moving groups appends the condition at the end of its new group.
+            ...(environmentalDescriptorChanged || parentConditionChanged
               ? {
                   position: await nextConditionPosition(
                     transaction,

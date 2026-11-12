@@ -13,9 +13,17 @@ export abstract class LicenseLegislationRepository {
     id: string,
     licenseId: string,
   ): Promise<LicenseLegislation | null>;
+  abstract findByLicenseAndLegislation(
+    licenseId: string,
+    legislationId: string,
+  ): Promise<LicenseLegislation | null>;
+  /** How many licenses have the legislation on their radar. */
+  abstract countByLegislationId(legislationId: string): Promise<number>;
+  /** Throws LegislationAlreadyLinkedError when the license already links the act. */
   abstract create(
     data: CreateLicenseLegislationData,
   ): Promise<LicenseLegislation>;
+  /** Throws LegislationAlreadyLinkedError when relinking to an act the license already links. */
   abstract update(
     id: string,
     data: UpdateLicenseLegislationData,

@@ -230,7 +230,11 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({
         license: { create, update },
-        licenseCondition: { updateMany, findMany, aggregate, createMany },
+        licenseCondition: {
+          updateMany,
+          findMany,
+          create: createCondition,
+        },
         licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
@@ -387,6 +391,7 @@ describe('PrismaLicenseRepository', () => {
           updateMany: jest.fn(),
           create: createCondition,
         },
+        licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
     const repository = new PrismaLicenseRepository({

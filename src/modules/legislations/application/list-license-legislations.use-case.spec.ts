@@ -1,3 +1,4 @@
+import { LegislationImpact } from '@prisma/client';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
 import { LicenseLegislationRepository } from '../domain/license-legislations.repository';
@@ -24,7 +25,18 @@ describe('ListLicenseLegislationsUseCase', () => {
       { id: 'link-1' },
     ]);
     expect(findByIdForOwner).toHaveBeenCalledWith('license-1', 'owner-1');
-    expect(findAllByLicenseId).toHaveBeenCalledWith('license-1');
+    expect(findAllByLicenseId).toHaveBeenCalledWith('license-1', {});
+  });
+
+  it('passes the impact filter through', async () => {
+    const { useCase, findAllByLicenseId } = buildUseCase({ id: 'license-1' });
+
+    await useCase.execute('license-1', 'owner-1', {
+      impact: LegislationImpact.HIGH,
+    });
+    expect(findAllByLicenseId).toHaveBeenCalledWith('license-1', {
+      impact: LegislationImpact.HIGH,
+    });
   });
 
   it('rejects a license the caller does not own', async () => {

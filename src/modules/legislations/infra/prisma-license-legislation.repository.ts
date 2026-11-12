@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   CreateLicenseLegislationData,
+  ListLicenseLegislationsFilter,
   UpdateLicenseLegislationData,
 } from '../domain/legislation.data';
 import { LicenseLegislation } from '../domain/license-legislation.entity';
@@ -13,9 +14,15 @@ const WITH_LEGISLATION = { legislation: true } as const;
 export class PrismaLicenseLegislationRepository implements LicenseLegislationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAllByLicenseId(licenseId: string): Promise<LicenseLegislation[]> {
+  async findAllByLicenseId(
+    licenseId: string,
+    filter: ListLicenseLegislationsFilter = {},
+  ): Promise<LicenseLegislation[]> {
     return this.prisma.licenseLegislation.findMany({
-      where: { licenseId },
+      where: {
+        licenseId,
+        ...(filter.impact ? { impact: filter.impact } : {}),
+      },
       include: WITH_LEGISLATION,
       orderBy: [
         { legislation: { year: 'desc' } },

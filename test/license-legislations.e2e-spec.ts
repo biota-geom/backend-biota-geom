@@ -317,6 +317,11 @@ describe('License legislations (e2e)', () => {
 
       await add(licenseId, {}, 400);
       await add(licenseId, { legislation: { type: 'LEI', year: 2010 } }, 400);
+      await add(
+        licenseId,
+        { legislation: { ...actData(uniqueSuffix()), issuing_body: ' ' } },
+        400,
+      );
       await add(licenseId, { legislation_id: randomUUID() }, 404);
     });
 

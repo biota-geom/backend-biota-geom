@@ -51,6 +51,8 @@ describe('AddLicenseLegislationDto', () => {
   it.each([
     ['an unknown type', { type: 'LEI_COMPLEMENTAR' }],
     ['a blank number', { number: '   ' }],
+    ['a missing issuing body', { issuing_body: undefined }],
+    ['a blank issuing body', { issuing_body: '   ' }],
     ['a missing year', { year: undefined }],
     ['a non-integer year', { year: 2010.5 }],
     ['an implausible year', { year: 99 }],
@@ -72,18 +74,19 @@ describe('AddLicenseLegislationDto', () => {
 });
 
 describe('toLegislationData', () => {
-  it('stores an act without issuing body or summary with empty defaults', () => {
+  it('stores an act without summary as null', () => {
     expect(
       toLegislationData({
         type: LegislationType.DECRETO,
         number: '7.404',
         year: 2010,
+        issuing_body: 'Governo Federal',
       }),
     ).toEqual({
       type: LegislationType.DECRETO,
       number: '7.404',
       year: 2010,
-      issuingBody: '',
+      issuingBody: 'Governo Federal',
       summary: null,
     });
   });

@@ -43,12 +43,14 @@ export class LegislationInputDto {
   @Max(9999)
   year!: number;
 
-  @ApiPropertyOptional({ example: 'Governo Federal', maxLength: 150 })
+  // Required: it is part of the catalog identity, and leaving it out would
+  // register a second copy of an act the catalog already holds with one.
+  @ApiProperty({ example: 'Governo Federal', maxLength: 150 })
   @Transform(trimString)
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(150)
-  issuing_body?: string;
+  issuing_body!: string;
 
   @ApiPropertyOptional({
     type: String,
@@ -63,11 +65,6 @@ export class LegislationInputDto {
   summary?: string | null;
 }
 
-/*
- * The issuing body is part of the catalog identity and a NOT NULL column; an
- * act registered without one is stored with an empty issuing body, so the
- * same act typed again without it is still recognised as the same act.
- */
 export function toLegislationData(
   dto: LegislationInputDto,
 ): CreateLegislationData {
@@ -75,7 +72,7 @@ export function toLegislationData(
     type: dto.type,
     number: dto.number,
     year: dto.year,
-    issuingBody: dto.issuing_body ?? '',
+    issuingBody: dto.issuing_body,
     summary: dto.summary ?? null,
   };
 }

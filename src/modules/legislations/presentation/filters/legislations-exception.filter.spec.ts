@@ -23,7 +23,7 @@ describe('LegislationsExceptionFilter', () => {
   it('maps LicenseLegislationNotFoundError to 404', () => {
     const { host, status, json } = buildHost();
 
-    filter.catch(new LicenseLegislationNotFoundError('leg-1'), host);
+    filter.catch(new LicenseLegislationNotFoundError('leg-1', 'lic-1'), host);
 
     expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
     expect(json).toHaveBeenCalledWith(

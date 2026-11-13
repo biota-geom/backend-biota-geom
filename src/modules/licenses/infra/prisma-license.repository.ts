@@ -1,3 +1,4 @@
+import { assertAlertDateNotAfterDueDate } from '../domain/condition-alert-date.policy';
 import { Injectable } from '@nestjs/common';
 import { ConditionStatus, LicenseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -208,6 +209,7 @@ export class PrismaLicenseRepository implements LicenseRepository {
         });
 
         if (!condition) throw new LicenseConditionNotFoundError(data.id);
+        assertResultingAlertDate(condition, data.data);
 
         const { title, status, isViolated, ...fields } = data.data;
         const environmentalDescriptorChanged =
@@ -251,6 +253,7 @@ export class PrismaLicenseRepository implements LicenseRepository {
         });
 
         if (!condition) throw new LicenseConditionNotFoundError(id);
+        assertResultingAlertDate(condition, data);
 
         const { title, status, isViolated, ...fields } = data;
         const environmentalDescriptorChanged =
@@ -411,4 +414,21 @@ export class PrismaLicenseRepository implements LicenseRepository {
       conditions: license.conditions.map(toDomainCondition),
     }));
   }
+}
+
+/*
+ * Checks the dates the condition will have after the update, so editing only
+ * one of them is still validated against the stored value of the other.
+ * Untouched dates are not re-checked.
+ */
+function assertResultingAlertDate(
+  current: { alertDate: Date | null; dueDate: Date | null },
+  update: UpdateLicenseConditionData['data'],
+): void {
+  if (update.alertDate === undefined && update.dueDate === undefined) return;
+
+  assertAlertDateNotAfterDueDate(
+    update.alertDate === undefined ? current.alertDate : update.alertDate,
+    update.dueDate ?? current.dueDate,
+  );
 }

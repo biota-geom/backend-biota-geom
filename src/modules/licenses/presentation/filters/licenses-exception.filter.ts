@@ -11,6 +11,7 @@ import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { DuplicateRenewalConditionError } from '../../domain/errors/duplicate-renewal-condition.error';
+import { InvalidConditionAlertDateError } from '../../domain/errors/invalid-condition-alert-date.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { InvalidRenewalDueDateError } from '../../domain/errors/invalid-renewal-due-date.error';
@@ -29,6 +30,7 @@ type LicensesDomainError =
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
   | InvalidConditionDueDateError
+  | InvalidConditionAlertDateError
   | RenewalConditionsOutdatedError
   | DuplicateRenewalConditionError
   | InvalidRenewalDueDateError;
@@ -41,6 +43,7 @@ type LicensesDomainError =
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
   InvalidConditionDueDateError,
+  InvalidConditionAlertDateError,
   RenewalConditionsOutdatedError,
   DuplicateRenewalConditionError,
   InvalidRenewalDueDateError,
@@ -88,6 +91,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof InvalidConditionDueDateError) {
       return new BadRequestException(
         LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
+      );
+    }
+
+    if (error instanceof InvalidConditionAlertDateError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_ALERT_DATE_AFTER_DUE_DATE,
       );
     }
 

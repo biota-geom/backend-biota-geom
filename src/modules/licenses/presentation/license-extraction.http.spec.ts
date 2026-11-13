@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { App } from 'supertest/types';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { ExtractLicenseDataUseCase } from '../application/extract-license-data.use-case';
 import { GetLicenseExtractionJobUseCase } from '../application/get-license-extraction-job.use-case';
@@ -52,7 +53,7 @@ class HeaderAuthGuard implements CanActivate {
 }
 
 describe('License extraction routes (HTTP, no database)', () => {
-  let app: INestApplication;
+  let app: INestApplication<App>;
   const extract = jest.fn<Promise<LicenseExtraction>, [Buffer]>();
 
   beforeAll(async () => {

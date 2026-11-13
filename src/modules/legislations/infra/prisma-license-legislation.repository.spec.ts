@@ -1,4 +1,4 @@
-import { LicenseLegislationSource } from '@prisma/client';
+import { LegislationImpact, LicenseLegislationSource } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaLicenseLegislationRepository } from './prisma-license-legislation.repository';
 
@@ -17,6 +17,23 @@ describe('PrismaLicenseLegislationRepository', () => {
     ).resolves.toEqual([{ id: 'link-1' }]);
     expect(findMany).toHaveBeenCalledWith({
       where: { licenseId: 'license-1' },
+      include: { legislation: true },
+      orderBy: [
+        { legislation: { year: 'desc' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+    });
+  });
+
+  it('narrows a license radar to one impact level', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+
+    await build({ findMany }).findAllByLicenseId('license-1', {
+      impact: LegislationImpact.HIGH,
+    });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { licenseId: 'license-1', impact: LegislationImpact.HIGH },
       include: { legislation: true },
       orderBy: [
         { legislation: { year: 'desc' } },

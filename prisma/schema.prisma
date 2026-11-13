@@ -469,8 +469,9 @@ model Alert {
   id        String        @id @default(uuid(7)) @db.Uuid
   type      AlertType
   severity  AlertSeverity
-  title     String        @db.VarChar(160)
-  message   String        @db.VarChar(1000)
+  dedupeKey String?       @unique @map("dedupe_key") @db.VarChar(255)
+  title     String?       @db.VarChar(160)
+  message   String?       @db.VarChar(1000)
   dueDate   DateTime?     @map("due_date") @db.Timestamptz(3)
   status    AlertStatus   @default(OPEN)
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)

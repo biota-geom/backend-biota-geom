@@ -49,6 +49,10 @@ export class ConditionDto {
   @IsDateString()
   deadline: string;
 
+  @IsOptional()
+  @IsDateString()
+  alert_date?: string;
+
   @IsString()
   @IsNotEmpty()
   responsible_name: string;

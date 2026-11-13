@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { LicenseConditionStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
+import { assertAlertDateNotAfterDueDate } from '../domain/condition-alert-date.policy';
 import { InvalidConditionDueDateError } from '../domain/errors/invalid-condition-due-date.error';
 import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
@@ -14,6 +15,7 @@ export interface LicenseConditionToAdd {
   environmentalDescriptor: string;
   responsibleAgency: string;
   dueDate: Date;
+  alertDate?: Date;
   status?: LicenseConditionStatus;
   hasDelivery?: boolean;
   description?: string;
@@ -44,6 +46,7 @@ export class AddLicenseConditionsUseCase {
 
     input.conditions.forEach((condition) => {
       this.assertValidDueDate(condition);
+      assertAlertDateNotAfterDueDate(condition.alertDate, condition.dueDate);
     });
 
     const license = await this.licenseRepository.findById(input.licenseId);

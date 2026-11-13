@@ -15,6 +15,7 @@ describe('toLicenseConditionCreatedResponse', () => {
         environmentalDescriptor: 'Resíduos sólidos',
         responsibleAgency: 'FEPAM',
         dueDate: new Date('2026-06-01T00:00:00.000Z'),
+        alertDate: null,
         status,
         description: null,
         hasDelivery: true,
@@ -30,5 +31,33 @@ describe('toLicenseConditionCreatedResponse', () => {
         is_violated: false,
       }),
     );
+  });
+
+  it('maps the alert date as ISO or null', () => {
+    const base = {
+      id: 'condition-1',
+      licenseId: 'license-1',
+      name: 'MTR',
+      environmentalDescriptor: 'Resíduos sólidos',
+      responsibleAgency: 'FEPAM',
+      dueDate: new Date('2026-06-01T00:00:00.000Z'),
+      status: LicenseConditionStatus.REGULAR,
+      description: null,
+      hasDelivery: true,
+      isViolated: false,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+
+    expect(
+      toLicenseConditionCreatedResponse({
+        ...base,
+        alertDate: new Date('2026-05-20T00:00:00.000Z'),
+      }).alert_date,
+    ).toBe('2026-05-20T00:00:00.000Z');
+    expect(
+      toLicenseConditionCreatedResponse({ ...base, alertDate: null })
+        .alert_date,
+    ).toBeNull();
   });
 });

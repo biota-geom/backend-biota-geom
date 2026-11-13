@@ -18,6 +18,7 @@ function buildCondition(
     environmentalDescriptor: 'Emissions',
     responsibleAgency: null,
     dueDate,
+    alertDate: null,
     status: LicenseConditionStatus.REGULAR,
     hasDelivery: false,
     isViolated: false,

@@ -17,6 +17,7 @@ function buildCondition(dueInDays: number, index: number): LicenseCondition {
     environmentalDescriptor: 'Emissões',
     responsibleAgency: null,
     dueDate: new Date(NOW.getTime() + dueInDays * DAY_IN_MS),
+    alertDate: null,
     // Persisted status is ignored: compliance follows the due date.
     status: LicenseConditionStatus.REGULAR,
     hasDelivery: true,

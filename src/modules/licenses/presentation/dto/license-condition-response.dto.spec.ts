@@ -13,6 +13,7 @@ describe('toLicenseConditionResponse', () => {
         environmentalDescriptor: 'Emissões',
         responsibleAgency: 'FEPAM',
         dueDate: new Date('2026-02-11T00:00:00.000Z'),
+        alertDate: null,
         status: LicenseConditionStatus.REGULAR,
         hasDelivery: true,
         isViolated: true,

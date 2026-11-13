@@ -8,6 +8,7 @@ export interface LicenseCondition {
   environmentalDescriptor: string;
   responsibleAgency: string | null;
   dueDate: Date;
+  alertDate: Date | null;
   status: LicenseConditionStatus;
   hasDelivery: boolean;
   isViolated: boolean;

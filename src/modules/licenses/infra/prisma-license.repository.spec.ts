@@ -247,12 +247,26 @@ describe('PrismaLicenseRepository', () => {
         completionDate: expect.any(Date) as Date,
       },
     });
-    // Only a fulfilled condition is reopened; an overdue one stays overdue.
+    // Only a fulfilled condition is reopened, and where it lands depends on
+    // whether its due date has passed.
     expect(updateMany).toHaveBeenCalledWith({
       where: {
         licenseId: 'old-license',
         id: { in: ['c-2'] },
         conditionStatus: ConditionStatus.FULFILLED,
+        dueDate: { lt: expect.any(Date) as Date },
+      },
+      data: {
+        conditionStatus: ConditionStatus.OVERDUE,
+        completionDate: null,
+      },
+    });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        licenseId: 'old-license',
+        id: { in: ['c-2'] },
+        conditionStatus: ConditionStatus.FULFILLED,
+        dueDate: { gte: expect.any(Date) as Date },
       },
       data: {
         conditionStatus: ConditionStatus.IN_PROGRESS,
@@ -897,7 +911,7 @@ describe('PrismaLicenseRepository', () => {
     });
 
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(updateMany).toHaveBeenCalledTimes(2);
+    expect(updateMany).toHaveBeenCalledTimes(3);
     expect(updateMany).toHaveBeenNthCalledWith(1, {
       where: {
         licenseId: 'license-1',
@@ -912,11 +926,26 @@ describe('PrismaLicenseRepository', () => {
         completionDate: expect.any(Date) as Date,
       },
     });
+    // Reopening splits by due date: past it becomes OVERDUE, the rest
+    // IN_PROGRESS.
     expect(updateMany).toHaveBeenNthCalledWith(2, {
       where: {
         licenseId: 'license-1',
         id: { in: ['c-2'] },
         conditionStatus: ConditionStatus.FULFILLED,
+        dueDate: { lt: expect.any(Date) as Date },
+      },
+      data: {
+        conditionStatus: ConditionStatus.OVERDUE,
+        completionDate: null,
+      },
+    });
+    expect(updateMany).toHaveBeenNthCalledWith(3, {
+      where: {
+        licenseId: 'license-1',
+        id: { in: ['c-2'] },
+        conditionStatus: ConditionStatus.FULFILLED,
+        dueDate: { gte: expect.any(Date) as Date },
       },
       data: {
         conditionStatus: ConditionStatus.IN_PROGRESS,

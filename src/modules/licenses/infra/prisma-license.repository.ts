@@ -352,7 +352,8 @@ export class PrismaLicenseRepository implements LicenseRepository {
   /*
    * Records the decisions without rewriting what is already recorded: a
    * condition that was fulfilled keeps its completion date, and "not
-   * fulfilled" only reopens a fulfilled one, so an overdue one stays overdue.
+   * fulfilled" only reopens a fulfilled one. Reopening lands on OVERDUE when
+   * the due date has passed, IN_PROGRESS otherwise.
    */
   private async applyConditionsFulfillment(
     client: Prisma.TransactionClient,
@@ -384,11 +385,28 @@ export class PrismaLicenseRepository implements LicenseRepository {
     }
 
     if (notFulfilledIds.length > 0) {
+      const now = new Date();
+
+      // Reopening past its due date lands on OVERDUE, not IN_PROGRESS.
       await client.licenseCondition.updateMany({
         where: {
           licenseId,
           id: { in: notFulfilledIds },
           conditionStatus: ConditionStatus.FULFILLED,
+          dueDate: { lt: now },
+        },
+        data: {
+          conditionStatus: ConditionStatus.OVERDUE,
+          completionDate: null,
+        },
+      });
+
+      await client.licenseCondition.updateMany({
+        where: {
+          licenseId,
+          id: { in: notFulfilledIds },
+          conditionStatus: ConditionStatus.FULFILLED,
+          dueDate: { gte: now },
         },
         data: {
           conditionStatus: ConditionStatus.IN_PROGRESS,

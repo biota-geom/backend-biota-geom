@@ -7,6 +7,19 @@ import { Alert } from '../../domain/alert.entity';
 import { ALERT_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 
 describe('Alert DTOs', () => {
+  it('preserves array status input and rejects non-string scalars', async () => {
+    const query = plainToInstance(ListAlertsQueryDto, {
+      status: ['OPEN', 'READ'],
+    });
+    expect(query.status).toEqual(['OPEN', 'READ']);
+    expect(await validate(query)).toEqual([]);
+    for (const status of [null, 123, {}]) {
+      expect(
+        (await validate(plainToInstance(ListAlertsQueryDto, { status })))
+          .length,
+      ).toBeGreaterThan(0);
+    }
+  });
   it('defaults to pending alerts and a ten-item first page', async () => {
     const query = plainToInstance(ListAlertsQueryDto, {});
     expect(await validate(query)).toEqual([]);

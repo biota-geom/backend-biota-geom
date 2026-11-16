@@ -11,6 +11,15 @@ describe('UpdateLicenseConditionDto', () => {
     expect(validate({})).toHaveLength(0);
   });
 
+  it('accepts setting or clearing the parent condition', () => {
+    expect(
+      validate({
+        parent_condition_id: 'c88b9ecf-464d-4c33-9aa4-a8048bb4765d',
+      }),
+    ).toHaveLength(0);
+    expect(validate({ parent_condition_id: null })).toHaveLength(0);
+  });
+
   it('accepts a new title and due date', () => {
     expect(
       validate({ title: 'Relatório', due_date: '2027-01-01T00:00:00.000Z' }),

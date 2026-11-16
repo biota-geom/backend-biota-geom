@@ -12,6 +12,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateIf,
 } from 'class-validator';
@@ -34,6 +35,11 @@ const CONDITION_PERIODICITY_INPUTS = [
 ];
 
 export class UpdateLicenseConditionDto {
+  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  @IsOptional()
+  @IsUUID()
+  parent_condition_id?: string | null;
+
   // Legacy clients may still send this value; numbering is computed on read.
   @Allow()
   item_number?: unknown;

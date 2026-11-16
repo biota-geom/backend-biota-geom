@@ -25,6 +25,7 @@ function condition(
   return {
     id,
     licenseId: 'license-1',
+    parentConditionId: null,
     environmentalDescriptor,
     description: 'Relatório',
     title: 'Relatório',
@@ -130,6 +131,52 @@ describe('license details response mappers', () => {
         ['1.3', 'c'],
       ],
     );
+  });
+
+  it('numbers sub-items by their parent and position', () => {
+    const root = condition(
+      'root',
+      'Resíduos',
+      '2026-01-01T00:00:00.000Z',
+      false,
+      1,
+    );
+    const subItem2 = {
+      ...condition('sub-2', 'Resíduos', '2026-01-01T00:00:00.000Z', false, 3),
+      parentConditionId: 'root',
+    };
+    const subItem1 = {
+      ...condition('sub-1', 'Resíduos', '2026-01-01T00:00:00.000Z', false, 2),
+      parentConditionId: 'root',
+    };
+    const response = toLicenseDetailsResponse({
+      id: 'license-1',
+      customerId: 'customer-1',
+      processNumber: 'LO 118/2020',
+      type: 'LO',
+      issuingAgency: 'FEPAM',
+      issueDate: new Date('2020-01-01T00:00:00.000Z'),
+      expirationDate: new Date('2028-01-01T00:00:00.000Z'),
+      status: LicenseStatus.REGULAR,
+      documentUrl: 'url',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      conditions: [subItem2, root, subItem1],
+    } satisfies License & { conditions: LicenseCondition[] });
+
+    expect(
+      response.conditions.map((row) => [
+        row.item_number,
+        row.parent_condition_id,
+        row.level,
+        row.id,
+      ]),
+    ).toEqual([
+      ['1', null, null, null],
+      ['1.1', null, 1, 'root'],
+      ['1.1.1', 'root', 2, 'sub-1'],
+      ['1.1.2', 'root', 2, 'sub-2'],
+    ]);
   });
 
   it('returns the persisted manual violation flag', () => {

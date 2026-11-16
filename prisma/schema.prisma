@@ -346,10 +346,15 @@ model LicenseCondition {
   licenseId String  @map("license_id") @db.Uuid
   license   License @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 
+  parentConditionId String?           @map("parent_condition_id") @db.Uuid
+  parentCondition   LicenseCondition? @relation("ConditionSubItems", fields: [parentConditionId], references: [id], onDelete: Cascade)
+  subItems          LicenseCondition[] @relation("ConditionSubItems")
+
   alerts Alert[]
 
   @@index([licenseId])
   @@index([dueDate])
+  @@index([parentConditionId])
   @@map("license_condition")
 }
 

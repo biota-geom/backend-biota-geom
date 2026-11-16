@@ -1,7 +1,9 @@
 import { DuplicateRenewalConditionError } from './errors/duplicate-renewal-condition.error';
+import { InvalidRenewalConditionHierarchyError } from './errors/invalid-renewal-condition-hierarchy.error';
 import { InvalidRenewalDueDateError } from './errors/invalid-renewal-due-date.error';
 import { RenewalConditionsOutdatedError } from './errors/renewal-conditions-outdated.error';
 import { RenewalConditionDecision } from './renew-license.data';
+import { LicenseCondition } from './condition.entity';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -51,5 +53,27 @@ export function assertEveryConditionDecided(
 
   if (!coversEveryCondition) {
     throw new RenewalConditionsOutdatedError();
+  }
+}
+
+export function assertValidRenewalConditionHierarchy(
+  conditions: Pick<LicenseCondition, 'id' | 'parentConditionId'>[],
+  decisions: RenewalConditionDecision[],
+): void {
+  const copiedIds = new Set(
+    decisions
+      .filter(({ copyToNew }) => copyToNew)
+      .map(({ conditionId }) => conditionId),
+  );
+  const hasOrphanedSubItem = conditions.some(
+    (condition) =>
+      copiedIds.has(condition.id) &&
+      condition.parentConditionId !== null &&
+      condition.parentConditionId !== undefined &&
+      !copiedIds.has(condition.parentConditionId),
+  );
+
+  if (hasOrphanedSubItem) {
+    throw new InvalidRenewalConditionHierarchyError();
   }
 }

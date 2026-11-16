@@ -7,6 +7,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { AddLicenseConditionData } from '../domain/add-license-condition.data';
 import { LicenseCondition } from '../domain/license-condition.entity';
 import { LicenseConditionRepository } from '../domain/license-conditions.repository';
+import { assertValidConditionHierarchy } from './license-condition-hierarchy';
 import { withNextPositions } from './license-condition-position';
 
 @Injectable()
@@ -16,11 +17,19 @@ export class PrismaLicenseConditionRepository implements LicenseConditionReposit
   async addMany(
     conditions: AddLicenseConditionData[],
   ): Promise<LicenseCondition[]> {
-    const created = await this.prisma.$transaction(async (transaction) =>
-      transaction.licenseCondition.createManyAndReturn({
+    const created = await this.prisma.$transaction(async (transaction) => {
+      for (const condition of conditions) {
+        await assertValidConditionHierarchy(transaction, {
+          parentConditionId: condition.parentConditionId ?? null,
+          licenseId: condition.licenseId,
+          environmentalDescriptor: condition.environmentalDescriptor,
+        });
+      }
+
+      return transaction.licenseCondition.createManyAndReturn({
         data: await withNextPositions(transaction, conditions),
-      }),
-    );
+      });
+    });
 
     return created.map((condition) => this.toDomain(condition));
   }
@@ -40,6 +49,7 @@ export class PrismaLicenseConditionRepository implements LicenseConditionReposit
     return {
       id: condition.id,
       licenseId: condition.licenseId,
+      parentConditionId: condition.parentConditionId ?? null,
       name: condition.name,
       description: condition.description,
       environmentalDescriptor: condition.environmentalDescriptor,

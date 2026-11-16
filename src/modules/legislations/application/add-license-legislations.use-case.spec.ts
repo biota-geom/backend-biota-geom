@@ -3,6 +3,7 @@ import {
   LegislationType,
   LicenseLegislationSource,
 } from '@prisma/client';
+import { NotFoundException } from '@nestjs/common';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
 import { LegislationRepository } from '../domain/legislations.repository';
@@ -94,6 +95,44 @@ describe('AddLicenseLegislationsUseCase', () => {
       useCase.execute('license-1', 'user-1', []),
     ).rejects.toBeInstanceOf(LicenseNotFoundError);
     expect(findOrCreate).not.toHaveBeenCalled();
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing catalog legislation without creating any links', async () => {
+    const findByIdForOwner = jest.fn().mockResolvedValue(license);
+    const findById = jest.fn().mockResolvedValue(null);
+    const createMany = jest.fn();
+    const useCase = new AddLicenseLegislationsUseCase(
+      { findByIdForOwner } as unknown as LicenseRepository,
+      { findById } as unknown as LegislationRepository,
+      { createMany } as unknown as LicenseLegislationRepository,
+    );
+
+    await expect(
+      useCase.execute('license-1', 'user-1', [
+        {
+          legislationId: 'missing-legislation',
+          source: LicenseLegislationSource.MANUAL,
+        },
+      ]),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects an item without a catalog ID or inline legislation', async () => {
+    const findByIdForOwner = jest.fn().mockResolvedValue(license);
+    const createMany = jest.fn();
+    const useCase = new AddLicenseLegislationsUseCase(
+      { findByIdForOwner } as unknown as LicenseRepository,
+      {} as LegislationRepository,
+      { createMany } as unknown as LicenseLegislationRepository,
+    );
+
+    await expect(
+      useCase.execute('license-1', 'user-1', [
+        { source: LicenseLegislationSource.MANUAL },
+      ]),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(createMany).not.toHaveBeenCalled();
   });
 });

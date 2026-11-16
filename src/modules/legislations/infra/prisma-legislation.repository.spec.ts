@@ -48,6 +48,25 @@ describe('PrismaLegislationRepository', () => {
     });
   });
 
+  it('trims the search term before searching and does not treat non-year terms as years', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const repository = new PrismaLegislationRepository({
+      legislation: { findMany },
+    } as unknown as PrismaService);
+
+    await repository.findAllBySearch('  CONAMA  ');
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { number: { contains: 'CONAMA', mode: 'insensitive' } },
+          { summary: { contains: 'CONAMA', mode: 'insensitive' } },
+        ],
+      },
+      take: 10,
+    });
+  });
+
   it('finds a legislation by id', async () => {
     const findUnique = jest.fn().mockResolvedValue({ id: 'legislation-1' });
     const repository = new PrismaLegislationRepository({

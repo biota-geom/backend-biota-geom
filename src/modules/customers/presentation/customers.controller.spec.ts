@@ -155,6 +155,8 @@ describe('CustomerController', () => {
           has_delivery: true,
           is_violated: false,
           risk_level: LicenseConditionRiskLevel.RISK,
+          condition_status: null,
+          completion_date: null,
         },
       ],
     });

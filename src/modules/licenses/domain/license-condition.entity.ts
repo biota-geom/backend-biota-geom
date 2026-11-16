@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 
 export interface LicenseCondition {
   id: string;
@@ -9,6 +9,8 @@ export interface LicenseCondition {
   responsibleAgency: string | null;
   dueDate: Date;
   status: LicenseConditionStatus;
+  conditionStatus?: ConditionStatus;
+  completionDate?: Date | null;
   hasDelivery: boolean;
   isViolated: boolean;
   createdAt: Date;

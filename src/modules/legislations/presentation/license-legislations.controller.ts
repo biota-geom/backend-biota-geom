@@ -41,6 +41,7 @@ import {
 } from './dto/license-legislation-response.dto';
 import { UpdateLicenseLegislationDto } from './dto/update-license-legislation.dto';
 import { LegislationsExceptionFilter } from './filters/legislations-exception.filter';
+import { AddLicenseLegislationUseCase } from '../application/add-license-legislation.use-case';
 
 const uuidPipe = new ParseUUIDPipe({
   exceptionFactory: invalidCustomerIdException,
@@ -57,6 +58,7 @@ export class LicenseLegislationsController {
   constructor(
     private readonly listLicenseLegislationsUseCase: ListLicenseLegislationsUseCase,
     private readonly addLicenseLegislationUseCase: AddLicenseLegislationUseCase,
+    private readonly addLicenseLegislationsUseCase: AddLicenseLegislationsUseCase,
     private readonly updateLicenseLegislationUseCase: UpdateLicenseLegislationUseCase,
     private readonly removeLicenseLegislationUseCase: RemoveLicenseLegislationUseCase,
   ) {}

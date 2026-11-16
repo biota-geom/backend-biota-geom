@@ -1,4 +1,5 @@
 import { AddLicenseLegislationsUseCase } from './application/add-license-legislations.use-case';
+import { AddLicenseLegislationUseCase } from './application/add-license-legislation.use-case';
 import { ListLicenseLegislationsUseCase } from './application/list-license-legislations.use-case';
 import { SearchLegislationsUseCase } from './application/search-legislations.use-case';
 import { RemoveLicenseLegislationUseCase } from './application/remove-license-legislation.use-case';

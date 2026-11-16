@@ -57,6 +57,7 @@ export class PrismaLegislationRepository implements LegislationRepository {
       },
       take: 10,
     });
+  }
   async update(id: string, data: CreateLegislationData): Promise<Legislation> {
     return this.prisma.legislation.update({ where: { id }, data });
   }

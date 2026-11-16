@@ -12,6 +12,7 @@ import { PrismaLegislationRepository } from './infra/prisma-legislation.reposito
 import { PrismaLicenseLegislationRepository } from './infra/prisma-license-legislation.repository';
 import { LegislationsController } from './presentation/legislations.controller';
 import { LicenseLegislationsController } from './presentation/license-legislations.controller';
+import { AddLicenseLegislationUseCase } from './application/add-license-legislation.use-case';
 
 // License radar: the legislations each license cites. LicensesModule provides
 // the license ownership check every radar route runs first.
@@ -27,6 +28,7 @@ import { LicenseLegislationsController } from './presentation/license-legislatio
     AddLicenseLegislationsUseCase,
     ListLicenseLegislationsUseCase,
     SearchLegislationsUseCase,
+    AddLicenseLegislationUseCase,
     UpdateLicenseLegislationUseCase,
     RemoveLicenseLegislationUseCase,
   ],

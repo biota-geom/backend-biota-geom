@@ -5,6 +5,7 @@ import { CreateLicenseLegislationsDto } from './dto/create-license-legislations.
 import { RemoveLicenseLegislationUseCase } from '../application/remove-license-legislation.use-case';
 import { UpdateLicenseLegislationUseCase } from '../application/update-license-legislation.use-case';
 import { LicenseLegislationsController } from './license-legislations.controller';
+import { AddLicenseLegislationUseCase } from '../application/add-license-legislation.use-case';
 
 const LINK = {
   id: 'link-1',
@@ -27,12 +28,14 @@ const LINK = {
 function buildController({
   list = jest.fn(),
   add = jest.fn().mockResolvedValue(LINK),
+  addBatch = jest.fn().mockResolvedValue([LINK]),
   update = jest.fn().mockResolvedValue(LINK),
   remove = jest.fn().mockResolvedValue(undefined),
 }: Record<string, jest.Mock> = {}) {
   return new LicenseLegislationsController(
     { execute: list } as unknown as ListLicenseLegislationsUseCase,
     { execute: add } as unknown as AddLicenseLegislationUseCase,
+    { execute: addBatch } as unknown as AddLicenseLegislationsUseCase,
     { execute: update } as unknown as UpdateLicenseLegislationUseCase,
     { execute: remove } as unknown as RemoveLicenseLegislationUseCase,
   );
@@ -62,7 +65,10 @@ describe('LicenseLegislationsController', () => {
     ]);
     const controller = new LicenseLegislationsController(
       { execute } as unknown as ListLicenseLegislationsUseCase,
+      {} as AddLicenseLegislationUseCase,
       {} as AddLicenseLegislationsUseCase,
+      {} as UpdateLicenseLegislationUseCase,
+      {} as RemoveLicenseLegislationUseCase,
     );
 
     await expect(
@@ -103,7 +109,10 @@ describe('LicenseLegislationsController', () => {
     ]);
     const controller = new LicenseLegislationsController(
       {} as ListLicenseLegislationsUseCase,
+      {} as AddLicenseLegislationUseCase,
       { execute } as unknown as AddLicenseLegislationsUseCase,
+      {} as UpdateLicenseLegislationUseCase,
+      {} as RemoveLicenseLegislationUseCase,
     );
     const body = Object.assign(new CreateLicenseLegislationsDto(), {
       legislations: [
@@ -139,6 +148,8 @@ describe('LicenseLegislationsController', () => {
         source: LicenseLegislationSource.MANUAL,
       },
     ]);
+  });
+
   it('adds an act from its data', async () => {
     const add = jest.fn().mockResolvedValue(LINK);
     const controller = buildController({ add });

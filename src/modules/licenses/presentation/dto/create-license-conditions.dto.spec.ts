@@ -23,6 +23,21 @@ describe('CreateLicenseConditionsDto', () => {
     expect(validate(validCondition)).toHaveLength(0);
   });
 
+  it('accepts a valid parent condition id', () => {
+    expect(
+      validate({
+        ...validCondition,
+        parent_condition_id: 'c88b9ecf-464d-4c33-9aa4-a8048bb4765d',
+      }),
+    ).toHaveLength(0);
+  });
+
+  it('rejects an invalid parent condition id', () => {
+    expect(
+      validate({ ...validCondition, parent_condition_id: 'not-a-uuid' }),
+    ).not.toHaveLength(0);
+  });
+
   it('requires the environmental descriptor', () => {
     expect(
       validate({ ...validCondition, environmental_descriptor: '' }),

@@ -130,4 +130,18 @@ describe('AddLicenseConditionsUseCase', () => {
       }),
     ]);
   });
+
+  it('preserves a parent condition id when adding conditions', async () => {
+    const { useCase, licenseConditionRepository } = buildUseCase();
+    const nested = input();
+    Object.assign(nested.conditions[0], {
+      parentConditionId: 'parent-condition',
+    });
+
+    await useCase.execute(nested);
+
+    expect(licenseConditionRepository.addMany).toHaveBeenCalledWith([
+      expect.objectContaining({ parentConditionId: 'parent-condition' }),
+    ]);
+  });
 });

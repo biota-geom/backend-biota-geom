@@ -5,6 +5,7 @@ import { PrismaLicenseConditionRepository } from './prisma-license-condition.rep
 const ROW = {
   id: 'condition-1',
   licenseId: 'license-1',
+  parentConditionId: null,
   name: 'MTR',
   environmentalDescriptor: 'Resíduos sólidos',
   description: null,

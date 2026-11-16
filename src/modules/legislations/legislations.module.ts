@@ -4,6 +4,8 @@ import { LicensesModule } from '../licenses/licenses.module';
 import { AddLicenseLegislationsUseCase } from './application/add-license-legislations.use-case';
 import { ListLicenseLegislationsUseCase } from './application/list-license-legislations.use-case';
 import { SearchLegislationsUseCase } from './application/search-legislations.use-case';
+import { RemoveLicenseLegislationUseCase } from './application/remove-license-legislation.use-case';
+import { UpdateLicenseLegislationUseCase } from './application/update-license-legislation.use-case';
 import { LegislationRepository } from './domain/legislations.repository';
 import { LicenseLegislationRepository } from './domain/license-legislations.repository';
 import { PrismaLegislationRepository } from './infra/prisma-legislation.repository';
@@ -25,6 +27,8 @@ import { LicenseLegislationsController } from './presentation/license-legislatio
     AddLicenseLegislationsUseCase,
     ListLicenseLegislationsUseCase,
     SearchLegislationsUseCase,
+    UpdateLicenseLegislationUseCase,
+    RemoveLicenseLegislationUseCase,
   ],
   exports: [LegislationRepository, LicenseLegislationRepository],
 })

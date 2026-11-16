@@ -104,6 +104,7 @@ describe('CustomerController', () => {
     const condition = {
       id: 'condition-1',
       licenseId: 'license-1',
+      parentConditionId: null,
       name: 'MTR',
       description: null,
       environmentalDescriptor: 'Resíduos sólidos',

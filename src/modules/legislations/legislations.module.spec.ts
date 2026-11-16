@@ -1,3 +1,4 @@
+import { AddLicenseLegislationsUseCase } from './application/add-license-legislations.use-case';
 import { ListLicenseLegislationsUseCase } from './application/list-license-legislations.use-case';
 import { SearchLegislationsUseCase } from './application/search-legislations.use-case';
 import { LegislationRepository } from './domain/legislations.repository';
@@ -18,6 +19,9 @@ describe('LegislationsModule', () => {
     ]);
     expect(Reflect.getMetadata('providers', LegislationsModule)).toContain(
       ListLicenseLegislationsUseCase,
+    );
+    expect(Reflect.getMetadata('providers', LegislationsModule)).toContain(
+      AddLicenseLegislationsUseCase,
     );
     expect(Reflect.getMetadata('providers', LegislationsModule)).toContain(
       SearchLegislationsUseCase,

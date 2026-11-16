@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { LicensesModule } from '../licenses/licenses.module';
+import { AddLicenseLegislationsUseCase } from './application/add-license-legislations.use-case';
 import { ListLicenseLegislationsUseCase } from './application/list-license-legislations.use-case';
 import { SearchLegislationsUseCase } from './application/search-legislations.use-case';
 import { LegislationRepository } from './domain/legislations.repository';
@@ -21,6 +22,7 @@ import { LicenseLegislationsController } from './presentation/license-legislatio
       provide: LicenseLegislationRepository,
       useClass: PrismaLicenseLegislationRepository,
     },
+    AddLicenseLegislationsUseCase,
     ListLicenseLegislationsUseCase,
     SearchLegislationsUseCase,
   ],

@@ -16,6 +16,9 @@ export abstract class LicenseLegislationRepository {
   abstract create(
     data: CreateLicenseLegislationData,
   ): Promise<LicenseLegislation>;
+  abstract createMany(
+    data: CreateLicenseLegislationData[],
+  ): Promise<LicenseLegislation[]>;
   abstract update(
     id: string,
     data: UpdateLicenseLegislationData,

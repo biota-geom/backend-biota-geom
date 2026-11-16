@@ -7,10 +7,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { SearchLegislationsUseCase } from '../application/search-legislations.use-case';
-import {
-  SearchLegislationsQueryDto,
-  SearchLegislationsResponseDto,
-} from './dto/license-legislation-response.dto';
+import { SearchLegislationsQueryDto } from './dto/search-legislations-query.dto';
+import { SearchLegislationsResponseDto } from './dto/search-legislations-response.dto';
 
 @ApiTags('legislations')
 @Controller('legislations')

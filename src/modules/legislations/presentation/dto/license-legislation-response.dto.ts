@@ -1,48 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  LegislationImpact,
-  LegislationType,
-  LicenseLegislationSource,
-} from '@prisma/client';
-import { IsNotEmpty, IsString, Matches } from 'class-validator';
+import { LegislationImpact, LicenseLegislationSource } from '@prisma/client';
 import { LicenseLegislation } from '../../domain/license-legislation.entity';
-
-export class LegislationResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
-
-  @ApiProperty({ enum: LegislationType, example: LegislationType.LEI })
-  type!: LegislationType;
-
-  @ApiProperty({ example: '12.305' })
-  number!: string;
-
-  @ApiProperty({ example: 2010 })
-  year!: number;
-
-  @ApiProperty({ example: 'Governo Federal' })
-  issuing_body!: string;
-
-  @ApiProperty({
-    type: String,
-    nullable: true,
-    example: 'Institui a Política Nacional de Resíduos Sólidos.',
-  })
-  summary!: string | null;
-}
-
-export class SearchLegislationsQueryDto {
-  @ApiProperty({ example: '12.305' })
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/\S/)
-  search!: string;
-}
-
-export class SearchLegislationsResponseDto {
-  @ApiProperty({ type: LegislationResponseDto, isArray: true })
-  legislations!: LegislationResponseDto[];
-}
+import { LegislationResponseDto } from './legislation-response.dto';
 
 export class LicenseLegislationResponseDto {
   @ApiProperty({ format: 'uuid' })

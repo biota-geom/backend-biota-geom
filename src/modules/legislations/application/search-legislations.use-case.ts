@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { LegislationResponseDto } from '../presentation/dto/license-legislation-response.dto';
 import { LegislationRepository } from '../domain/legislations.repository';
+import { LegislationResponseDto } from '../presentation/dto/legislation-response.dto';
 
 @Injectable()
 export class SearchLegislationsUseCase {

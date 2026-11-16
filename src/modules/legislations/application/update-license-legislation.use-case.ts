@@ -2,37 +2,91 @@ import { Injectable } from '@nestjs/common';
 import { LegislationImpact } from '@prisma/client';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
+import { LegislationAlreadyLinkedError } from '../domain/errors/legislation-already-linked.error';
 import { LicenseLegislationNotFoundError } from '../domain/errors/license-legislation-not-found.error';
-import { UpdateLicenseLegislationData } from '../domain/legislation.data';
+import { SharedLegislationNotEditableError } from '../domain/errors/shared-legislation-not-editable.error';
+import {
+  CreateLegislationData,
+  UpdateLicenseLegislationData,
+} from '../domain/legislation.data';
+import { Legislation } from '../domain/legislation.entity';
+import { LegislationRepository } from '../domain/legislations.repository';
 import { LicenseLegislation } from '../domain/license-legislation.entity';
 import { LicenseLegislationRepository } from '../domain/license-legislations.repository';
 
 export interface UpdateLicenseLegislationInput {
-  licenseId: string;
-  id: string;
-  ownerUserId: string;
+  citedExcerpt?: string | null;
+  legislation?: CreateLegislationData;
   /** undefined = leave as is, null = clear the classification. */
   impact?: LegislationImpact | null;
   /** true = mark as read (kept if it was already read). */
   read?: boolean;
 }
 
+export type UpdateLicenseLegislationObjectInput =
+  UpdateLicenseLegislationInput & {
+    licenseId: string;
+    id: string;
+    ownerUserId: string;
+  };
+
+function sameIdentity(
+  current: Legislation,
+  edited: CreateLegislationData,
+): boolean {
+  return (
+    current.type === edited.type &&
+    current.number === edited.number &&
+    current.year === edited.year &&
+    current.issuingBody === edited.issuingBody
+  );
+}
+
+function hasChanged(
+  current: Legislation,
+  edited: CreateLegislationData,
+): boolean {
+  return (
+    !sameIdentity(current, edited) ||
+    current.summary !== (edited.summary ?? null)
+  );
+}
+
 @Injectable()
 export class UpdateLicenseLegislationUseCase {
   constructor(
     private readonly licenseRepository: LicenseRepository,
+    private readonly legislationRepository: LegislationRepository,
     private readonly licenseLegislationRepository: LicenseLegislationRepository,
   ) {}
 
-  /*
-   * Classifies the impact of a legislation on the license and/or marks it as
-   * read. An unknown license and one owned by someone else raise the same
-   * error, so both answer 404.
+  /**
+   * Edits the cited excerpt of a radar entry and, when the act is on this
+   * license's radar only, the act itself. Also classifies the impact on the
+   * license and/or marks the entry as read.
    */
   async execute(
-    input: UpdateLicenseLegislationInput,
+    licenseIdOrInput: string | UpdateLicenseLegislationObjectInput,
+    maybeLicenseLegislationId?: string,
+    maybeOwnerUserId?: string,
+    maybeInput?: UpdateLicenseLegislationInput,
   ): Promise<LicenseLegislation> {
-    const { licenseId, id, ownerUserId } = input;
+    let licenseId: string;
+    let licenseLegislationId: string;
+    let ownerUserId: string;
+    let input: UpdateLicenseLegislationInput;
+
+    if (typeof licenseIdOrInput === 'object') {
+      licenseId = licenseIdOrInput.licenseId;
+      licenseLegislationId = licenseIdOrInput.id;
+      ownerUserId = licenseIdOrInput.ownerUserId;
+      input = licenseIdOrInput;
+    } else {
+      licenseId = licenseIdOrInput;
+      licenseLegislationId = maybeLicenseLegislationId!;
+      ownerUserId = maybeOwnerUserId!;
+      input = maybeInput ?? {};
+    }
 
     const license = await this.licenseRepository.findByIdForOwner(
       licenseId,
@@ -40,20 +94,71 @@ export class UpdateLicenseLegislationUseCase {
     );
     if (!license) throw new LicenseNotFoundError(licenseId);
 
-    const current = await this.licenseLegislationRepository.findByIdForLicense(
-      id,
+    const link = await this.licenseLegislationRepository.findByIdForLicense(
+      licenseLegislationId,
       license.id,
     );
-    if (!current) throw new LicenseLegislationNotFoundError(id, license.id);
+    if (!link) {
+      throw new LicenseLegislationNotFoundError(
+        licenseLegislationId,
+        license.id,
+      );
+    }
 
     const data: UpdateLicenseLegislationData = {};
-    if (input.impact !== undefined) data.impact = input.impact;
-    if (input.read === true && current.readAt === null) {
+
+    if (input.impact !== undefined) {
+      data.impact = input.impact;
+    }
+
+    if (input.read === true && link.readAt === null) {
       data.readAt = new Date();
     }
 
-    if (Object.keys(data).length === 0) return current;
+    if (input.citedExcerpt !== undefined) {
+      data.citedExcerpt = input.citedExcerpt;
+    }
 
-    return this.licenseLegislationRepository.update(id, data);
+    if (input.legislation && hasChanged(link.legislation, input.legislation)) {
+      data.legislationId = await this.editLegislation(link, input.legislation);
+    }
+
+    if (Object.keys(data).length === 0) return link;
+
+    return this.licenseLegislationRepository.update(link.id, data);
+  }
+
+  /** Returns the id of the act the entry points to after the edit. */
+  private async editLegislation(
+    link: LicenseLegislation,
+    edited: CreateLegislationData,
+  ): Promise<string> {
+    const linkedLicenses =
+      await this.licenseLegislationRepository.countByLegislationId(
+        link.legislationId,
+      );
+    if (linkedLicenses > 1) {
+      throw new SharedLegislationNotEditableError(link.legislationId);
+    }
+
+    if (!sameIdentity(link.legislation, edited)) {
+      // The edited data names another act already in the catalog: point the
+      // entry to it instead of creating a duplicate.
+      const existing = await this.legislationRepository.findByIdentity(edited);
+      if (existing) {
+        const alreadyLinked =
+          await this.licenseLegislationRepository.findByLicenseAndLegislation(
+            link.licenseId,
+            existing.id,
+          );
+        if (alreadyLinked) throw new LegislationAlreadyLinkedError(existing.id);
+
+        return existing.id;
+      }
+    }
+
+    await this.legislationRepository.update(link.legislationId, edited);
+
+    return link.legislationId;
   }
 }

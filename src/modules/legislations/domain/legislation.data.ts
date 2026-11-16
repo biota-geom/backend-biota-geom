@@ -29,6 +29,7 @@ export interface ListLicenseLegislationsFilter {
 }
 
 export interface UpdateLicenseLegislationData {
+  legislationId?: string;
   citedExcerpt?: string | null;
   impact?: LegislationImpact | null;
   technicalAnalysis?: string | null;

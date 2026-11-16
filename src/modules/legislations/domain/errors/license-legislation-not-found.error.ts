@@ -1,7 +1,9 @@
 export class LicenseLegislationNotFoundError extends Error {
-  constructor(id: string, licenseId: string) {
+  constructor(id: string, licenseId?: string) {
     super(
-      `License legislation "${id}" does not exist in license "${licenseId}"`,
+      licenseId
+        ? `License legislation "${id}" does not exist in license "${licenseId}"`
+        : `License legislation "${id}" does not exist`,
     );
     this.name = 'LicenseLegislationNotFoundError';
   }

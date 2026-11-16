@@ -1,4 +1,6 @@
+import { AddLicenseLegislationUseCase } from './application/add-license-legislation.use-case';
 import { ListLicenseLegislationsUseCase } from './application/list-license-legislations.use-case';
+import { RemoveLicenseLegislationUseCase } from './application/remove-license-legislation.use-case';
 import { UpdateLicenseLegislationUseCase } from './application/update-license-legislation.use-case';
 import { LegislationRepository } from './domain/legislations.repository';
 import { LicenseLegislationRepository } from './domain/license-legislations.repository';
@@ -14,11 +16,13 @@ describe('LegislationsModule', () => {
     expect(Reflect.getMetadata('controllers', LegislationsModule)).toEqual([
       LicenseLegislationsController,
     ]);
-    const providers = Reflect.getMetadata(
-      'providers',
-      LegislationsModule,
-    ) as unknown[];
-    expect(providers).toContain(ListLicenseLegislationsUseCase);
-    expect(providers).toContain(UpdateLicenseLegislationUseCase);
+    expect(Reflect.getMetadata('providers', LegislationsModule)).toEqual(
+      expect.arrayContaining([
+        ListLicenseLegislationsUseCase,
+        AddLicenseLegislationUseCase,
+        UpdateLicenseLegislationUseCase,
+        RemoveLicenseLegislationUseCase,
+      ]),
+    );
   });
 });

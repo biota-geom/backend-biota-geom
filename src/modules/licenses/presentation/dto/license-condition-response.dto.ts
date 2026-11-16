@@ -37,6 +37,16 @@ export class LicenseConditionResponseDto {
 
   @ApiProperty({ enum: LicenseConditionRiskLevel, example: 'RISK' })
   risk_level!: LicenseConditionRiskLevel;
+
+  @ApiProperty({
+    enum: ['FULFILLED', 'IN_PROGRESS', 'OVERDUE'],
+    nullable: true,
+    required: false,
+  })
+  condition_status?: string | null;
+
+  @ApiProperty({ format: 'date-time', nullable: true, required: false })
+  completion_date?: string | null;
 }
 
 export function toLicenseConditionResponse(
@@ -56,5 +66,9 @@ export function toLicenseConditionResponse(
     has_delivery: created.has_delivery,
     is_violated: created.is_violated,
     risk_level: condition.riskLevel,
+    condition_status: condition.conditionStatus ?? null,
+    completion_date: condition.completionDate
+      ? condition.completionDate.toISOString()
+      : null,
   };
 }

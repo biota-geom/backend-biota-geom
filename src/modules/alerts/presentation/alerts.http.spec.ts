@@ -13,6 +13,7 @@ import {
 } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { ListAlertsUseCase } from '../application/list-alerts.use-case';
 import { CountUnreadAlertsUseCase } from '../application/count-unread-alerts.use-case';
+import { SyncAlertsUseCase } from '../application/sync-alerts.use-case';
 import { UpdateAlertStatusUseCase } from '../application/update-alert-status.use-case';
 import { Alert } from '../domain/alert.entity';
 import { AlertsRepository } from '../domain/alerts.repository';
@@ -36,6 +37,7 @@ describe('Alerts HTTP contract', () => {
       Parameters<AlertsRepository['updateStatus']>
     >(),
   } satisfies jest.Mocked<AlertsRepository>;
+  const syncExecute = jest.fn();
   const alert: Alert = {
     id: '705e846a-12cd-4591-a060-8b07326c7528',
     type: 'LICENSE_EXPIRATION',
@@ -55,6 +57,7 @@ describe('Alerts HTTP contract', () => {
         ListAlertsUseCase,
         CountUnreadAlertsUseCase,
         UpdateAlertStatusUseCase,
+        { provide: SyncAlertsUseCase, useValue: { execute: syncExecute } },
         { provide: AlertsRepository, useValue: repository },
       ],
     })
@@ -81,6 +84,15 @@ describe('Alerts HTTP contract', () => {
   });
   beforeEach(() => jest.resetAllMocks());
   afterAll(() => app.close());
+
+  it('syncs only the logged-in owner and returns the counts', async () => {
+    syncExecute.mockResolvedValue({ created: 1, resolved: 0 });
+    const response = await request(app.getHttpServer())
+      .post('/api/alerts/sync')
+      .expect(200);
+    expect(response.body).toEqual({ created: 1, resolved: 0 });
+    expect(syncExecute).toHaveBeenCalledWith({ ownerUserId: 'owner' });
+  });
 
   it('uses default filters and serializes the paginated response', async () => {
     repository.list.mockResolvedValue({

@@ -16,14 +16,20 @@ describe('PrismaAlertRepository', () => {
   };
   const scopedWhere = {
     customer: { ownerUserId: 'owner', isDeleted: false },
-    license: { customer: { ownerUserId: 'owner', isDeleted: false } },
+    license: {
+      status: { not: 'ARCHIVED' },
+      customer: { ownerUserId: 'owner', isDeleted: false },
+    },
     dueDate: { not: null },
     OR: [
       { type: 'LICENSE_EXPIRATION', licenseConditionId: null },
       {
         type: 'CONDITION_DUE',
         licenseCondition: {
-          license: { customer: { ownerUserId: 'owner', isDeleted: false } },
+          license: {
+            status: { not: 'ARCHIVED' },
+            customer: { ownerUserId: 'owner', isDeleted: false },
+          },
         },
       },
     ],

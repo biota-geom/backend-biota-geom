@@ -46,12 +46,25 @@ type ConditionCreateInput = {
   };
 };
 
+const alertResolver = {
+  resolveForLicense: jest.fn(),
+  resolveForConditions: jest.fn(),
+};
+
 describe('PrismaLicenseRepository', () => {
+  beforeEach(() => {
+    alertResolver.resolveForLicense.mockReset().mockResolvedValue(0);
+    alertResolver.resolveForConditions.mockReset().mockResolvedValue(0);
+  });
+
   it('creates a license connected to its customer', async () => {
     const create = jest.fn().mockResolvedValue({ id: 'license-1' });
-    const repository = new PrismaLicenseRepository({
-      license: { create },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { create },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     const data: CreateLicenseData = {
       customerId: 'customer-1',
@@ -92,9 +105,12 @@ describe('PrismaLicenseRepository', () => {
         licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     const issueDate = new Date('2026-01-10T00:00:00.000Z');
     const expirationDate = new Date('2030-01-10T00:00:00.000Z');
@@ -131,6 +147,10 @@ describe('PrismaLicenseRepository', () => {
       where: { id: 'old-license' },
       data: { status: LicenseStatus.ARCHIVED },
     });
+    expect(alertResolver.resolveForLicense).toHaveBeenCalledWith(
+      'old-license',
+      expect.objectContaining({ license: { create, update } }),
+    );
   });
 
   it('copies legislation links to the renewed license and resets their read state', async () => {
@@ -162,9 +182,12 @@ describe('PrismaLicenseRepository', () => {
         licenseLegislation: { findMany, createMany },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.renew({ ...RENEWAL, conditions: [] });
 
@@ -238,9 +261,12 @@ describe('PrismaLicenseRepository', () => {
         licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
     const newDueDate = new Date('2027-10-01T00:00:00.000Z');
     const otherDueDate = new Date('2027-11-01T00:00:00.000Z');
 
@@ -348,9 +374,12 @@ describe('PrismaLicenseRepository', () => {
         licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.renew({
       ...RENEWAL,
@@ -394,9 +423,12 @@ describe('PrismaLicenseRepository', () => {
         licenseLegislation: { findMany: jest.fn().mockResolvedValue([]) },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
     const newDueDate = new Date('2027-10-01T00:00:00.000Z');
 
     await repository.renew({
@@ -440,9 +472,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.renew({
@@ -461,9 +496,12 @@ describe('PrismaLicenseRepository', () => {
         { id: 'c-1', name: 'Relatório', conditionStatus: 'IN_PROGRESS' },
       ],
     });
-    const repository = new PrismaLicenseRepository({
-      license: { findFirst },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findFirst },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.findByIdForOwnerWithConditions('license-1', 'owner-1'),
@@ -478,9 +516,12 @@ describe('PrismaLicenseRepository', () => {
   });
 
   it('returns null when the owner has no such license', async () => {
-    const repository = new PrismaLicenseRepository({
-      license: { findFirst: jest.fn().mockResolvedValue(null) },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findFirst: jest.fn().mockResolvedValue(null) },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.findByIdForOwnerWithConditions('license-1', 'owner-1'),
@@ -489,9 +530,12 @@ describe('PrismaLicenseRepository', () => {
 
   it('finds all licenses for a customer ordered by soonest expiration first', async () => {
     const findMany = jest.fn().mockResolvedValue([{ id: 'license-1' }]);
-    const repository = new PrismaLicenseRepository({
-      license: { findMany },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findMany },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(repository.findAllByCustomerId('customer-1')).resolves.toEqual(
       [{ id: 'license-1' }],
@@ -504,9 +548,12 @@ describe('PrismaLicenseRepository', () => {
 
   it('finds a license by id', async () => {
     const findUnique = jest.fn().mockResolvedValue({ id: 'license-1' });
-    const repository = new PrismaLicenseRepository({
-      license: { findUnique },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findUnique },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(repository.findById('license-1')).resolves.toEqual({
       id: 'license-1',
@@ -518,9 +565,12 @@ describe('PrismaLicenseRepository', () => {
 
   it('finds a license by id only when it belongs to the authenticated owner', async () => {
     const findFirst = jest.fn().mockResolvedValue({ id: 'license-1' });
-    const repository = new PrismaLicenseRepository({
-      license: { findFirst },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findFirst },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.findByIdForOwner('license-1', 'owner-1'),
@@ -536,9 +586,12 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({ licenseCondition: { aggregate, createMany } }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
     const condition = {
       licenseId: 'license-1',
       environmentalDescriptor: 'Resíduos',
@@ -573,9 +626,12 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({ licenseCondition: { createMany } }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(repository.createConditions([])).resolves.toEqual({
       count: 0,
@@ -588,9 +644,12 @@ describe('PrismaLicenseRepository', () => {
       id: 'license-1',
       conditions: [{ name: 'MTR', conditionStatus: 'IN_PROGRESS' }],
     });
-    const repository = new PrismaLicenseRepository({
-      license: { findFirst },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findFirst },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.findByIdForCustomer('license-1', 'customer-1'),
@@ -631,9 +690,12 @@ describe('PrismaLicenseRepository', () => {
       },
     ];
     const findMany = jest.fn().mockResolvedValue(licenses);
-    const repository = new PrismaLicenseRepository({
-      license: { findMany },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findMany },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.findCustomerLicenses('customer-1'),
@@ -674,9 +736,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.updateCondition({
@@ -701,9 +766,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.updateCondition({
@@ -728,9 +796,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.updateCondition({
       id: 'condition-1',
@@ -770,9 +841,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.updateCondition({
       id: 'condition-1',
@@ -813,9 +887,12 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({ licenseCondition: { findFirst, aggregate, update } }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.updateConditionForOwner('condition-1', 'owner-1', {
@@ -870,9 +947,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.updateConditionForOwner('condition-1', 'owner-1', {
       environmentalDescriptor: 'Water',
@@ -901,9 +981,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.updateConditionForOwner('condition-1', 'owner-1', {});
 
@@ -923,9 +1006,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.updateConditionForOwner('condition-1', 'owner-1', {}),
@@ -946,9 +1032,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.deleteCondition('condition-1', 'license-1', 'customer-1'),
@@ -964,9 +1053,12 @@ describe('PrismaLicenseRepository', () => {
         },
       }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.deleteCondition(
@@ -979,9 +1071,12 @@ describe('PrismaLicenseRepository', () => {
 
   it('returns null when license is not found for customer', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
-    const repository = new PrismaLicenseRepository({
-      license: { findFirst },
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        license: { findFirst },
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await expect(
       repository.findByIdForCustomer('missing-id', 'customer-1'),
@@ -993,9 +1088,12 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({ licenseCondition: { updateMany } }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.saveConditionsFulfillment({
       licenseId: 'license-1',
@@ -1033,6 +1131,9 @@ describe('PrismaLicenseRepository', () => {
         completionDate: null,
       },
     });
+    expect(alertResolver.resolveForConditions).toHaveBeenCalledWith(['c-1'], {
+      licenseCondition: { updateMany },
+    });
   });
 
   it('skips the reopen query when every condition was fulfilled', async () => {
@@ -1040,9 +1141,12 @@ describe('PrismaLicenseRepository', () => {
     const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
       callback({ licenseCondition: { updateMany } }),
     );
-    const repository = new PrismaLicenseRepository({
-      $transaction: transaction,
-    } as unknown as PrismaService);
+    const repository = new PrismaLicenseRepository(
+      {
+        $transaction: transaction,
+      } as unknown as PrismaService,
+      alertResolver,
+    );
 
     await repository.saveConditionsFulfillment({
       licenseId: 'license-1',
@@ -1051,5 +1155,84 @@ describe('PrismaLicenseRepository', () => {
     });
 
     expect(updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  describe('condition alerts on update', () => {
+    const current = {
+      id: 'condition-1',
+      licenseId: 'license-1',
+      dueDate: new Date('2026-11-10T00:00:00.000Z'),
+      conditionStatus: ConditionStatus.IN_PROGRESS as ConditionStatus,
+    };
+
+    function repositoryWith(found: typeof current) {
+      const client = {
+        licenseCondition: {
+          findFirst: jest.fn().mockResolvedValue(found),
+          update: jest.fn().mockResolvedValue({ ...found, name: 'Cond' }),
+        },
+      };
+      const repository = new PrismaLicenseRepository(
+        {
+          $transaction: jest.fn((callback: (tx: unknown) => unknown) =>
+            callback(client),
+          ),
+        } as unknown as PrismaService,
+        alertResolver,
+      );
+      return { repository, client };
+    }
+
+    it('resolves the condition alerts when its due date changes', async () => {
+      const { repository, client } = repositoryWith(current);
+
+      await repository.updateCondition({
+        id: 'condition-1',
+        licenseId: 'license-1',
+        customerId: 'customer-1',
+        data: { dueDate: new Date('2026-12-10T00:00:00.000Z') },
+      });
+
+      expect(alertResolver.resolveForConditions).toHaveBeenCalledWith(
+        ['condition-1'],
+        client,
+      );
+    });
+
+    it('resolves the condition alerts when an owner marks it fulfilled', async () => {
+      const { repository, client } = repositoryWith(current);
+
+      await repository.updateConditionForOwner('condition-1', 'owner-1', {
+        status: ConditionStatus.FULFILLED,
+      });
+
+      expect(alertResolver.resolveForConditions).toHaveBeenCalledWith(
+        ['condition-1'],
+        client,
+      );
+    });
+
+    it('keeps the alerts when neither the due date nor fulfillment changes', async () => {
+      const { repository } = repositoryWith({
+        ...current,
+        conditionStatus: ConditionStatus.FULFILLED,
+      });
+
+      await repository.updateCondition({
+        id: 'condition-1',
+        licenseId: 'license-1',
+        customerId: 'customer-1',
+        data: {
+          dueDate: new Date(current.dueDate),
+          status: ConditionStatus.FULFILLED,
+          title: 'Cond',
+        },
+      });
+      await repository.updateConditionForOwner('condition-1', 'owner-1', {
+        status: ConditionStatus.OVERDUE,
+      });
+
+      expect(alertResolver.resolveForConditions).not.toHaveBeenCalled();
+    });
   });
 });

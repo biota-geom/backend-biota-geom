@@ -12,6 +12,7 @@ function buildCondition(dueInDays: number, index: number): LicenseCondition {
   return {
     id: `condition-${index}`,
     licenseId: 'license-1',
+    parentConditionId: null,
     name: `Condicionante ${index}`,
     description: null,
     environmentalDescriptor: 'Emissões',

@@ -11,6 +11,7 @@ import { LicenseRepository } from '../domain/licenses.repository';
 
 export interface LicenseConditionToAdd {
   licenseId: string;
+  parentConditionId?: string | null;
   name: string;
   environmentalDescriptor: string;
   responsibleAgency: string;
@@ -67,6 +68,7 @@ export class AddLicenseConditionsUseCase {
     return this.licenseConditionRepository.addMany(
       input.conditions.map((condition) => ({
         ...condition,
+        parentConditionId: condition.parentConditionId ?? null,
         status: condition.status ?? LicenseConditionStatus.REGULAR,
         hasDelivery: condition.hasDelivery ?? true,
       })),

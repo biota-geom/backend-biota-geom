@@ -7,6 +7,7 @@ import { LicenseRepository } from '../domain/licenses.repository';
 import { RenewalConditionDecision } from '../domain/renew-license.data';
 import {
   assertEveryConditionDecided,
+  assertValidRenewalConditionHierarchy,
   assertValidRenewalDecisions,
 } from '../domain/renewal-conditions.policy';
 import { InvalidLicenseDateRangeError } from '../domain/errors/invalid-license-date-range.error';
@@ -54,6 +55,10 @@ export class RenewLicenseUseCase {
     // conditions can no longer change.
     assertEveryConditionDecided(
       previousLicense.conditions.map((condition) => condition.id),
+      input.conditions,
+    );
+    assertValidRenewalConditionHierarchy(
+      previousLicense.conditions,
       input.conditions,
     );
 

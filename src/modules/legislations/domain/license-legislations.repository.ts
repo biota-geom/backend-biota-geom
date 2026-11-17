@@ -1,24 +1,44 @@
 import { Injectable } from '@nestjs/common';
 import {
   CreateLicenseLegislationData,
+  ListLicenseLegislationsFilter,
   UpdateLicenseLegislationData,
 } from './legislation.data';
 import { LicenseLegislation } from './license-legislation.entity';
 
 @Injectable()
 export abstract class LicenseLegislationRepository {
-  /** Most recent legislation year first; ties keep the newest link first. */
-  abstract findAllByLicenseId(licenseId: string): Promise<LicenseLegislation[]>;
+  /**
+   * Most recent legislation year first; ties keep the newest link first.
+   * Optionally narrowed to one impact level.
+   */
+  abstract findAllByLicenseId(
+    licenseId: string,
+    filter?: ListLicenseLegislationsFilter,
+  ): Promise<LicenseLegislation[]>;
   abstract findByIdForLicense(
     id: string,
     licenseId: string,
   ): Promise<LicenseLegislation | null>;
+  abstract findByLicenseAndLegislation(
+    licenseId: string,
+    legislationId: string,
+  ): Promise<LicenseLegislation | null>;
+  /** How many licenses have the legislation on their radar. */
+  abstract countByLegislationId(legislationId: string): Promise<number>;
+  /** Throws LegislationAlreadyLinkedError when the license already links the act. */
   abstract create(
     data: CreateLicenseLegislationData,
   ): Promise<LicenseLegislation>;
+  /** Throws LegislationAlreadyLinkedError when relinking to an act the license already links. */
   abstract update(
     id: string,
     data: UpdateLicenseLegislationData,
+  ): Promise<LicenseLegislation>;
+  /** Sets readAt only when the link has not been read yet. */
+  abstract markAsReadIfUnread(
+    id: string,
+    readAt: Date,
   ): Promise<LicenseLegislation>;
   abstract delete(id: string): Promise<void>;
 }

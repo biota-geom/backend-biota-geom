@@ -5,6 +5,7 @@ import {
 } from '@prisma/client';
 
 export interface UpdateLicenseCondition {
+  parentConditionId?: string | null;
   title?: string;
   environmentalDescriptor?: string;
   description?: string;

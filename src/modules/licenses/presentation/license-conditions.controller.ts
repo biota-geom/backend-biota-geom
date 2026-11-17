@@ -144,6 +144,7 @@ export class LicenseConditionsController {
       conditions: [
         {
           licenseId: dto.license_id,
+          parentConditionId: dto.parent_condition_id ?? null,
           name: dto.name,
           environmentalDescriptor: dto.environmental_descriptor,
           responsibleAgency: dto.responsible_agency,
@@ -175,6 +176,9 @@ export class LicenseConditionsController {
       conditionId,
       user.id,
       {
+        ...(dto.parent_condition_id !== undefined
+          ? { parentConditionId: dto.parent_condition_id }
+          : {}),
         title: dto.name ?? dto.title,
         environmentalDescriptor: dto.environmental_descriptor,
         description: dto.description,

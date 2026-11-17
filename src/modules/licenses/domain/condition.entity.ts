@@ -8,6 +8,7 @@ import { License } from './license.entity';
 export interface LicenseCondition {
   id: string;
   licenseId: string;
+  parentConditionId: string | null;
   license?: License;
   title: string;
   environmentalDescriptor: string;

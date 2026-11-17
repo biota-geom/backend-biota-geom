@@ -35,5 +35,10 @@ export abstract class LicenseLegislationRepository {
     id: string,
     data: UpdateLicenseLegislationData,
   ): Promise<LicenseLegislation>;
+  /** Sets readAt only when the link has not been read yet. */
+  abstract markAsReadIfUnread(
+    id: string,
+    readAt: Date,
+  ): Promise<LicenseLegislation>;
   abstract delete(id: string): Promise<void>;
 }

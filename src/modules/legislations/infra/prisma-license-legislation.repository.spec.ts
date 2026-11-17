@@ -96,6 +96,30 @@ describe('PrismaLicenseLegislationRepository', () => {
     });
   });
 
+  it('sets read_at only if the link is still unread', async () => {
+    const readAt = new Date('2026-11-12T15:00:00.000Z');
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const findUniqueOrThrow = jest.fn().mockResolvedValue({
+      id: 'link-1',
+      readAt,
+    });
+
+    await expect(
+      build({ updateMany, findUniqueOrThrow }).markAsReadIfUnread(
+        'link-1',
+        readAt,
+      ),
+    ).resolves.toEqual({ id: 'link-1', readAt });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'link-1', readAt: null },
+      data: { readAt },
+    });
+    expect(findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: 'link-1' },
+      include: { legislation: true },
+    });
+  });
+
   it('deletes a link', async () => {
     const del = jest.fn().mockResolvedValue({});
 

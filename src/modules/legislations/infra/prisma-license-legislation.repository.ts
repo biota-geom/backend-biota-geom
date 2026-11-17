@@ -102,6 +102,21 @@ export class PrismaLicenseLegislationRepository implements LicenseLegislationRep
     }
   }
 
+  async markAsReadIfUnread(
+    id: string,
+    readAt: Date,
+  ): Promise<LicenseLegislation> {
+    await this.prisma.licenseLegislation.updateMany({
+      where: { id, readAt: null },
+      data: { readAt },
+    });
+
+    return this.prisma.licenseLegislation.findUniqueOrThrow({
+      where: { id },
+      include: WITH_LEGISLATION,
+    });
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.licenseLegislation.delete({ where: { id } });
   }

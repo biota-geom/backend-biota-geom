@@ -111,9 +111,7 @@ export class UpdateLicenseLegislationUseCase {
       data.impact = input.impact;
     }
 
-    if (input.read === true && link.readAt === null) {
-      data.readAt = new Date();
-    }
+    const markAsRead = input.read === true && link.readAt === null;
 
     if (input.citedExcerpt !== undefined) {
       data.citedExcerpt = input.citedExcerpt;
@@ -123,9 +121,26 @@ export class UpdateLicenseLegislationUseCase {
       data.legislationId = await this.editLegislation(link, input.legislation);
     }
 
-    if (Object.keys(data).length === 0) return link;
+    if (Object.keys(data).length === 0) {
+      return markAsRead
+        ? this.licenseLegislationRepository.markAsReadIfUnread(
+            link.id,
+            new Date(),
+          )
+        : link;
+    }
 
-    return this.licenseLegislationRepository.update(link.id, data);
+    const updated = await this.licenseLegislationRepository.update(
+      link.id,
+      data,
+    );
+
+    return markAsRead
+      ? this.licenseLegislationRepository.markAsReadIfUnread(
+          link.id,
+          new Date(),
+        )
+      : updated;
   }
 
   /** Returns the id of the act the entry points to after the edit. */

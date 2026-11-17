@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { LegislationImpact } from '@prisma/client';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
 import { LegislationAlreadyLinkedError } from '../domain/errors/legislation-already-linked.error';
@@ -16,7 +17,18 @@ import { LicenseLegislationRepository } from '../domain/license-legislations.rep
 export interface UpdateLicenseLegislationInput {
   citedExcerpt?: string | null;
   legislation?: CreateLegislationData;
+  /** undefined = leave as is, null = clear the classification. */
+  impact?: LegislationImpact | null;
+  /** true = mark as read (kept if it was already read). */
+  read?: boolean;
 }
+
+export type UpdateLicenseLegislationObjectInput =
+  UpdateLicenseLegislationInput & {
+    licenseId: string;
+    id: string;
+    ownerUserId: string;
+  };
 
 function sameIdentity(
   current: Legislation,
@@ -48,17 +60,34 @@ export class UpdateLicenseLegislationUseCase {
     private readonly licenseLegislationRepository: LicenseLegislationRepository,
   ) {}
 
-  /*
+  /**
    * Edits the cited excerpt of a radar entry and, when the act is on this
-   * license's radar only, the act itself. An act shared with other licenses
-   * stays untouched: editing it here would silently change their radars.
+   * license's radar only, the act itself. Also classifies the impact on the
+   * license and/or marks the entry as read.
    */
   async execute(
-    licenseId: string,
-    licenseLegislationId: string,
-    ownerUserId: string,
-    input: UpdateLicenseLegislationInput,
+    licenseIdOrInput: string | UpdateLicenseLegislationObjectInput,
+    maybeLicenseLegislationId?: string,
+    maybeOwnerUserId?: string,
+    maybeInput?: UpdateLicenseLegislationInput,
   ): Promise<LicenseLegislation> {
+    let licenseId: string;
+    let licenseLegislationId: string;
+    let ownerUserId: string;
+    let input: UpdateLicenseLegislationInput;
+
+    if (typeof licenseIdOrInput === 'object') {
+      licenseId = licenseIdOrInput.licenseId;
+      licenseLegislationId = licenseIdOrInput.id;
+      ownerUserId = licenseIdOrInput.ownerUserId;
+      input = licenseIdOrInput;
+    } else {
+      licenseId = licenseIdOrInput;
+      licenseLegislationId = maybeLicenseLegislationId!;
+      ownerUserId = maybeOwnerUserId!;
+      input = maybeInput ?? {};
+    }
+
     const license = await this.licenseRepository.findByIdForOwner(
       licenseId,
       ownerUserId,
@@ -69,17 +98,49 @@ export class UpdateLicenseLegislationUseCase {
       licenseLegislationId,
       license.id,
     );
-    if (!link) throw new LicenseLegislationNotFoundError(licenseLegislationId);
+    if (!link) {
+      throw new LicenseLegislationNotFoundError(
+        licenseLegislationId,
+        license.id,
+      );
+    }
 
     const data: UpdateLicenseLegislationData = {};
+
+    if (input.impact !== undefined) {
+      data.impact = input.impact;
+    }
+
+    const markAsRead = input.read === true && link.readAt === null;
+
     if (input.citedExcerpt !== undefined) {
       data.citedExcerpt = input.citedExcerpt;
     }
+
     if (input.legislation && hasChanged(link.legislation, input.legislation)) {
       data.legislationId = await this.editLegislation(link, input.legislation);
     }
 
-    return this.licenseLegislationRepository.update(link.id, data);
+    if (Object.keys(data).length === 0) {
+      return markAsRead
+        ? this.licenseLegislationRepository.markAsReadIfUnread(
+            link.id,
+            new Date(),
+          )
+        : link;
+    }
+
+    const updated = await this.licenseLegislationRepository.update(
+      link.id,
+      data,
+    );
+
+    return markAsRead
+      ? this.licenseLegislationRepository.markAsReadIfUnread(
+          link.id,
+          new Date(),
+        )
+      : updated;
   }
 
   /** Returns the id of the act the entry points to after the edit. */

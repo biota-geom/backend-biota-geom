@@ -1,4 +1,8 @@
-import { LicenseLegislationSource, Prisma } from '@prisma/client';
+import {
+  LegislationImpact,
+  LicenseLegislationSource,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { LegislationAlreadyLinkedError } from '../domain/errors/legislation-already-linked.error';
 import { PrismaLicenseLegislationRepository } from './prisma-license-legislation.repository';
@@ -25,6 +29,23 @@ describe('PrismaLicenseLegislationRepository', () => {
     ).resolves.toEqual([{ id: 'link-1' }]);
     expect(findMany).toHaveBeenCalledWith({
       where: { licenseId: 'license-1' },
+      include: { legislation: true },
+      orderBy: [
+        { legislation: { year: 'desc' } },
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+    });
+  });
+
+  it('narrows a license radar to one impact level', async () => {
+    const findMany = jest.fn().mockResolvedValue([]);
+
+    await build({ findMany }).findAllByLicenseId('license-1', {
+      impact: LegislationImpact.HIGH,
+    });
+    expect(findMany).toHaveBeenCalledWith({
+      where: { licenseId: 'license-1', impact: LegislationImpact.HIGH },
       include: { legislation: true },
       orderBy: [
         { legislation: { year: 'desc' } },
@@ -71,6 +92,30 @@ describe('PrismaLicenseLegislationRepository', () => {
     expect(update).toHaveBeenCalledWith({
       where: { id: 'link-1' },
       data: { readAt },
+      include: { legislation: true },
+    });
+  });
+
+  it('sets read_at only if the link is still unread', async () => {
+    const readAt = new Date('2026-11-12T15:00:00.000Z');
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const findUniqueOrThrow = jest.fn().mockResolvedValue({
+      id: 'link-1',
+      readAt,
+    });
+
+    await expect(
+      build({ updateMany, findUniqueOrThrow }).markAsReadIfUnread(
+        'link-1',
+        readAt,
+      ),
+    ).resolves.toEqual({ id: 'link-1', readAt });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'link-1', readAt: null },
+      data: { readAt },
+    });
+    expect(findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: 'link-1' },
       include: { legislation: true },
     });
   });

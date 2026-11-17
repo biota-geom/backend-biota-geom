@@ -10,7 +10,6 @@ import { CreateLicenseLegislationsDto } from './dto/create-license-legislations.
 import { RemoveLicenseLegislationUseCase } from '../application/remove-license-legislation.use-case';
 import { UpdateLicenseLegislationUseCase } from '../application/update-license-legislation.use-case';
 import { LicenseLegislationsController } from './license-legislations.controller';
-import { AddLicenseLegislationUseCase } from '../application/add-license-legislation.use-case';
 
 const LINK = {
   id: 'link-1',

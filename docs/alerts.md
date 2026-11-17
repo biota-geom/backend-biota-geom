@@ -53,6 +53,16 @@ Swagger is available at `/api/docs`. Run `npm run lint`, `npm run build`, and
 PostgreSQL database, run `npm run test:e2e -- --runInBand alerts.e2e-spec.ts` for
 HTTP contracts, tenant isolation, ordering, deduplication, Swagger and seed behavior.
 
+## Condition alerts in the daily sync
+
+`ConditionDueAlertGenerator` is the `CONDITION_DUE` step of `SyncAlertsUseCase`.
+It skips fulfilled conditions, conditions of archived licenses and deleted
+customers. The risk from `calculateLicenseConditionRiskLevel` sets the severity:
+`RISK` (overdue or due within 7 days) is `HIGH` and `ATTENTION` (within 30 days)
+is `MEDIUM`. A `REGULAR` condition whose `alert_date` is today or earlier gets a
+`LOW` reminder. The dedupe key carries the severity and due date, so when the
+severity rises or the due date moves the previous alert is resolved.
+
 Automatic generation, email delivery, and resolution triggered by license renewal
 or condition fulfillment belong to subsequent notification tasks. `AlertsModule`
 does not import `LicensesModule`; it exports the repository port for integration.

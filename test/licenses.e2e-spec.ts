@@ -1383,4 +1383,131 @@ describe('Licenses (e2e)', () => {
       }
     });
   });
+  describe('alert resolution', () => {
+    let licenseId: string;
+    let conditionId: string;
+    let licenseAlertId: string;
+    let conditionAlertId: string;
+    const dueDate = new Date('2026-11-10T00:00:00.000Z');
+
+    async function unreadCount(): Promise<number> {
+      const response = await request(app.getHttpServer())
+        .get('/api/alerts/unread-count')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      return (response.body as { count: number }).count;
+    }
+
+    async function statusOf(id: string) {
+      const alert = await prisma.alert.findUniqueOrThrow({ where: { id } });
+      return alert.status;
+    }
+
+    beforeEach(async () => {
+      const license = await createLicenseRequest({
+        process_number: `LO com alertas-${uniqueSuffix()}`,
+        expiration_date: dueDate.toISOString(),
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'licenca.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+      licenseId = (license.body as { id: string }).id;
+
+      const condition = await prisma.licenseCondition.create({
+        data: {
+          licenseId,
+          name: `Condicionante com alerta ${uniqueSuffix()}`,
+          environmentalDescriptor: 'Recursos Hídricos',
+          responsibleAgency: 'FEPAM',
+          dueDate,
+        },
+      });
+      conditionId = condition.id;
+
+      const [licenseAlert, conditionAlert] = await prisma.$transaction([
+        prisma.alert.create({
+          data: {
+            type: 'LICENSE_EXPIRATION',
+            severity: 'HIGH',
+            dueDate,
+            customerId,
+            licenseId,
+            dedupeKey: `LICENSE_EXPIRATION:${licenseId}:HIGH:2026-11-10`,
+          },
+        }),
+        prisma.alert.create({
+          data: {
+            type: 'CONDITION_DUE',
+            severity: 'HIGH',
+            status: 'READ',
+            dueDate,
+            customerId,
+            licenseId,
+            licenseConditionId: conditionId,
+            dedupeKey: `CONDITION_DUE:${conditionId}:HIGH:2026-11-10`,
+          },
+        }),
+      ]);
+      licenseAlertId = licenseAlert.id;
+      conditionAlertId = conditionAlert.id;
+    });
+
+    it('resolves the condition alert when it is marked as fulfilled', async () => {
+      await prisma.alert.update({
+        where: { id: conditionAlertId },
+        data: { status: 'OPEN' },
+      });
+      const before = await unreadCount();
+
+      await request(app.getHttpServer())
+        .patch(
+          `/api/customers/${customerId}/licenses/${licenseId}/conditions/fulfillment`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ items: [{ condition_id: conditionId, fulfilled: true }] })
+        .expect(204);
+
+      expect(await statusOf(conditionAlertId)).toBe('RESOLVED');
+      expect(await statusOf(licenseAlertId)).toBe('OPEN');
+      expect(await unreadCount()).toBe(before - 1);
+    });
+
+    it('resolves the old condition alert when its due date changes', async () => {
+      await request(app.getHttpServer())
+        .put(
+          `/api/customers/${customerId}/licenses/${licenseId}/conditions/${conditionId}`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ due_date: '2026-12-10T00:00:00.000Z' })
+        .expect(200);
+
+      expect(await statusOf(conditionAlertId)).toBe('RESOLVED');
+      expect(await statusOf(licenseAlertId)).toBe('OPEN');
+    });
+
+    it('resolves the license and condition alerts when the license is renewed', async () => {
+      await request(app.getHttpServer())
+        .post(`/api/licenses/${licenseId}/renew`)
+        .set('Authorization', `Bearer ${token}`)
+        .field('process_number', `LO renovada-${uniqueSuffix()}`)
+        .field('issue_date', '2026-01-10T00:00:00.000Z')
+        .field('expiration_date', '2099-01-10T00:00:00.000Z')
+        .field(
+          'conditions',
+          JSON.stringify([
+            { condition_id: conditionId, fulfilled: false, copy_to_new: false },
+          ]),
+        )
+        .attach('document_file', PDF_HEADER, {
+          filename: 'renovada.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      expect(await statusOf(licenseAlertId)).toBe('RESOLVED');
+      expect(await statusOf(conditionAlertId)).toBe('RESOLVED');
+    });
+  });
 });

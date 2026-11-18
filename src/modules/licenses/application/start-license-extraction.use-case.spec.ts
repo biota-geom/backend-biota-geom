@@ -15,6 +15,7 @@ const EXTRACTION: LicenseExtraction = {
     expirationDate: null,
   },
   suggestedConditions: [],
+  suggestedLegislations: [],
 };
 
 function build(extraction: jest.Mock) {

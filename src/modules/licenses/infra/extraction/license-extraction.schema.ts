@@ -1,9 +1,16 @@
-import { ConditionPeriodicity, ConditionType } from '@prisma/client';
+import {
+  ConditionPeriodicity,
+  ConditionType,
+  LegislationImpact,
+  LegislationType,
+  LicenseLegislationSource,
+} from '@prisma/client';
 import { z } from 'zod';
 import { UnreadableLicenseDocumentError } from '../../domain/errors/unreadable-license-document.error';
 import {
   LicenseExtraction,
   SuggestedCondition,
+  SuggestedLegislation,
 } from '../../domain/license-extraction';
 
 // Same limits the registration form and the batch condition DTO enforce, so a
@@ -14,6 +21,11 @@ const MAX_TYPE_LENGTH = 50;
 const MAX_PROCESS_NUMBER_LENGTH = 100;
 const MAX_AGENCY_LENGTH = 150;
 const MAX_CONDITIONS = 200;
+// Same limits as the radar's batch route (CreateLicenseLegislationsDto).
+const MAX_LEGISLATION_NUMBER_LENGTH = 50;
+const MAX_LEGISLATION_BODY_LENGTH = 150;
+const MAX_LEGISLATION_TEXT_LENGTH = 4095;
+const MAX_LEGISLATIONS = 50;
 
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -30,7 +42,7 @@ const nullable = (schema: Record<string, unknown>) => ({
 export const LICENSE_EXTRACTION_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['extracted_data', 'sections'],
+  required: ['extracted_data', 'sections', 'legislations'],
   properties: {
     extracted_data: {
       type: 'object',
@@ -85,6 +97,34 @@ export const LICENSE_EXTRACTION_OUTPUT_SCHEMA = {
               },
             },
           },
+        },
+      },
+    },
+    legislations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'type',
+          'number',
+          'year',
+          'issuing_body',
+          'summary',
+          'cited_excerpt',
+          'impact',
+        ],
+        properties: {
+          type: { type: 'string', enum: Object.values(LegislationType) },
+          number: { type: 'string' },
+          year: { type: 'integer' },
+          issuing_body: { type: 'string' },
+          summary: nullable({ type: 'string' }),
+          cited_excerpt: nullable({ type: 'string' }),
+          impact: nullable({
+            type: 'string',
+            enum: Object.values(LegislationImpact),
+          }),
         },
       },
     },
@@ -175,9 +215,33 @@ const sectionSchema = z.object({
   items: z.array(z.unknown()).catch([]).default([]),
 });
 
+// Printed as "Lei nº 12.305/2010": the number is "12.305", without the
+// "nº" marker and without the year.
+const LEGISLATION_NUMBER_MARKER = /^(?:n\.?\s*[º°o]|n[º°o])\.?\s*/i;
+
+// Unlike the license fields, every field that identifies the act is required:
+// an act that cannot be identified is dropped, never completed by a guess.
+const legislationSchema = z.object({
+  type: z.enum(LegislationType),
+  number: z
+    .string()
+    .transform(collapseSpaces)
+    .transform((value) => value.replace(LEGISLATION_NUMBER_MARKER, ''))
+    .pipe(z.string().min(1).max(MAX_LEGISLATION_NUMBER_LENGTH)),
+  year: z.number().int().min(1000).max(9999),
+  issuing_body: z
+    .string()
+    .transform(collapseSpaces)
+    .pipe(z.string().min(1).max(MAX_LEGISLATION_BODY_LENGTH)),
+  summary: nullableText(MAX_LEGISLATION_TEXT_LENGTH).default(null),
+  cited_excerpt: nullableText(MAX_LEGISLATION_TEXT_LENGTH).default(null),
+  impact: nullableEnum(LegislationImpact).default(null),
+});
+
 const modelAnswerSchema = z.object({
   extracted_data: extractedDataSchema,
   sections: z.array(z.unknown()).catch([]).default([]),
+  legislations: z.array(z.unknown()).catch([]).default([]),
 });
 
 type ParsedItem = z.output<typeof itemSchema> & {
@@ -287,6 +351,55 @@ function flattenSections(sections: unknown[]): ParsedItem[] {
   return items;
 }
 
+function legislationKey({
+  type,
+  number,
+  year,
+  issuing_body: issuingBody,
+}: z.output<typeof legislationSchema>): string {
+  return [type, number, year, issuingBody]
+    .map((part) => String(part).toLocaleLowerCase('pt-BR'))
+    .join('|');
+}
+
+/*
+ * One entry per act: the model can list the same law once per mention, and the
+ * radar holds a single link per act and license. The first mention wins.
+ */
+function toSuggestedLegislations(
+  legislations: unknown[],
+): SuggestedLegislation[] {
+  const seen = new Set<string>();
+  const suggestions: SuggestedLegislation[] = [];
+
+  for (const raw of legislations) {
+    // An act that does not validate is left out instead of invalidating the
+    // rest of the list.
+    const parsed = legislationSchema.safeParse(raw);
+    if (!parsed.success) continue;
+
+    const key = legislationKey(parsed.data);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const { cited_excerpt: citedExcerpt, impact, ...act } = parsed.data;
+    suggestions.push({
+      legislation: {
+        type: act.type,
+        number: act.number,
+        year: act.year,
+        issuingBody: act.issuing_body,
+        summary: act.summary,
+      },
+      citedExcerpt,
+      source: LicenseLegislationSource.SCAN,
+      impact,
+    });
+  }
+
+  return suggestions.slice(0, MAX_LEGISLATIONS);
+}
+
 export function parseLicenseExtraction(text: string): LicenseExtraction {
   const result = modelAnswerSchema.safeParse(extractJsonObject(text));
 
@@ -296,7 +409,7 @@ export function parseLicenseExtraction(text: string): LicenseExtraction {
     );
   }
 
-  const { extracted_data: data, sections } = result.data;
+  const { extracted_data: data, sections, legislations } = result.data;
   const items = flattenSections(sections);
   const descriptions = withParentContext(items);
 
@@ -311,5 +424,6 @@ export function parseLicenseExtraction(text: string): LicenseExtraction {
     suggestedConditions: items
       .map((item, index) => toSuggestedCondition(item, descriptions[index]))
       .slice(0, MAX_CONDITIONS),
+    suggestedLegislations: toSuggestedLegislations(legislations),
   };
 }

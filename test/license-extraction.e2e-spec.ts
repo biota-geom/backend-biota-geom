@@ -44,6 +44,7 @@ const EXTRACTION: LicenseExtraction = {
     issueDate: '2020-01-10',
     expirationDate: '2035-01-10',
   },
+  suggestedLegislations: [],
   suggestedConditions: [
     {
       environmentalDescriptor: 'Resíduos Sólidos',

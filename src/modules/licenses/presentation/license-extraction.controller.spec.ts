@@ -50,6 +50,7 @@ describe('LicenseExtractionController', () => {
           issueDate: '2020-01-10',
           expirationDate: '2025-01-10',
         },
+        suggestedLegislations: [],
         suggestedConditions: [
           {
             environmentalDescriptor: 'Resíduos Sólidos',

@@ -41,6 +41,17 @@ const MODEL_ANSWER = JSON.stringify({
       ],
     },
   ],
+  legislations: [
+    {
+      type: 'LEI',
+      number: '12.305',
+      year: 2010,
+      issuing_body: 'Governo Federal',
+      summary: null,
+      cited_excerpt: '…conforme a Lei nº 12.305/2010…',
+      impact: 'HIGH',
+    },
+  ],
 });
 
 function message(
@@ -89,6 +100,22 @@ describe('BedrockLicenseDocumentExtractor', () => {
     jest.clearAllMocks();
   });
 
+  it('asks the model for the cited legislation and requires it in the answer', () => {
+    expect(LICENSE_EXTRACTION_SYSTEM_PROMPT).toContain('<legislations>');
+    expect(LICENSE_EXTRACTION_OUTPUT_SCHEMA.required).toContain('legislations');
+    expect(
+      LICENSE_EXTRACTION_OUTPUT_SCHEMA.properties.legislations.items.required,
+    ).toEqual([
+      'type',
+      'number',
+      'year',
+      'issuing_body',
+      'summary',
+      'cited_excerpt',
+      'impact',
+    ]);
+  });
+
   it('sends the PDF to the configured Claude model and returns the validated suggestions', async () => {
     answers(message(MODEL_ANSWER));
 
@@ -102,6 +129,20 @@ describe('BedrockLicenseDocumentExtractor', () => {
       expirationDate: '2025-01-10',
     });
     expect(result.suggestedConditions).toHaveLength(1);
+    expect(result.suggestedLegislations).toEqual([
+      {
+        legislation: {
+          type: 'LEI',
+          number: '12.305',
+          year: 2010,
+          issuingBody: 'Governo Federal',
+          summary: null,
+        },
+        citedExcerpt: '…conforme a Lei nº 12.305/2010…',
+        source: 'SCAN',
+        impact: 'HIGH',
+      },
+    ]);
 
     const [params, options] = stream.mock.calls[0] as [
       Anthropic.MessageCreateParams,

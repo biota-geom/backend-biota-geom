@@ -374,6 +374,54 @@ describe('License legislations (e2e)', () => {
         .expect(200);
     });
 
+    it('saves, shows and clears the technical analysis', async () => {
+      const licenseId = await createLicense();
+      const created = await add(licenseId, {
+        legislation: actData(uniqueSuffix()),
+      });
+      expect(created).toMatchObject({ technical_analysis: null });
+
+      const text = 'Exige novo plano de gerenciamento de resíduos.';
+      const saved = await request(app.getHttpServer())
+        .patch(`${base(licenseId)}/${created.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ technical_analysis: `  ${text}  ` })
+        .expect(200);
+      expect(saved.body).toMatchObject({ technical_analysis: text });
+
+      const listed = await request(app.getHttpServer())
+        .get(base(licenseId))
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect((listed.body as unknown[])[0]).toMatchObject({
+        technical_analysis: text,
+      });
+
+      await request(app.getHttpServer())
+        .patch(`${base(licenseId)}/${created.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ technical_analysis: '' })
+        .expect(200)
+        .expect((res) => {
+          expect(
+            (res.body as { technical_analysis: unknown }).technical_analysis,
+          ).toBeNull();
+        });
+    });
+
+    it('rejects a technical analysis over 10.000 characters', async () => {
+      const licenseId = await createLicense();
+      const created = await add(licenseId, {
+        legislation: actData(uniqueSuffix()),
+      });
+
+      await request(app.getHttpServer())
+        .patch(`${base(licenseId)}/${created.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ technical_analysis: 'a'.repeat(10001) })
+        .expect(400);
+    });
+
     it('removes the entry without touching other licenses or the catalog', async () => {
       const number = uniqueSuffix();
       const licenseId = await createLicense();

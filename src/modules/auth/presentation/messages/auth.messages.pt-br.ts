@@ -34,3 +34,13 @@ export const AUTH_MESSAGES = {
   DOCUMENT_FOLDER_ALREADY_EXISTS:
     'Já existe uma pasta com este nome neste local.',
 } as const;
+
+export const ALERT_MESSAGES = {
+  NOT_FOUND: 'Notificação não encontrada.',
+  LICENSE_EXPIRED: 'Licença vencida',
+  LICENSE_DUE: (days: number) => `Licença vence em ${days} dias`,
+  CONDITION_REMINDER: 'Lembrete de condicionante',
+  CONDITION_EXPIRED: 'Condicionante vencida',
+  CONDITION_DUE: (days: number) => `Condicionante vence em ${days} dias`,
+  CONDITION_MESSAGE: (name: string, license: string) => `${name} — ${license}`,
+} as const;

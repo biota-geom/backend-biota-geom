@@ -8,7 +8,7 @@ import { LegislationsModule } from './legislations.module';
 import { LicenseLegislationsController } from './presentation/license-legislations.controller';
 
 describe('LegislationsModule', () => {
-  it('exposes the repositories and the radar route', () => {
+  it('exposes the repositories and the radar routes', () => {
     expect(Reflect.getMetadata('exports', LegislationsModule)).toEqual([
       LegislationRepository,
       LicenseLegislationRepository,

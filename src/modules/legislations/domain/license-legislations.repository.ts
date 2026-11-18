@@ -1,14 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import {
   CreateLicenseLegislationData,
+  ListLicenseLegislationsFilter,
   UpdateLicenseLegislationData,
 } from './legislation.data';
 import { LicenseLegislation } from './license-legislation.entity';
 
 @Injectable()
 export abstract class LicenseLegislationRepository {
-  /** Most recent legislation year first; ties keep the newest link first. */
-  abstract findAllByLicenseId(licenseId: string): Promise<LicenseLegislation[]>;
+  /**
+   * Most recent legislation year first; ties keep the newest link first.
+   * Optionally narrowed to one impact level.
+   */
+  abstract findAllByLicenseId(
+    licenseId: string,
+    filter?: ListLicenseLegislationsFilter,
+  ): Promise<LicenseLegislation[]>;
   abstract findByIdForLicense(
     id: string,
     licenseId: string,
@@ -27,6 +34,11 @@ export abstract class LicenseLegislationRepository {
   abstract update(
     id: string,
     data: UpdateLicenseLegislationData,
+  ): Promise<LicenseLegislation>;
+  /** Sets readAt only when the link has not been read yet. */
+  abstract markAsReadIfUnread(
+    id: string,
+    readAt: Date,
   ): Promise<LicenseLegislation>;
   abstract delete(id: string): Promise<void>;
 }

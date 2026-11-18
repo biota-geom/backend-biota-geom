@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { LegislationType } from '@prisma/client';
+import { Legislation } from '../../domain/legislation.entity';
 
 export class LegislationResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -23,4 +24,17 @@ export class LegislationResponseDto {
     example: 'Institui a Política Nacional de Resíduos Sólidos.',
   })
   summary!: string | null;
+}
+
+export function toLegislationResponse(
+  legislation: Legislation,
+): LegislationResponseDto {
+  return {
+    id: legislation.id,
+    type: legislation.type,
+    number: legislation.number,
+    year: legislation.year,
+    issuing_body: legislation.issuingBody,
+    summary: legislation.summary,
+  };
 }

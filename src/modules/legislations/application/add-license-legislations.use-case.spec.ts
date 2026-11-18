@@ -3,9 +3,10 @@ import {
   LegislationType,
   LicenseLegislationSource,
 } from '@prisma/client';
-import { NotFoundException } from '@nestjs/common';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
+import { InvalidLegislationReferenceError } from '../domain/errors/invalid-legislation-reference.error';
+import { LegislationNotFoundError } from '../domain/errors/legislation-not-found.error';
 import { LegislationRepository } from '../domain/legislations.repository';
 import { LicenseLegislationRepository } from '../domain/license-legislations.repository';
 import { AddLicenseLegislationsUseCase } from './add-license-legislations.use-case';
@@ -115,7 +116,7 @@ describe('AddLicenseLegislationsUseCase', () => {
           source: LicenseLegislationSource.MANUAL,
         },
       ]),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(LegislationNotFoundError);
     expect(createMany).not.toHaveBeenCalled();
   });
 
@@ -132,7 +133,7 @@ describe('AddLicenseLegislationsUseCase', () => {
       useCase.execute('license-1', 'user-1', [
         { source: LicenseLegislationSource.MANUAL },
       ]),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    ).rejects.toBeInstanceOf(InvalidLegislationReferenceError);
     expect(createMany).not.toHaveBeenCalled();
   });
 });

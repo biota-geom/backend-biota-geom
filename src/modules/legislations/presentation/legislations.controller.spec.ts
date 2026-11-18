@@ -10,7 +10,7 @@ describe('LegislationsController', () => {
         type: LegislationType.RESOLUCAO,
         number: '237',
         year: 1997,
-        issuing_body: 'CONAMA',
+        issuingBody: 'CONAMA',
         summary: 'Licenciamento ambiental.',
       },
     ]);

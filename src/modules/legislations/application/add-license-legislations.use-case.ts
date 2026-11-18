@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
+import { InvalidLegislationReferenceError } from '../domain/errors/invalid-legislation-reference.error';
+import { LegislationNotFoundError } from '../domain/errors/legislation-not-found.error';
 import {
   CreateLicenseLegislationBatchItem,
   CreateLicenseLegislationData,
@@ -30,18 +32,20 @@ export class AddLicenseLegislationsUseCase {
 
     const linkData: CreateLicenseLegislationData[] = [];
     for (const item of legislations) {
-      let legislationId = item.legislationId;
+      if (Boolean(item.legislationId) === Boolean(item.legislation)) {
+        throw new InvalidLegislationReferenceError();
+      }
+
+      let legislationId = item.legislationId as string;
       if (item.legislation) {
         const legislation = await this.legislationRepository.findOrCreate(
           item.legislation,
         );
         legislationId = legislation.id;
-      } else if (legislationId) {
+      } else {
         const legislation =
           await this.legislationRepository.findById(legislationId);
-        if (!legislation) throw new NotFoundException();
-      } else {
-        throw new NotFoundException();
+        if (!legislation) throw new LegislationNotFoundError(legislationId);
       }
 
       linkData.push({

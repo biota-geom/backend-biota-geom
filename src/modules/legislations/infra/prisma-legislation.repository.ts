@@ -55,9 +55,11 @@ export class PrismaLegislationRepository implements LegislationRepository {
           ...(isYear ? [{ year: { equals: yearNumber } }] : []),
         ],
       },
+      orderBy: [{ year: 'desc' }, { number: 'asc' }, { id: 'asc' }],
       take: 10,
     });
   }
+
   async update(id: string, data: CreateLegislationData): Promise<Legislation> {
     return this.prisma.legislation.update({ where: { id }, data });
   }

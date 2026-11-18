@@ -19,16 +19,7 @@ describe('SearchLegislationsUseCase', () => {
       findAllBySearch,
     } as unknown as LegislationRepository);
 
-    await expect(useCase.execute('12.305')).resolves.toEqual([
-      {
-        id: 'legislation-1',
-        type: 'RESOLUCAO',
-        number: '237',
-        year: 1997,
-        issuing_body: 'CONAMA',
-        summary: 'Licenciamento ambiental.',
-      },
-    ]);
+    await expect(useCase.execute('12.305')).resolves.toEqual(legislations);
     expect(findAllBySearch).toHaveBeenCalledWith('12.305');
   });
 });

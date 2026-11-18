@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsEnum,
@@ -111,9 +112,14 @@ export class CreateLicenseLegislationDto {
 }
 
 export class CreateLicenseLegislationsDto {
-  @ApiProperty({ type: CreateLicenseLegislationDto, isArray: true })
+  @ApiProperty({
+    type: CreateLicenseLegislationDto,
+    isArray: true,
+    maxItems: 50,
+  })
   @IsArray()
   @ArrayNotEmpty()
+  @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => CreateLicenseLegislationDto)
   legislations!: CreateLicenseLegislationDto[];

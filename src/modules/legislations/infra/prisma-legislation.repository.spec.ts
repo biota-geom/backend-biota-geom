@@ -24,6 +24,7 @@ describe('PrismaLegislationRepository', () => {
           { summary: { contains: '12.305', mode: 'insensitive' } },
         ],
       },
+      orderBy: [{ year: 'desc' }, { number: 'asc' }, { id: 'asc' }],
       take: 10,
     });
   });
@@ -44,6 +45,7 @@ describe('PrismaLegislationRepository', () => {
           { year: { equals: 1997 } },
         ],
       },
+      orderBy: [{ year: 'desc' }, { number: 'asc' }, { id: 'asc' }],
       take: 10,
     });
   });
@@ -63,6 +65,7 @@ describe('PrismaLegislationRepository', () => {
           { summary: { contains: 'CONAMA', mode: 'insensitive' } },
         ],
       },
+      orderBy: [{ year: 'desc' }, { number: 'asc' }, { id: 'asc' }],
       take: 10,
     });
   });

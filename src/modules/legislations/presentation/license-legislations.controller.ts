@@ -89,9 +89,17 @@ export class LicenseLegislationsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiParam({ name: 'licenseId', format: 'uuid' })
-  @ApiOperation({ summary: 'Adiciona várias legislações ao radar da licença.' })
+  @ApiOperation({
+    summary:
+      'Adiciona várias legislações ao radar da licença. Legislações já vinculadas são ignoradas (idempotente) e devolvem o vínculo existente.',
+  })
   @ApiCreatedResponse({ type: LicenseLegislationResponseDto, isArray: true })
-  @ApiNotFoundResponse({ description: 'License not found.' })
+  @ApiBadRequestResponse({
+    description: 'Invalid body or legislation reference.',
+  })
+  @ApiNotFoundResponse({
+    description: 'License or catalog legislation not found.',
+  })
   async addLicenseLegislations(
     @Param('licenseId', uuidPipe) licenseId: string,
     @CurrentUser() user: { id: string },
@@ -105,6 +113,7 @@ export class LicenseLegislationsController {
 
     return links.map(toLicenseLegislationResponse);
   }
+
   @Post()
   @ApiOperation({
     summary:

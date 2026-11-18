@@ -1,28 +1,33 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { LicensesModule } from '../licenses/licenses.module';
-import { AddLicenseLegislationUseCase } from './application/add-license-legislation.use-case';
+import { AddLicenseLegislationsUseCase } from './application/add-license-legislations.use-case';
 import { ListLicenseLegislationsUseCase } from './application/list-license-legislations.use-case';
+import { SearchLegislationsUseCase } from './application/search-legislations.use-case';
 import { RemoveLicenseLegislationUseCase } from './application/remove-license-legislation.use-case';
 import { UpdateLicenseLegislationUseCase } from './application/update-license-legislation.use-case';
 import { LegislationRepository } from './domain/legislations.repository';
 import { LicenseLegislationRepository } from './domain/license-legislations.repository';
 import { PrismaLegislationRepository } from './infra/prisma-legislation.repository';
 import { PrismaLicenseLegislationRepository } from './infra/prisma-license-legislation.repository';
+import { LegislationsController } from './presentation/legislations.controller';
 import { LicenseLegislationsController } from './presentation/license-legislations.controller';
+import { AddLicenseLegislationUseCase } from './application/add-license-legislation.use-case';
 
 // License radar: the legislations each license cites. LicensesModule provides
 // the license ownership check every radar route runs first.
 @Module({
   imports: [AuthModule, LicensesModule],
-  controllers: [LicenseLegislationsController],
+  controllers: [LicenseLegislationsController, LegislationsController],
   providers: [
     { provide: LegislationRepository, useClass: PrismaLegislationRepository },
     {
       provide: LicenseLegislationRepository,
       useClass: PrismaLicenseLegislationRepository,
     },
+    AddLicenseLegislationsUseCase,
     ListLicenseLegislationsUseCase,
+    SearchLegislationsUseCase,
     AddLicenseLegislationUseCase,
     UpdateLicenseLegislationUseCase,
     RemoveLicenseLegislationUseCase,

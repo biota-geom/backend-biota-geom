@@ -24,6 +24,14 @@ export interface CreateLicenseLegislationData {
   technicalAnalysis?: string | null;
 }
 
+export interface CreateLicenseLegislationBatchItem {
+  legislationId?: string;
+  legislation?: CreateLegislationData;
+  source: LicenseLegislationSource;
+  citedExcerpt?: string | null;
+  impact?: LegislationImpact | null;
+}
+
 export interface ListLicenseLegislationsFilter {
   impact?: LegislationImpact;
 }

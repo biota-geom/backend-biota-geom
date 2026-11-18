@@ -17,6 +17,8 @@ import { LicenseLegislationRepository } from '../domain/license-legislations.rep
 export interface UpdateLicenseLegislationInput {
   citedExcerpt?: string | null;
   legislation?: CreateLegislationData;
+  /** undefined = leave as is, null = clear the technical analysis. */
+  technicalAnalysis?: string | null;
   /** undefined = leave as is, null = clear the classification. */
   impact?: LegislationImpact | null;
   /** true = mark as read (kept if it was already read). */
@@ -61,7 +63,7 @@ export class UpdateLicenseLegislationUseCase {
   ) {}
 
   /**
-   * Edits the cited excerpt of a radar entry and, when the act is on this
+   * Edits the cited excerpt and the technical analysis of a radar entry and, when the act is on this
    * license's radar only, the act itself. Also classifies the impact on the
    * license and/or marks the entry as read.
    */
@@ -109,6 +111,10 @@ export class UpdateLicenseLegislationUseCase {
 
     if (input.impact !== undefined) {
       data.impact = input.impact;
+    }
+
+    if (input.technicalAnalysis !== undefined) {
+      data.technicalAnalysis = input.technicalAnalysis;
     }
 
     const markAsRead = input.read === true && link.readAt === null;

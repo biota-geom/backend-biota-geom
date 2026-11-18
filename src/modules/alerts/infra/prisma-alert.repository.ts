@@ -43,6 +43,9 @@ export class PrismaAlertRepository implements AlertsRepository {
     const where: Prisma.AlertWhereInput = {
       ...this.visibleTo(ownerUserId),
       status: { in: query.status },
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      ...(query.type ? { type: { in: query.type } } : {}),
+      ...(query.severity ? { severity: { in: query.severity } } : {}),
     };
     const [rows, total] = await this.prisma.$transaction(
       [
@@ -70,6 +73,18 @@ export class PrismaAlertRepository implements AlertsRepository {
     return this.prisma.alert.count({
       where: { ...this.visibleTo(ownerUserId), status: 'OPEN' },
     });
+  }
+
+  async markAllRead(ownerUserId: string, customerId?: string) {
+    const result = await this.prisma.alert.updateMany({
+      where: {
+        ...this.visibleTo(ownerUserId),
+        status: 'OPEN',
+        ...(customerId ? { customerId } : {}),
+      },
+      data: { status: 'READ' },
+    });
+    return result.count;
   }
 
   async updateStatus(

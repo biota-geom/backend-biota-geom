@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { ListAlertsQueryDto } from './list-alerts-query.dto';
+import { ReadAllAlertsQueryDto } from './read-all-alerts-query.dto';
 import { UpdateAlertStatusDto } from './update-alert-status.dto';
 import { toAlertResponse } from './alert-response.dto';
 import { Alert } from '../../domain/alert.entity';
@@ -40,10 +41,42 @@ describe('Alert DTOs', () => {
     });
   });
 
+  it('parses company, type and comma-separated severity filters', async () => {
+    const query = plainToInstance(ListAlertsQueryDto, {
+      customer_id: '705e846a-12cd-4591-a060-8b07326c7528',
+      type: 'LICENSE_EXPIRATION, CONDITION_DUE',
+      severity: 'HIGH,MEDIUM',
+    });
+    expect(await validate(query)).toEqual([]);
+    expect(query).toMatchObject({
+      customer_id: '705e846a-12cd-4591-a060-8b07326c7528',
+      type: ['LICENSE_EXPIRATION', 'CONDITION_DUE'],
+      severity: ['HIGH', 'MEDIUM'],
+    });
+  });
+
+  it('validates the optional company filter for read-all', async () => {
+    const emptyQuery = plainToInstance(ReadAllAlertsQueryDto, {});
+    expect(await validate(emptyQuery)).toEqual([]);
+
+    const query = plainToInstance(ReadAllAlertsQueryDto, {
+      customer_id: '705e846a-12cd-4591-a060-8b07326c7528',
+    });
+    expect(await validate(query)).toEqual([]);
+
+    const invalidQuery = plainToInstance(ReadAllAlertsQueryDto, {
+      customer_id: 'not-a-uuid',
+    });
+    expect(await validate(invalidQuery)).toHaveLength(1);
+  });
+
   it.each([
     { status: '' },
     { status: 'UNKNOWN' },
     { status: 'OPEN,' },
+    { customer_id: 'not-a-uuid' },
+    { type: 'NEW_LEGISLATION' },
+    { severity: 'HIGH,' },
     { page: '0' },
     { page: '1.5' },
     { page: 'abc' },

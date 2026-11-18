@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { toLicenseConditionCreatedResponse } from './license-condition-created-response.dto';
 
 describe('toLicenseConditionCreatedResponse', () => {
@@ -17,6 +17,8 @@ describe('toLicenseConditionCreatedResponse', () => {
         responsibleAgency: 'FEPAM',
         dueDate: new Date('2026-06-01T00:00:00.000Z'),
         status,
+        conditionStatus: ConditionStatus.IN_PROGRESS,
+        completionDate: null,
         description: null,
         hasDelivery: true,
         isViolated: false,

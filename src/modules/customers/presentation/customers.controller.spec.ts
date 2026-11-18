@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   AddressType,
   DocumentType,
+  ConditionStatus,
   LicenseConditionStatus,
 } from '@prisma/client';
 import { describe, expect, it, jest } from '@jest/globals';
@@ -111,6 +112,8 @@ describe('CustomerController', () => {
       responsibleAgency: 'FEPAM',
       dueDate: new Date('2026-10-25T00:00:00.000Z'),
       status: LicenseConditionStatus.REGULAR,
+      conditionStatus: ConditionStatus.FULFILLED,
+      completionDate: new Date('2026-02-10T00:00:00.000Z'),
       hasDelivery: true,
       isViolated: false,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -155,6 +158,8 @@ describe('CustomerController', () => {
           has_delivery: true,
           is_violated: false,
           risk_level: LicenseConditionRiskLevel.RISK,
+          condition_status: 'FULFILLED',
+          completion_date: '2026-02-10T00:00:00.000Z',
         },
       ],
     });

@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
 import { LicenseCondition } from '../domain/license-condition.entity';
@@ -20,6 +20,8 @@ function buildCondition(dueInDays: number, index: number): LicenseCondition {
     dueDate: new Date(NOW.getTime() + dueInDays * DAY_IN_MS),
     // Persisted status is ignored: compliance follows the due date.
     status: LicenseConditionStatus.REGULAR,
+    conditionStatus: ConditionStatus.FULFILLED,
+    completionDate: new Date('2026-02-10T00:00:00.000Z'),
     hasDelivery: true,
     isViolated: false,
     createdAt: NOW,

@@ -44,7 +44,20 @@ const EXTRACTION: LicenseExtraction = {
     issueDate: '2020-01-10',
     expirationDate: '2035-01-10',
   },
-  suggestedLegislations: [],
+  suggestedLegislations: [
+    {
+      legislation: {
+        type: 'LEI',
+        number: '12.305',
+        year: 2010,
+        issuingBody: 'Governo Federal',
+        summary: 'Institui a PNRS.',
+      },
+      citedExcerpt: '…conforme a Lei nº 12.305/2010…',
+      source: 'SCAN',
+      impact: 'HIGH',
+    },
+  ],
   suggestedConditions: [
     {
       environmentalDescriptor: 'Resíduos Sólidos',
@@ -115,11 +128,12 @@ describe('License extraction (e2e)', () => {
   }
 
   async function countRecords() {
-    const [licenses, conditions] = await Promise.all([
+    const [licenses, conditions, legislationLinks] = await Promise.all([
       prisma.license.count(),
       prisma.licenseCondition.count(),
+      prisma.licenseLegislation.count(),
     ]);
-    return { licenses, conditions };
+    return { licenses, conditions, legislationLinks };
   }
 
   beforeAll(async () => {
@@ -212,6 +226,20 @@ describe('License extraction (e2e)', () => {
             condition_type: 'INFORMATIVE',
             periodicity: null,
             due_date: null,
+          },
+        ],
+        suggested_legislations: [
+          {
+            legislation: {
+              type: 'LEI',
+              number: '12.305',
+              year: 2010,
+              issuing_body: 'Governo Federal',
+              summary: 'Institui a PNRS.',
+            },
+            cited_excerpt: '…conforme a Lei nº 12.305/2010…',
+            source: 'SCAN',
+            impact: 'HIGH',
           },
         ],
       },

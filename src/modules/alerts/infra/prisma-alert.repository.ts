@@ -19,14 +19,20 @@ export class PrismaAlertRepository implements AlertsRepository {
   private visibleTo(ownerUserId: string): Prisma.AlertWhereInput {
     return {
       customer: { ownerUserId, isDeleted: false },
-      license: { customer: { ownerUserId, isDeleted: false } },
+      license: {
+        status: { not: 'ARCHIVED' },
+        customer: { ownerUserId, isDeleted: false },
+      },
       dueDate: { not: null },
       OR: [
         { type: 'LICENSE_EXPIRATION', licenseConditionId: null },
         {
           type: 'CONDITION_DUE',
           licenseCondition: {
-            license: { customer: { ownerUserId, isDeleted: false } },
+            license: {
+              status: { not: 'ARCHIVED' },
+              customer: { ownerUserId, isDeleted: false },
+            },
           },
         },
       ],

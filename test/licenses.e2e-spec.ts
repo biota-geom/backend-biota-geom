@@ -451,6 +451,44 @@ describe('Licenses (e2e)', () => {
       expect(new Date(listed!.due_date).toISOString()).toBe(listed!.due_date);
     });
 
+    it('lists the delivery status and completion date of a condition', async () => {
+      const created = await postCondition(
+        conditionBody({ name: `Entrega ${uniqueSuffix()}` }),
+      ).expect(201);
+      const createdId = (created.body as { id: string }).id;
+      const completionDate = new Date('2026-03-10T00:00:00.000Z');
+      type ListedCondition = {
+        id: string;
+        condition_status: string;
+        completion_date: string | null;
+      };
+      const listConditions = async () => {
+        const response = await request(app.getHttpServer())
+          .get(`/api/customers/${customerId}/license-conditions`)
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+
+        return (response.body as { data: ListedCondition[] }).data.find(
+          (condition) => condition.id === createdId,
+        );
+      };
+
+      await expect(listConditions()).resolves.toMatchObject({
+        condition_status: 'IN_PROGRESS',
+        completion_date: null,
+      });
+
+      await prisma.licenseCondition.update({
+        where: { id: createdId },
+        data: { conditionStatus: 'FULFILLED', completionDate },
+      });
+
+      await expect(listConditions()).resolves.toMatchObject({
+        condition_status: 'FULFILLED',
+        completion_date: completionDate.toISOString(),
+      });
+    });
+
     it('ignores legacy item and ESG target fields instead of returning 500', async () => {
       const response = await postCondition(
         conditionBody({

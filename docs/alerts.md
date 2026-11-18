@@ -18,7 +18,8 @@ it does not offer a transition back to `OPEN`.
 
 Unknown alerts and alerts outside the tenant both return 404. Deleted companies
 are excluded from all three endpoints. Related licenses and conditions are also
-checked against the tenant before exposing their data.
+checked against the tenant before exposing their data. Alerts linked to an
+archived license are excluded from listing, unread counts, and status updates.
 
 ## Supported records and presentation
 

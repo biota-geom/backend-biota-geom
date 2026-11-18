@@ -45,6 +45,19 @@ export class UpdateLicenseLegislationDto {
   cited_excerpt?: string | null;
 
   @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'Análise técnica de como a legislação afeta a licença. null ou "" limpa a análise.',
+    maxLength: 10000,
+  })
+  @Transform(trimToNull)
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  technical_analysis?: string | null;
+
+  @ApiPropertyOptional({
     type: LegislationInputDto,
     description:
       'Dados da lei. Só podem mudar quando ela está apenas no radar desta licença (senão 409).',

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ConditionStatus } from '@prisma/client';
 import { LicenseConditionWithRisk } from '../../application/list-license-conditions-by-customer.use-case';
 import { LicenseConditionRiskLevel } from '../../domain/license-condition-risk-level';
 import { LicenseConditionStatusDto } from './add-license-condition.dto';
@@ -39,14 +40,18 @@ export class LicenseConditionResponseDto {
   risk_level!: LicenseConditionRiskLevel;
 
   @ApiProperty({
-    enum: ['FULFILLED', 'IN_PROGRESS', 'OVERDUE'],
-    nullable: true,
-    required: false,
+    enum: ConditionStatus,
+    description:
+      'Delivery progress of the condition. Only meaningful when has_delivery is true.',
   })
-  condition_status?: string | null;
+  condition_status!: ConditionStatus;
 
-  @ApiProperty({ format: 'date-time', nullable: true, required: false })
-  completion_date?: string | null;
+  @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    description: 'When the condition was fulfilled; null while pending.',
+  })
+  completion_date!: string | null;
 }
 
 export function toLicenseConditionResponse(
@@ -66,9 +71,7 @@ export function toLicenseConditionResponse(
     has_delivery: created.has_delivery,
     is_violated: created.is_violated,
     risk_level: condition.riskLevel,
-    condition_status: condition.conditionStatus ?? null,
-    completion_date: condition.completionDate
-      ? condition.completionDate.toISOString()
-      : null,
+    condition_status: condition.conditionStatus,
+    completion_date: condition.completionDate?.toISOString() ?? null,
   };
 }

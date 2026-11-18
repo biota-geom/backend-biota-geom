@@ -10,8 +10,8 @@ export interface LicenseCondition {
   responsibleAgency: string | null;
   dueDate: Date;
   status: LicenseConditionStatus;
-  conditionStatus?: ConditionStatus;
-  completionDate?: Date | null;
+  conditionStatus: ConditionStatus;
+  completionDate: Date | null;
   hasDelivery: boolean;
   isViolated: boolean;
   createdAt: Date;

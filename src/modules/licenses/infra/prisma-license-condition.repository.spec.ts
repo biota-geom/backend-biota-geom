@@ -1,4 +1,8 @@
-import { LicenseConditionStatus, LicenseStatus } from '@prisma/client';
+import {
+  ConditionStatus,
+  LicenseConditionStatus,
+  LicenseStatus,
+} from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PrismaLicenseConditionRepository } from './prisma-license-condition.repository';
 
@@ -12,6 +16,8 @@ const ROW = {
   responsibleAgency: 'FEPAM',
   dueDate: new Date('2027-05-20T00:00:00.000Z'),
   status: LicenseConditionStatus.REGULAR,
+  conditionStatus: ConditionStatus.FULFILLED,
+  completionDate: new Date('2027-05-10T00:00:00.000Z'),
   hasDelivery: true,
   isViolated: false,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),

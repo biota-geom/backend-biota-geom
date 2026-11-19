@@ -19,14 +19,20 @@ export class PrismaAlertRepository implements AlertsRepository {
   private visibleTo(ownerUserId: string): Prisma.AlertWhereInput {
     return {
       customer: { ownerUserId, isDeleted: false },
-      license: { customer: { ownerUserId, isDeleted: false } },
+      license: {
+        status: { not: 'ARCHIVED' },
+        customer: { ownerUserId, isDeleted: false },
+      },
       dueDate: { not: null },
       OR: [
         { type: 'LICENSE_EXPIRATION', licenseConditionId: null },
         {
           type: 'CONDITION_DUE',
           licenseCondition: {
-            license: { customer: { ownerUserId, isDeleted: false } },
+            license: {
+              status: { not: 'ARCHIVED' },
+              customer: { ownerUserId, isDeleted: false },
+            },
           },
         },
       ],
@@ -37,6 +43,9 @@ export class PrismaAlertRepository implements AlertsRepository {
     const where: Prisma.AlertWhereInput = {
       ...this.visibleTo(ownerUserId),
       status: { in: query.status },
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      ...(query.type ? { type: { in: query.type } } : {}),
+      ...(query.severity ? { severity: { in: query.severity } } : {}),
     };
     const [rows, total] = await this.prisma.$transaction(
       [
@@ -66,19 +75,32 @@ export class PrismaAlertRepository implements AlertsRepository {
     });
   }
 
+  async markAllRead(ownerUserId: string, customerId?: string) {
+    const result = await this.prisma.alert.updateMany({
+      where: {
+        ...this.visibleTo(ownerUserId),
+        status: 'OPEN',
+        ...(customerId ? { customerId } : {}),
+      },
+      data: { status: 'READ' },
+    });
+    return result.count;
+  }
+
   async updateStatus(
     ownerUserId: string,
     id: string,
     status: Exclude<AlertStatus, 'OPEN'>,
   ) {
     return this.prisma.$transaction(async (transaction) => {
+      const where = { ...this.visibleTo(ownerUserId), id };
       const result = await transaction.alert.updateMany({
-        where: { ...this.visibleTo(ownerUserId), id },
+        where: status === 'READ' ? { ...where, status: 'OPEN' } : where,
         data: { status },
       });
-      if (!result.count) return null;
+      if (!result.count && status !== 'READ') return null;
       const row = await transaction.alert.findFirst({
-        where: { ...this.visibleTo(ownerUserId), id },
+        where,
         include: relations,
       });
       return row ? this.toDomain(row) : null;

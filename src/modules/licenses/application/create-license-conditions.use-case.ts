@@ -10,6 +10,7 @@ import {
   ConditionStatus,
 } from '@prisma/client';
 import { ConditionData } from '../domain/license-condition.data';
+import { assertAlertDateNotAfterDueDate } from '../domain/condition-alert-date.policy';
 import { CreateLicenseConditionsResponseDto } from '../presentation/dto/create-license-conditions-response.dto';
 
 interface CreateLicenseConditionInput {
@@ -29,6 +30,14 @@ export class CreateLicenseConditionUseCase {
   async execute(
     input: CreateLicenseConditionInput,
   ): Promise<CreateLicenseConditionsResponseDto> {
+    // Rejects the whole batch before any lookup: one bad row saves nothing.
+    input.data.conditions.forEach((condition) => {
+      assertAlertDateNotAfterDueDate(
+        toOptionalDate(condition.alert_date),
+        new Date(condition.deadline),
+      );
+    });
+
     const customer = await this.customerRepository.findOne(
       input.customerId,
       input.userId,
@@ -62,6 +71,7 @@ export class CreateLicenseConditionUseCase {
           deadline,
           // due_date is the date the risk/compliance rules read (US17/US21).
           dueDate: deadline,
+          alertDate: toOptionalDate(condition.alert_date),
           conditionStatus: ConditionStatus.IN_PROGRESS,
           hasDelivery: condition.has_delivery ?? true,
         };
@@ -75,4 +85,8 @@ export class CreateLicenseConditionUseCase {
       message: 'Condicionantes vinculadas com sucesso',
     };
   }
+}
+
+function toOptionalDate(value: string | null | undefined): Date | undefined {
+  return value == null ? undefined : new Date(value);
 }

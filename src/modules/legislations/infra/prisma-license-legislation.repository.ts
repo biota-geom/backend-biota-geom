@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   CreateLicenseLegislationData,
+  ListLicenseLegislationsFilter,
   UpdateLicenseLegislationData,
 } from '../domain/legislation.data';
 import { LegislationAlreadyLinkedError } from '../domain/errors/legislation-already-linked.error';
@@ -23,9 +24,15 @@ function isUniqueViolation(error: unknown): boolean {
 export class PrismaLicenseLegislationRepository implements LicenseLegislationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAllByLicenseId(licenseId: string): Promise<LicenseLegislation[]> {
+  async findAllByLicenseId(
+    licenseId: string,
+    filter: ListLicenseLegislationsFilter = {},
+  ): Promise<LicenseLegislation[]> {
     return this.prisma.licenseLegislation.findMany({
-      where: { licenseId },
+      where: {
+        licenseId,
+        ...(filter.impact ? { impact: filter.impact } : {}),
+      },
       include: WITH_LEGISLATION,
       orderBy: [
         { legislation: { year: 'desc' } },
@@ -77,6 +84,43 @@ export class PrismaLicenseLegislationRepository implements LicenseLegislationRep
     }
   }
 
+  async createMany(
+    data: CreateLicenseLegislationData[],
+  ): Promise<LicenseLegislation[]> {
+    const dataByLegislationId = new Map<string, CreateLicenseLegislationData>();
+    for (const item of data) {
+      if (!dataByLegislationId.has(item.legislationId)) {
+        dataByLegislationId.set(item.legislationId, item);
+      }
+    }
+    const uniqueData = [...dataByLegislationId.values()];
+    if (uniqueData.length === 0) return [];
+
+    const licenseId = uniqueData[0].licenseId;
+    await this.prisma.licenseLegislation.createMany({
+      data: uniqueData,
+      skipDuplicates: true,
+    });
+
+    const links = await this.prisma.licenseLegislation.findMany({
+      where: {
+        licenseId,
+        legislationId: {
+          in: uniqueData.map((item) => item.legislationId),
+        },
+      },
+      include: WITH_LEGISLATION,
+    });
+    const linkByLegislationId = new Map(
+      links.map((link) => [link.legislationId, link]),
+    );
+
+    return uniqueData.flatMap((item) => {
+      const link = linkByLegislationId.get(item.legislationId);
+      return link ? [link] : [];
+    });
+  }
+
   async update(
     id: string,
     data: UpdateLicenseLegislationData,
@@ -93,6 +137,21 @@ export class PrismaLicenseLegislationRepository implements LicenseLegislationRep
       }
       throw error;
     }
+  }
+
+  async markAsReadIfUnread(
+    id: string,
+    readAt: Date,
+  ): Promise<LicenseLegislation> {
+    await this.prisma.licenseLegislation.updateMany({
+      where: { id, readAt: null },
+      data: { readAt },
+    });
+
+    return this.prisma.licenseLegislation.findUniqueOrThrow({
+      where: { id },
+      include: WITH_LEGISLATION,
+    });
   }
 
   async delete(id: string): Promise<void> {

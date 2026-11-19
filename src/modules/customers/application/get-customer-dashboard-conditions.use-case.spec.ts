@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { LicenseConditionRiskLevel } from '../../licenses/domain/license-condition-risk-level';
 import { LicenseCondition } from '../../licenses/domain/license-condition.entity';
 import { GetLicenseConditionsComplianceUseCase } from '../../licenses/application/get-license-conditions-compliance.use-case';
@@ -19,7 +19,10 @@ function buildCondition(
     environmentalDescriptor: 'Emissions',
     responsibleAgency: null,
     dueDate,
+    alertDate: null,
     status: LicenseConditionStatus.REGULAR,
+    conditionStatus: ConditionStatus.FULFILLED,
+    completionDate: new Date('2026-02-10T00:00:00.000Z'),
     hasDelivery: false,
     isViolated: false,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),

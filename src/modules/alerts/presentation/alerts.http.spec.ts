@@ -15,6 +15,7 @@ import { ListAlertsUseCase } from '../application/list-alerts.use-case';
 import { CountUnreadAlertsUseCase } from '../application/count-unread-alerts.use-case';
 import { SyncAlertsUseCase } from '../application/sync-alerts.use-case';
 import { UpdateAlertStatusUseCase } from '../application/update-alert-status.use-case';
+import { MarkAllAlertsReadUseCase } from '../application/mark-all-alerts-read.use-case';
 import { Alert } from '../domain/alert.entity';
 import { AlertsRepository } from '../domain/alerts.repository';
 import { AlertsController } from './alerts.controller';
@@ -31,6 +32,10 @@ describe('Alerts HTTP contract', () => {
     countUnread: jest.fn<
       ReturnType<AlertsRepository['countUnread']>,
       Parameters<AlertsRepository['countUnread']>
+    >(),
+    markAllRead: jest.fn<
+      ReturnType<AlertsRepository['markAllRead']>,
+      Parameters<AlertsRepository['markAllRead']>
     >(),
     updateStatus: jest.fn<
       ReturnType<AlertsRepository['updateStatus']>,
@@ -58,6 +63,7 @@ describe('Alerts HTTP contract', () => {
         CountUnreadAlertsUseCase,
         UpdateAlertStatusUseCase,
         { provide: SyncAlertsUseCase, useValue: { execute: syncExecute } },
+        MarkAllAlertsReadUseCase,
         { provide: AlertsRepository, useValue: repository },
       ],
     })
@@ -106,6 +112,9 @@ describe('Alerts HTTP contract', () => {
       .expect(200);
     expect(repository.list).toHaveBeenCalledWith('owner', {
       status: ['OPEN', 'READ'],
+      customerId: undefined,
+      type: undefined,
+      severity: undefined,
       page: 1,
       pageSize: 10,
     });
@@ -143,6 +152,9 @@ describe('Alerts HTTP contract', () => {
       .expect(200);
     expect(repository.list).toHaveBeenCalledWith('owner', {
       status: ['RESOLVED'],
+      customerId: undefined,
+      type: undefined,
+      severity: undefined,
       page: 3,
       pageSize: 10,
     });
@@ -152,6 +164,42 @@ describe('Alerts HTTP contract', () => {
       page: 3,
       page_size: 10,
     });
+  });
+
+  it('forwards customer, type and multiple severity filters', async () => {
+    repository.list.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+    });
+    await request(app.getHttpServer())
+      .get(
+        '/api/alerts?status=READ,RESOLVED&customer_id=705e846a-12cd-4591-a060-8b07326c7528&type=CONDITION_DUE&severity=HIGH,MEDIUM',
+      )
+      .expect(200);
+    expect(repository.list).toHaveBeenCalledWith('owner', {
+      status: ['READ', 'RESOLVED'],
+      customerId: '705e846a-12cd-4591-a060-8b07326c7528',
+      type: ['CONDITION_DUE'],
+      severity: ['HIGH', 'MEDIUM'],
+      page: 1,
+      pageSize: 10,
+    });
+  });
+
+  it('marks all OPEN alerts as read and returns the affected count', async () => {
+    repository.markAllRead.mockResolvedValue(4);
+    const response = await request(app.getHttpServer())
+      .post(
+        '/api/alerts/read-all?customer_id=705e846a-12cd-4591-a060-8b07326c7528',
+      )
+      .expect(200);
+    expect(repository.markAllRead).toHaveBeenCalledWith(
+      'owner',
+      '705e846a-12cd-4591-a060-8b07326c7528',
+    );
+    expect(response.body).toEqual({ updated: 4 });
   });
 
   it.each([0, 3])(
@@ -209,6 +257,21 @@ describe('Alerts HTTP contract', () => {
       message: AUTH_MESSAGES.INVALID_REQUEST,
     });
     expect(repository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid alert filters and read-all customer ids', async () => {
+    for (const query of [
+      '?customer_id=invalid',
+      '?type=NEW_LEGISLATION',
+      '?severity=CRITICAL',
+      '?severity=HIGH,',
+    ]) {
+      await request(app.getHttpServer()).get(`/api/alerts${query}`).expect(400);
+    }
+    await request(app.getHttpServer())
+      .post('/api/alerts/read-all?customer_id=invalid')
+      .expect(400);
+    expect(repository.markAllRead).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported statuses and ownership fields before writing', async () => {

@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { toLicenseConditionCreatedResponse } from './license-condition-created-response.dto';
 
 describe('toLicenseConditionCreatedResponse', () => {
@@ -16,7 +16,10 @@ describe('toLicenseConditionCreatedResponse', () => {
         environmentalDescriptor: 'Resíduos sólidos',
         responsibleAgency: 'FEPAM',
         dueDate: new Date('2026-06-01T00:00:00.000Z'),
+        alertDate: null,
         status,
+        conditionStatus: ConditionStatus.IN_PROGRESS,
+        completionDate: null,
         description: null,
         hasDelivery: true,
         isViolated: false,
@@ -31,5 +34,36 @@ describe('toLicenseConditionCreatedResponse', () => {
         is_violated: false,
       }),
     );
+  });
+
+  it('maps the alert date as ISO or null', () => {
+    const base = {
+      id: 'condition-1',
+      licenseId: 'license-1',
+      name: 'MTR',
+      environmentalDescriptor: 'Resíduos sólidos',
+      responsibleAgency: 'FEPAM',
+      dueDate: new Date('2026-06-01T00:00:00.000Z'),
+      parentConditionId: null,
+      status: LicenseConditionStatus.REGULAR,
+      conditionStatus: ConditionStatus.IN_PROGRESS,
+      completionDate: null,
+      description: null,
+      hasDelivery: true,
+      isViolated: false,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+
+    expect(
+      toLicenseConditionCreatedResponse({
+        ...base,
+        alertDate: new Date('2026-05-20T00:00:00.000Z'),
+      }).alert_date,
+    ).toBe('2026-05-20T00:00:00.000Z');
+    expect(
+      toLicenseConditionCreatedResponse({ ...base, alertDate: null })
+        .alert_date,
+    ).toBeNull();
   });
 });

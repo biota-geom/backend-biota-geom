@@ -1,6 +1,12 @@
-import { LegislationType, LicenseLegislationSource } from '@prisma/client';
+import { AddLicenseLegislationsUseCase } from '../application/add-license-legislations.use-case';
+import {
+  LegislationImpact,
+  LegislationType,
+  LicenseLegislationSource,
+} from '@prisma/client';
 import { AddLicenseLegislationUseCase } from '../application/add-license-legislation.use-case';
 import { ListLicenseLegislationsUseCase } from '../application/list-license-legislations.use-case';
+import { CreateLicenseLegislationsDto } from './dto/create-license-legislations.dto';
 import { RemoveLicenseLegislationUseCase } from '../application/remove-license-legislation.use-case';
 import { UpdateLicenseLegislationUseCase } from '../application/update-license-legislation.use-case';
 import { LicenseLegislationsController } from './license-legislations.controller';
@@ -26,12 +32,14 @@ const LINK = {
 function buildController({
   list = jest.fn(),
   add = jest.fn().mockResolvedValue(LINK),
+  addBatch = jest.fn().mockResolvedValue([LINK]),
   update = jest.fn().mockResolvedValue(LINK),
   remove = jest.fn().mockResolvedValue(undefined),
 }: Record<string, jest.Mock> = {}) {
   return new LicenseLegislationsController(
     { execute: list } as unknown as ListLicenseLegislationsUseCase,
     { execute: add } as unknown as AddLicenseLegislationUseCase,
+    { execute: addBatch } as unknown as AddLicenseLegislationsUseCase,
     { execute: update } as unknown as UpdateLicenseLegislationUseCase,
     { execute: remove } as unknown as RemoveLicenseLegislationUseCase,
   );
@@ -59,10 +67,16 @@ describe('LicenseLegislationsController', () => {
         },
       },
     ]);
-    const controller = buildController({ list: execute });
+    const controller = new LicenseLegislationsController(
+      { execute } as unknown as ListLicenseLegislationsUseCase,
+      {} as AddLicenseLegislationUseCase,
+      {} as AddLicenseLegislationsUseCase,
+      {} as UpdateLicenseLegislationUseCase,
+      {} as RemoveLicenseLegislationUseCase,
+    );
 
     await expect(
-      controller.listLicenseLegislations('license-1', { id: 'owner-1' }),
+      controller.listLicenseLegislations('license-1', {}, { id: 'owner-1' }),
     ).resolves.toEqual([
       expect.objectContaining({
         id: 'link-1',
@@ -73,7 +87,114 @@ describe('LicenseLegislationsController', () => {
         }) as unknown,
       }),
     ]);
-    expect(execute).toHaveBeenCalledWith('license-1', 'owner-1');
+    expect(execute).toHaveBeenCalledWith('license-1', 'owner-1', {
+      impact: undefined,
+    });
+  });
+
+  it('forwards the impact filter', async () => {
+    const execute = jest.fn().mockResolvedValue([]);
+    const controller = buildController({ list: execute });
+
+    await controller.listLicenseLegislations(
+      'license-1',
+      { impact: LegislationImpact.HIGH },
+      { id: 'owner-1' },
+    );
+    expect(execute).toHaveBeenCalledWith('license-1', 'owner-1', {
+      impact: LegislationImpact.HIGH,
+    });
+  });
+
+  it('updates impact/read and serializes the result', async () => {
+    const readAt = new Date('2026-11-12T15:00:00.000Z');
+    const update = jest
+      .fn()
+      .mockResolvedValue({ ...LINK, impact: LegislationImpact.LOW, readAt });
+    const controller = buildController({ update });
+
+    await expect(
+      controller.updateLicenseLegislation(
+        'license-1',
+        'link-1',
+        { impact: LegislationImpact.LOW, read: true },
+        { id: 'owner-1' },
+      ),
+    ).resolves.toMatchObject({
+      id: 'link-1',
+      impact: 'LOW',
+      read_at: '2026-11-12T15:00:00.000Z',
+    });
+    expect(update).toHaveBeenCalledWith('license-1', 'link-1', 'owner-1', {
+      citedExcerpt: undefined,
+      legislation: undefined,
+      impact: LegislationImpact.LOW,
+      read: true,
+    });
+  });
+
+  it('maps batch input and returned links to the API response shape', async () => {
+    const createdAt = new Date('2026-11-02T12:00:00.000Z');
+    const execute = jest.fn().mockResolvedValue([
+      {
+        id: 'link-1',
+        source: LicenseLegislationSource.MANUAL,
+        citedExcerpt: null,
+        impact: null,
+        technicalAnalysis: null,
+        readAt: null,
+        createdAt,
+        legislation: {
+          id: 'legislation-1',
+          type: LegislationType.LEI,
+          number: '12.305',
+          year: 2010,
+          issuingBody: 'Governo Federal',
+          summary: null,
+        },
+      },
+    ]);
+    const controller = new LicenseLegislationsController(
+      {} as ListLicenseLegislationsUseCase,
+      {} as AddLicenseLegislationUseCase,
+      { execute } as unknown as AddLicenseLegislationsUseCase,
+      {} as UpdateLicenseLegislationUseCase,
+      {} as RemoveLicenseLegislationUseCase,
+    );
+    const body = Object.assign(new CreateLicenseLegislationsDto(), {
+      legislations: [
+        {
+          toDomain: () => ({
+            legislationId: 'legislation-1',
+            source: LicenseLegislationSource.MANUAL,
+          }),
+        },
+      ],
+      toDomain: () => [
+        {
+          legislationId: 'legislation-1',
+          source: LicenseLegislationSource.MANUAL,
+        },
+      ],
+    });
+
+    await expect(
+      controller.addLicenseLegislations('license-1', { id: 'owner-1' }, body),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: 'link-1',
+        source: 'MANUAL',
+        legislation: expect.objectContaining({
+          number: '12.305',
+        }) as unknown,
+      }),
+    ]);
+    expect(execute).toHaveBeenCalledWith('license-1', 'owner-1', [
+      {
+        legislationId: 'legislation-1',
+        source: LicenseLegislationSource.MANUAL,
+      },
+    ]);
   });
 
   it('adds an act from its data', async () => {
@@ -141,6 +262,8 @@ describe('LicenseLegislationsController', () => {
     expect(update).toHaveBeenCalledWith('license-1', 'link-1', 'owner-1', {
       citedExcerpt: 'art. 3º',
       legislation: undefined,
+      impact: undefined,
+      read: undefined,
     });
   });
 

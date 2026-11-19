@@ -428,4 +428,131 @@ describe('License legislations (e2e)', () => {
         .expect(404);
     });
   });
+
+  describe('batch linking and catalog search', () => {
+    const base = (licenseId: string) =>
+      `/api/licenses/${licenseId}/legislations`;
+
+    type BatchItem = {
+      id: string;
+      legislation: { id: string; number: string };
+    };
+
+    function actData(number: string) {
+      return {
+        type: 'LEI',
+        number,
+        year: 2010,
+        issuing_body: 'Governo Federal',
+        summary: 'Institui a PNRS.',
+      };
+    }
+
+    async function batch(
+      licenseId: string,
+      legislations: Record<string, unknown>[],
+      expected = 201,
+      bearer = token,
+    ): Promise<BatchItem[]> {
+      const response = await request(app.getHttpServer())
+        .post(`${base(licenseId)}/batch`)
+        .set('Authorization', `Bearer ${bearer}`)
+        .send({ legislations })
+        .expect(expected);
+      const items = Array.isArray(response.body)
+        ? (response.body as BatchItem[])
+        : [];
+      for (const item of items) legislationIds.push(item.legislation.id);
+
+      return items;
+    }
+
+    it('links several acts at once and shows them on the license radar', async () => {
+      const licenseId = await createLicense();
+      const [numberA, numberB] = [uniqueSuffix(), uniqueSuffix()];
+
+      const created = await batch(licenseId, [
+        { legislation: actData(numberA), source: 'SCAN', cited_excerpt: 'a' },
+        { legislation: actData(numberB), source: 'SCAN', impact: 'HIGH' },
+      ]);
+      expect(created).toHaveLength(2);
+
+      const radar = await request(app.getHttpServer())
+        .get(base(licenseId))
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      const numbers = (radar.body as BatchItem[]).map(
+        (item) => item.legislation.number,
+      );
+      expect(numbers).toEqual(expect.arrayContaining([numberA, numberB]));
+    });
+
+    it('is idempotent for acts already on the radar', async () => {
+      const licenseId = await createLicense();
+      const [first] = await batch(licenseId, [
+        { legislation: actData(uniqueSuffix()), source: 'SCAN' },
+      ]);
+
+      const again = await batch(licenseId, [
+        { legislation_id: first.legislation.id, source: 'MANUAL' },
+      ]);
+
+      expect(again).toHaveLength(1);
+      expect(again[0].id).toBe(first.id);
+    });
+
+    it('validates the batch body and answers 404 for unknown acts', async () => {
+      const licenseId = await createLicense();
+
+      await batch(licenseId, [], 400);
+      await batch(licenseId, [{ source: 'MANUAL' }], 400);
+      await batch(
+        licenseId,
+        [{ legislation_id: randomUUID(), source: 'MANUAL' }],
+        404,
+      );
+    });
+
+    it("answers 404 on another owner's license and 401 without a token", async () => {
+      const licenseId = await createLicense();
+
+      await batch(
+        licenseId,
+        [{ legislation: actData(uniqueSuffix()), source: 'SCAN' }],
+        404,
+        otherToken,
+      );
+      await request(app.getHttpServer())
+        .post(`${base(licenseId)}/batch`)
+        .send({ legislations: [] })
+        .expect(401);
+    });
+
+    it('suggests a catalog act by number, year or summary', async () => {
+      const licenseId = await createLicense();
+      const number = `99.${uniqueSuffix()}`;
+      await batch(licenseId, [
+        { legislation: actData(number), source: 'MANUAL' },
+      ]);
+
+      const byNumber = await request(app.getHttpServer())
+        .get('/api/legislations')
+        .query({ search: number })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(
+        (byNumber.body as { legislations: { number: string }[] }).legislations,
+      ).toEqual(expect.arrayContaining([expect.objectContaining({ number })]));
+
+      await request(app.getHttpServer())
+        .get('/api/legislations')
+        .query({ search: ' ' })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+      await request(app.getHttpServer())
+        .get('/api/legislations')
+        .query({ search: number })
+        .expect(401);
+    });
+  });
 });

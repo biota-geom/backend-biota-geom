@@ -6,6 +6,10 @@ export abstract class AlertsRepository {
     query: ListAlertsQuery,
   ): Promise<AlertPage>;
   abstract countUnread(ownerUserId: string): Promise<number>;
+  abstract markAllRead(
+    ownerUserId: string,
+    customerId?: string,
+  ): Promise<number>;
   abstract updateStatus(
     ownerUserId: string,
     id: string,

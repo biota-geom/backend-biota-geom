@@ -7,6 +7,7 @@ export interface AddLicenseConditionData {
   environmentalDescriptor: string;
   responsibleAgency: string;
   dueDate: Date;
+  alertDate?: Date;
   status: LicenseConditionStatus;
   hasDelivery: boolean;
   description?: string;

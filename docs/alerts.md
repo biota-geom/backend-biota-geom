@@ -18,7 +18,8 @@ it does not offer a transition back to `OPEN`.
 
 Unknown alerts and alerts outside the tenant both return 404. Deleted companies
 are excluded from all three endpoints. Related licenses and conditions are also
-checked against the tenant before exposing their data.
+checked against the tenant before exposing their data. Alerts linked to an
+archived license are excluded from listing, unread counts, and status updates.
 
 ## Supported records and presentation
 
@@ -63,6 +64,20 @@ is `MEDIUM`. A `REGULAR` condition whose `alert_date` is today or earlier gets a
 `LOW` reminder. The dedupe key carries the severity and due date, so when the
 severity rises or the due date moves the previous alert is resolved.
 
-Automatic generation, email delivery, and resolution triggered by license renewal
-or condition fulfillment belong to subsequent notification tasks. `AlertsModule`
-does not import `LicensesModule`; it exports the repository port for integration.
+## Resolution
+
+`AlertsModule` exports the `AlertResolver` port, which marks `OPEN`/`READ`
+alerts as `RESOLVED` by license or by condition. It accepts the caller's
+transaction, so the resolution commits together with the change:
+
+| Action                                                  | Resolved alerts                                      |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| Mark conditions as fulfilled (fulfillment `PATCH`)      | Those of the conditions marked `fulfilled: true`.    |
+| Edit a condition with `status: FULFILLED` (was not)     | Those of the condition.                              |
+| Edit a condition's `due_date` to a different date       | Those of the condition (the next sync recreates it). |
+| Renew a license (`POST /api/licenses/:licenseId/renew`) | Those of the previous license and of its conditions. |
+
+Deleting a license or a condition needs nothing: `onDelete: Cascade` removes
+its alerts. Email delivery belongs to a subsequent notification task.
+`AlertsModule` does not import `LicensesModule`; the licenses and customers
+modules import `AlertsModule` instead.

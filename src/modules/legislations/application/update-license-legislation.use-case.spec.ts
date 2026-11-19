@@ -1,4 +1,4 @@
-import { LegislationType } from '@prisma/client';
+import { LegislationImpact, LegislationType } from '@prisma/client';
 import { LicenseNotFoundError } from '../../licenses/domain/errors/license-not-found.error';
 import { LicenseRepository } from '../../licenses/domain/licenses.repository';
 import { LegislationAlreadyLinkedError } from '../domain/errors/legislation-already-linked.error';
@@ -20,6 +20,7 @@ const LINK = {
   id: 'link-1',
   licenseId: 'license-1',
   legislationId: 'legislation-1',
+  readAt: null as Date | null,
   legislation: { id: 'legislation-1', ...CURRENT },
 };
 
@@ -50,6 +51,10 @@ function buildUseCase({
     countByLegislationId: jest.fn().mockResolvedValue(linkedLicenses),
     findByLicenseAndLegislation: jest.fn().mockResolvedValue(alreadyLinked),
     update: jest.fn().mockResolvedValue({ id: 'link-1' }),
+    markAsReadIfUnread: jest.fn().mockResolvedValue({
+      id: 'link-1',
+      readAt: new Date('2026-11-12T15:00:00.000Z'),
+    }),
   };
   const useCase = new UpdateLicenseLegislationUseCase(
     licenseRepository as unknown as LicenseRepository,
@@ -61,6 +66,8 @@ function buildUseCase({
 }
 
 describe('UpdateLicenseLegislationUseCase', () => {
+  afterEach(() => jest.useRealTimers());
+
   it('edits only the cited excerpt', async () => {
     const { useCase, legislationRepository, licenseLegislationRepository } =
       buildUseCase();
@@ -194,5 +201,97 @@ describe('UpdateLicenseLegislationUseCase', () => {
     await expect(
       useCase.execute('license-1', 'link-1', 'owner-1', {}),
     ).rejects.toThrow(LicenseLegislationNotFoundError);
+  });
+
+  it('sets the impact', async () => {
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', {
+      impact: LegislationImpact.HIGH,
+    });
+    expect(licenseLegislationRepository.update).toHaveBeenCalledWith('link-1', {
+      impact: LegislationImpact.HIGH,
+    });
+  });
+
+  it('clears the impact with null', async () => {
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', {
+      impact: null,
+    });
+    expect(licenseLegislationRepository.update).toHaveBeenCalledWith('link-1', {
+      impact: null,
+    });
+  });
+
+  it('atomically stamps read_at the first time it is marked as read', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-12T15:00:00.000Z'));
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', { read: true });
+    expect(
+      licenseLegislationRepository.markAsReadIfUnread,
+    ).toHaveBeenCalledWith('link-1', new Date('2026-11-12T15:00:00.000Z'));
+    expect(licenseLegislationRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original read_at when already read', async () => {
+    const current = {
+      ...LINK,
+      readAt: new Date('2026-11-04T10:00:00.000Z'),
+    };
+    const { useCase, licenseLegislationRepository } = buildUseCase({
+      link: current,
+    });
+
+    await expect(
+      useCase.execute('license-1', 'link-1', 'owner-1', { read: true }),
+    ).resolves.toBe(current);
+    expect(licenseLegislationRepository.update).not.toHaveBeenCalled();
+    expect(
+      licenseLegislationRepository.markAsReadIfUnread,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for an empty update', async () => {
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', {});
+    expect(licenseLegislationRepository.update).not.toHaveBeenCalled();
+    expect(
+      licenseLegislationRepository.markAsReadIfUnread,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('applies other updates and marks as read independently', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-12T15:00:00.000Z'));
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', {
+      impact: LegislationImpact.HIGH,
+      read: true,
+    });
+
+    expect(licenseLegislationRepository.update).toHaveBeenCalledWith('link-1', {
+      impact: LegislationImpact.HIGH,
+    });
+    expect(
+      licenseLegislationRepository.markAsReadIfUnread,
+    ).toHaveBeenCalledWith('link-1', new Date('2026-11-12T15:00:00.000Z'));
+  });
+
+  it('accepts object input shape', async () => {
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute({
+      licenseId: 'license-1',
+      id: 'link-1',
+      ownerUserId: 'owner-1',
+      impact: LegislationImpact.LOW,
+    });
+    expect(licenseLegislationRepository.update).toHaveBeenCalledWith('link-1', {
+      impact: LegislationImpact.LOW,
+    });
   });
 });

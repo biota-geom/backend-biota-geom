@@ -1,6 +1,8 @@
+import { assertAlertDateNotAfterDueDate } from '../domain/condition-alert-date.policy';
 import { Injectable } from '@nestjs/common';
 import { ConditionStatus, LicenseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AlertResolver } from '../../alerts/domain/alert-resolver';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -39,9 +41,30 @@ function toDomainCondition(
   } as LicenseCondition;
 }
 
+/*
+ * A condition alert is tied to the due date in its dedupe key and only makes
+ * sense while the condition is pending: once fulfilled or rescheduled, the
+ * pending alerts are resolved (the next sync recreates them for the new date).
+ */
+function isConditionAlertObsolete(
+  current: { dueDate: Date; conditionStatus: ConditionStatus },
+  changes: { dueDate?: Date; status?: ConditionStatus },
+): boolean {
+  const rescheduled =
+    changes.dueDate !== undefined &&
+    changes.dueDate.getTime() !== current.dueDate.getTime();
+  const fulfilled =
+    changes.status === ConditionStatus.FULFILLED &&
+    current.conditionStatus !== ConditionStatus.FULFILLED;
+  return rescheduled || fulfilled;
+}
+
 @Injectable()
 export class PrismaLicenseRepository implements LicenseRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly alertResolver: AlertResolver<Prisma.TransactionClient>,
+  ) {}
 
   async create(data: CreateLicenseData): Promise<License> {
     return this.prisma.license.create({
@@ -119,6 +142,12 @@ export class PrismaLicenseRepository implements LicenseRepository {
           where: { id: data.previousLicenseId },
           data: { status: LicenseStatus.ARCHIVED },
         });
+
+        // The renewed license supersedes every pending alert of the old one.
+        await this.alertResolver.resolveForLicense(
+          data.previousLicenseId,
+          transaction,
+        );
 
         await this.applyConditionsFulfillment(
           transaction,
@@ -235,8 +264,10 @@ export class PrismaLicenseRepository implements LicenseRepository {
         });
 
         if (!condition) throw new LicenseConditionNotFoundError(data.id);
+        const update = withSynchronizedDueDate(data.data);
+        assertResultingAlertDate(condition, update);
 
-        const { title, status, isViolated, ...fields } = data.data;
+        const { title, status, isViolated, ...fields } = update;
         const environmentalDescriptorChanged =
           fields.environmentalDescriptor !== undefined &&
           fields.environmentalDescriptor !== condition.environmentalDescriptor;
@@ -273,6 +304,13 @@ export class PrismaLicenseRepository implements LicenseRepository {
           },
         });
 
+        if (isConditionAlertObsolete(condition, { ...fields, status })) {
+          await this.alertResolver.resolveForConditions(
+            [condition.id],
+            transaction,
+          );
+        }
+
         return toDomainCondition(updated);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -291,8 +329,10 @@ export class PrismaLicenseRepository implements LicenseRepository {
         });
 
         if (!condition) throw new LicenseConditionNotFoundError(id);
+        const update = withSynchronizedDueDate(data);
+        assertResultingAlertDate(condition, update);
 
-        const { title, status, isViolated, ...fields } = data;
+        const { title, status, isViolated, ...fields } = update;
         const environmentalDescriptorChanged =
           fields.environmentalDescriptor !== undefined &&
           fields.environmentalDescriptor !== condition.environmentalDescriptor;
@@ -328,6 +368,13 @@ export class PrismaLicenseRepository implements LicenseRepository {
               : {}),
           },
         });
+
+        if (isConditionAlertObsolete(condition, { ...fields, status })) {
+          await this.alertResolver.resolveForConditions(
+            [condition.id],
+            transaction,
+          );
+        }
 
         return toDomainCondition(updated);
       },
@@ -397,15 +444,26 @@ export class PrismaLicenseRepository implements LicenseRepository {
   async saveConditionsFulfillment(
     data: SaveConditionsFulfillmentData,
   ): Promise<void> {
-    await this.prisma.$transaction((transaction) =>
-      this.applyConditionsFulfillment(transaction, data.licenseId, data.items),
-    );
+    await this.prisma.$transaction(async (transaction) => {
+      await this.applyConditionsFulfillment(
+        transaction,
+        data.licenseId,
+        data.items,
+      );
+      await this.alertResolver.resolveForConditions(
+        data.items
+          .filter((item) => item.fulfilled)
+          .map((item) => item.conditionId),
+        transaction,
+      );
+    });
   }
 
   /*
    * Records the decisions without rewriting what is already recorded: a
    * condition that was fulfilled keeps its completion date, and "not
-   * fulfilled" only reopens a fulfilled one, so an overdue one stays overdue.
+   * fulfilled" only reopens a fulfilled one. Reopening lands on OVERDUE when
+   * the due date has passed, IN_PROGRESS otherwise.
    */
   private async applyConditionsFulfillment(
     client: Prisma.TransactionClient,
@@ -437,11 +495,28 @@ export class PrismaLicenseRepository implements LicenseRepository {
     }
 
     if (notFulfilledIds.length > 0) {
+      const now = new Date();
+
+      // Reopening past its due date lands on OVERDUE, not IN_PROGRESS.
       await client.licenseCondition.updateMany({
         where: {
           licenseId,
           id: { in: notFulfilledIds },
           conditionStatus: ConditionStatus.FULFILLED,
+          dueDate: { lt: now },
+        },
+        data: {
+          conditionStatus: ConditionStatus.OVERDUE,
+          completionDate: null,
+        },
+      });
+
+      await client.licenseCondition.updateMany({
+        where: {
+          licenseId,
+          id: { in: notFulfilledIds },
+          conditionStatus: ConditionStatus.FULFILLED,
+          dueDate: { gte: now },
         },
         data: {
           conditionStatus: ConditionStatus.IN_PROGRESS,
@@ -464,4 +539,37 @@ export class PrismaLicenseRepository implements LicenseRepository {
       conditions: license.conditions.map(toDomainCondition),
     }));
   }
+}
+
+function withSynchronizedDueDate(
+  update: UpdateLicenseConditionData['data'],
+): UpdateLicenseConditionData['data'] {
+  const dueDate = update.dueDate ?? update.deadline;
+  if (dueDate == null) return update;
+  return {
+    ...update,
+    dueDate,
+    deadline: update.deadline === null ? null : dueDate,
+  };
+}
+
+/*
+ * Checks the dates the condition will have after the update, so editing only
+ * one of them is still validated against the stored value of the other.
+ * Untouched dates are not re-checked.
+ */
+function assertResultingAlertDate(
+  current: {
+    alertDate: Date | null;
+    dueDate: Date | null;
+    deadline: Date | null;
+  },
+  update: UpdateLicenseConditionData['data'],
+): void {
+  if (update.alertDate === undefined && update.dueDate === undefined) return;
+
+  assertAlertDateNotAfterDueDate(
+    update.alertDate === undefined ? current.alertDate : update.alertDate,
+    update.dueDate ?? current.dueDate ?? current.deadline,
+  );
 }

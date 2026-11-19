@@ -100,8 +100,11 @@ describe('BedrockLicenseDocumentExtractor', () => {
     jest.clearAllMocks();
   });
 
-  it('asks the model for the cited legislation and requires it in the answer', () => {
+  it('asks the model for all conditions and cited legislation and requires legislations in the answer', () => {
     expect(LICENSE_EXTRACTION_SYSTEM_PROMPT).toContain('<legislations>');
+    expect(LICENSE_EXTRACTION_SYSTEM_PROMPT).toContain(
+      'every page of the document',
+    );
     expect(LICENSE_EXTRACTION_OUTPUT_SCHEMA.required).toContain('legislations');
     expect(
       LICENSE_EXTRACTION_OUTPUT_SCHEMA.properties.legislations.items.required,
@@ -151,7 +154,7 @@ describe('BedrockLicenseDocumentExtractor', () => {
     expect(params.model).toBe('global.anthropic.claude-sonnet-5-5');
     expect(params.system).toBe(LICENSE_EXTRACTION_SYSTEM_PROMPT);
     expect(params.output_config).toEqual({
-      effort: 'low',
+      effort: 'medium',
       format: { type: 'json_schema', schema: LICENSE_EXTRACTION_OUTPUT_SCHEMA },
     });
     expect(params.messages[0].content[0]).toEqual({

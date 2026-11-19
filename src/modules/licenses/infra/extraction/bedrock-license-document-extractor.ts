@@ -79,9 +79,10 @@ export class BedrockLicenseDocumentExtractor implements LicenseDocumentExtractor
             max_tokens: MAX_OUTPUT_TOKENS,
             system: LICENSE_EXTRACTION_SYSTEM_PROMPT,
             output_config: {
-              // Extraction needs little reasoning; low effort keeps the
-              // thinking short and the reading fast.
-              effort: 'low',
+              // Medium effort prevents the model from stopping early or
+              // sampling a few conditions on multi-page PDFs when also
+              // extracting cited legislations.
+              effort: 'medium',
               format: {
                 type: 'json_schema',
                 schema: LICENSE_EXTRACTION_OUTPUT_SCHEMA,

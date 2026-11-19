@@ -267,6 +267,28 @@ describe('LicenseLegislationsController', () => {
     });
   });
 
+  it('forwards technical_analysis and serializes it in the response', async () => {
+    const update = jest
+      .fn()
+      .mockResolvedValue({ ...LINK, technicalAnalysis: 'Análise registrada.' });
+    const controller = buildController({ update });
+
+    await expect(
+      controller.updateLicenseLegislation(
+        'license-1',
+        'link-1',
+        { technical_analysis: 'Análise registrada.' },
+        { id: 'owner-1' },
+      ),
+    ).resolves.toMatchObject({ technical_analysis: 'Análise registrada.' });
+    expect(update).toHaveBeenCalledWith(
+      'license-1',
+      'link-1',
+      'owner-1',
+      expect.objectContaining({ technicalAnalysis: 'Análise registrada.' }),
+    );
+  });
+
   it('removes a radar entry', async () => {
     const remove = jest.fn().mockResolvedValue(undefined);
     const controller = buildController({ remove });

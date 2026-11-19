@@ -86,6 +86,32 @@ describe('UpdateLicenseLegislationUseCase', () => {
     expect(legislationRepository.update).not.toHaveBeenCalled();
   });
 
+  it('saves the technical analysis without touching the act', async () => {
+    const { useCase, legislationRepository, licenseLegislationRepository } =
+      buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', {
+      technicalAnalysis: 'Impacta o armazenamento de resíduos.',
+    });
+
+    expect(licenseLegislationRepository.update).toHaveBeenCalledWith('link-1', {
+      technicalAnalysis: 'Impacta o armazenamento de resíduos.',
+    });
+    expect(legislationRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('clears the technical analysis when null is sent', async () => {
+    const { useCase, licenseLegislationRepository } = buildUseCase();
+
+    await useCase.execute('license-1', 'link-1', 'owner-1', {
+      technicalAnalysis: null,
+    });
+
+    expect(licenseLegislationRepository.update).toHaveBeenCalledWith('link-1', {
+      technicalAnalysis: null,
+    });
+  });
+
   it('leaves the act alone when its data did not change, even if shared', async () => {
     const { useCase, licenseLegislationRepository } = buildUseCase({
       linkedLicenses: 3,

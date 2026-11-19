@@ -149,7 +149,7 @@ export class LicenseLegislationsController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOperation({
     summary:
-      'Atualiza uma legislação no radar: classifica o impacto, marca como lido, e/ou edita o trecho citado e os dados da lei.',
+      'Atualiza uma legislação no radar: classifica o impacto, marca como lido, registra a análise técnica, e/ou edita o trecho citado e os dados da lei.',
   })
   @ApiOkResponse({ type: LicenseLegislationResponseDto })
   @ApiConflictResponse({
@@ -170,6 +170,7 @@ export class LicenseLegislationsController {
         citedExcerpt: dto.cited_excerpt,
         legislation: dto.legislation && toLegislationData(dto.legislation),
         impact: dto.impact,
+        technicalAnalysis: dto.technical_analysis,
         read: dto.read,
       },
     );

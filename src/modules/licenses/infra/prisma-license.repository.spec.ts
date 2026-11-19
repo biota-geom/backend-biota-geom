@@ -1039,9 +1039,10 @@ describe('PrismaLicenseRepository', () => {
           },
         }),
       );
-      const repository = new PrismaLicenseRepository({
-        $transaction: transaction,
-      } as unknown as PrismaService);
+      const repository = new PrismaLicenseRepository(
+        { $transaction: transaction } as unknown as PrismaService,
+        alertResolver,
+      );
       return { repository, update };
     }
 

@@ -46,6 +46,8 @@ describe('toLicenseConditionCreatedResponse', () => {
       dueDate: new Date('2026-06-01T00:00:00.000Z'),
       parentConditionId: null,
       status: LicenseConditionStatus.REGULAR,
+      conditionStatus: ConditionStatus.IN_PROGRESS,
+      completionDate: null,
       description: null,
       hasDelivery: true,
       isViolated: false,

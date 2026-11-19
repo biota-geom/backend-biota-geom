@@ -14,7 +14,10 @@ import { PrismaAlertSyncRepository } from './infra/prisma-alert-sync.repository'
 import { PrismaLicenseExpirationSource } from './infra/prisma-license-expiration.source';
 import { SyncAlertsCron } from './infra/sync-alerts.cron';
 import { LicenseExpirationAlertGenerator } from './application/license-expiration-alert.generator';
+import { ConditionDueAlertGenerator } from './application/condition-due-alert.generator';
 import { SyncAlertsUseCase } from './application/sync-alerts.use-case';
+import { ConditionDueSource } from './domain/condition-due-source';
+import { PrismaConditionDueSource } from './infra/prisma-condition-due.source';
 import { MarkAllAlertsReadUseCase } from './application/mark-all-alerts-read.use-case';
 import { AlertsController } from './presentation/alerts.controller';
 
@@ -33,11 +36,16 @@ import { AlertsController } from './presentation/alerts.controller';
       useClass: PrismaLicenseExpirationSource,
     },
     LicenseExpirationAlertGenerator,
-    // Add new generators (e.g. conditions) to this list.
+    { provide: ConditionDueSource, useClass: PrismaConditionDueSource },
+    ConditionDueAlertGenerator,
+    // Add new generators to this list.
     {
       provide: ALERT_GENERATORS,
-      useFactory: (licenses: LicenseExpirationAlertGenerator) => [licenses],
-      inject: [LicenseExpirationAlertGenerator],
+      useFactory: (
+        licenses: LicenseExpirationAlertGenerator,
+        conditions: ConditionDueAlertGenerator,
+      ) => [licenses, conditions],
+      inject: [LicenseExpirationAlertGenerator, ConditionDueAlertGenerator],
     },
     SyncAlertsUseCase,
     SyncAlertsCron,

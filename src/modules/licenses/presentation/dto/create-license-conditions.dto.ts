@@ -58,7 +58,7 @@ export class ConditionDto {
 
   @IsOptional()
   @IsDateString()
-  alert_date?: string;
+  alert_date?: string | null;
 
   @IsString()
   @IsNotEmpty()

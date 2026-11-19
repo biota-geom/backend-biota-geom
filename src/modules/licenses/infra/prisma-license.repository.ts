@@ -236,9 +236,10 @@ export class PrismaLicenseRepository implements LicenseRepository {
         });
 
         if (!condition) throw new LicenseConditionNotFoundError(data.id);
-        assertResultingAlertDate(condition, data.data);
+        const update = withSynchronizedDueDate(data.data);
+        assertResultingAlertDate(condition, update);
 
-        const { title, status, isViolated, ...fields } = data.data;
+        const { title, status, isViolated, ...fields } = update;
         const environmentalDescriptorChanged =
           fields.environmentalDescriptor !== undefined &&
           fields.environmentalDescriptor !== condition.environmentalDescriptor;
@@ -293,9 +294,10 @@ export class PrismaLicenseRepository implements LicenseRepository {
         });
 
         if (!condition) throw new LicenseConditionNotFoundError(id);
-        assertResultingAlertDate(condition, data);
+        const update = withSynchronizedDueDate(data);
+        assertResultingAlertDate(condition, update);
 
-        const { title, status, isViolated, ...fields } = data;
+        const { title, status, isViolated, ...fields } = update;
         const environmentalDescriptorChanged =
           fields.environmentalDescriptor !== undefined &&
           fields.environmentalDescriptor !== condition.environmentalDescriptor;
@@ -469,19 +471,35 @@ export class PrismaLicenseRepository implements LicenseRepository {
   }
 }
 
+function withSynchronizedDueDate(
+  update: UpdateLicenseConditionData['data'],
+): UpdateLicenseConditionData['data'] {
+  const dueDate = update.dueDate ?? update.deadline;
+  if (dueDate == null) return update;
+  return {
+    ...update,
+    dueDate,
+    deadline: update.deadline === null ? null : dueDate,
+  };
+}
+
 /*
  * Checks the dates the condition will have after the update, so editing only
  * one of them is still validated against the stored value of the other.
  * Untouched dates are not re-checked.
  */
 function assertResultingAlertDate(
-  current: { alertDate: Date | null; dueDate: Date | null },
+  current: {
+    alertDate: Date | null;
+    dueDate: Date | null;
+    deadline: Date | null;
+  },
   update: UpdateLicenseConditionData['data'],
 ): void {
   if (update.alertDate === undefined && update.dueDate === undefined) return;
 
   assertAlertDateNotAfterDueDate(
     update.alertDate === undefined ? current.alertDate : update.alertDate,
-    update.dueDate ?? current.dueDate,
+    update.dueDate ?? current.dueDate ?? current.deadline,
   );
 }

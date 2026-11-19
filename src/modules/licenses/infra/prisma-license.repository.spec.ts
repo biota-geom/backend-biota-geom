@@ -970,19 +970,22 @@ describe('PrismaLicenseRepository', () => {
       expect(update).not.toHaveBeenCalled();
     });
 
-    it('rejects a due date moved before the stored alert date', async () => {
-      const { repository, update } = buildRepository();
+    it.each(['dueDate', 'deadline'] as const)(
+      'rejects %s moved before the stored alert date',
+      async (field) => {
+        const { repository, update } = buildRepository();
 
-      await expect(
-        repository.updateCondition({
-          id: 'condition-1',
-          licenseId: 'license-1',
-          customerId: 'customer-1',
-          data: { dueDate: new Date('2026-12-31T00:00:00.000Z') },
-        }),
-      ).rejects.toThrow(InvalidConditionAlertDateError);
-      expect(update).not.toHaveBeenCalled();
-    });
+        await expect(
+          repository.updateCondition({
+            id: 'condition-1',
+            licenseId: 'license-1',
+            customerId: 'customer-1',
+            data: { [field]: new Date('2026-12-31T00:00:00.000Z') },
+          }),
+        ).rejects.toThrow(InvalidConditionAlertDateError);
+        expect(update).not.toHaveBeenCalled();
+      },
+    );
 
     it('accepts moving both dates together and clearing the alert date', async () => {
       const { repository, update } = buildRepository();
@@ -1006,6 +1009,7 @@ describe('PrismaLicenseRepository', () => {
         where: { id: 'condition-1' },
         data: {
           dueDate: new Date('2026-12-31T00:00:00.000Z'),
+          deadline: new Date('2026-12-31T00:00:00.000Z'),
           alertDate: null,
         },
       });

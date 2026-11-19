@@ -87,6 +87,6 @@ export class CreateLicenseConditionUseCase {
   }
 }
 
-function toOptionalDate(value: string | undefined): Date | undefined {
-  return value === undefined ? undefined : new Date(value);
+function toOptionalDate(value: string | null | undefined): Date | undefined {
+  return value == null ? undefined : new Date(value);
 }

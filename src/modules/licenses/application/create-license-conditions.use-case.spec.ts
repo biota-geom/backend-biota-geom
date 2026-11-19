@@ -172,6 +172,16 @@ describe('CreateLicenseConditionUseCase', () => {
     ]);
   });
 
+  it('treats a null alert date as absent', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await useCase.execute(buildInput({ alert_date: null }));
+
+    expect(repository.createConditions).toHaveBeenCalledWith([
+      expect.objectContaining({ alertDate: undefined }),
+    ]);
+  });
+
   it('rejects an alert date after the deadline before touching the repository', async () => {
     const { useCase, repository } = buildUseCase();
 

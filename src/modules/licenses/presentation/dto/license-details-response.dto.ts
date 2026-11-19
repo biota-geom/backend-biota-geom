@@ -43,6 +43,9 @@ export class LicenseConditionDetailsResponseDto {
   deadline!: string | null;
 
   @ApiProperty({ format: 'date-time', nullable: true })
+  due_date!: string | null;
+
+  @ApiProperty({ format: 'date-time', nullable: true })
   alert_date!: string | null;
 
   @ApiProperty({ nullable: true })
@@ -141,6 +144,7 @@ export function toLicenseConditionDetailsResponse(
         : CONDITION_TYPE_LABELS[condition.conditionType],
     periodicity: condition.periodicity ?? 'NA',
     deadline: condition.deadline?.toISOString() ?? null,
+    due_date: condition.dueDate?.toISOString() ?? null,
     alert_date: condition.alertDate?.toISOString() ?? null,
     status: CONDITION_STATUS_LABELS[condition.status],
     completion_date: condition.completionDate?.toISOString() ?? null,
@@ -208,6 +212,7 @@ function toNumberedEnvironmentalDescriptorRows(
         condition_type: null,
         periodicity: 'NA',
         deadline: null,
+        due_date: null,
         alert_date: null,
         status: null,
         completion_date: null,

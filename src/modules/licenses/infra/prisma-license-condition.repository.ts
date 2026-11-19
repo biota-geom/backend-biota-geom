@@ -57,6 +57,8 @@ export class PrismaLicenseConditionRepository implements LicenseConditionReposit
       dueDate: condition.dueDate,
       alertDate: condition.alertDate,
       status: condition.status,
+      conditionStatus: condition.conditionStatus,
+      completionDate: condition.completionDate,
       hasDelivery: condition.hasDelivery,
       isViolated: condition.isViolated,
       createdAt: condition.createdAt,

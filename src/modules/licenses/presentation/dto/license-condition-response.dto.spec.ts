@@ -1,4 +1,4 @@
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { LicenseConditionRiskLevel } from '../../domain/license-condition-risk-level';
 import { toLicenseConditionResponse } from './license-condition-response.dto';
 
@@ -16,6 +16,8 @@ describe('toLicenseConditionResponse', () => {
         dueDate: new Date('2026-02-11T00:00:00.000Z'),
         alertDate: null,
         status: LicenseConditionStatus.REGULAR,
+        conditionStatus: ConditionStatus.FULFILLED,
+        completionDate: new Date('2026-02-10T00:00:00.000Z'),
         hasDelivery: true,
         isViolated: true,
         riskLevel: LicenseConditionRiskLevel.RISK,
@@ -27,6 +29,8 @@ describe('toLicenseConditionResponse', () => {
         environmental_descriptor: 'Emissões',
         has_delivery: true,
         is_violated: true,
+        condition_status: 'FULFILLED',
+        completion_date: '2026-02-10T00:00:00.000Z',
       }),
     );
   });

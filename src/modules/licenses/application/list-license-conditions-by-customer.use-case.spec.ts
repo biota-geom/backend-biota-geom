@@ -1,5 +1,5 @@
 import { CustomerRepository } from '../../customers/domain/customers.repository';
-import { LicenseConditionStatus } from '@prisma/client';
+import { ConditionStatus, LicenseConditionStatus } from '@prisma/client';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
 import { LicenseCondition } from '../domain/license-condition.entity';
 import { LicenseConditionRiskLevel } from '../domain/license-condition-risk-level';
@@ -41,6 +41,8 @@ function buildCondition(
     dueDate: new Date('2026-02-15T00:00:00.000Z'),
     alertDate: null,
     status: LicenseConditionStatus.REGULAR,
+    conditionStatus: ConditionStatus.FULFILLED,
+    completionDate: new Date('2026-02-10T00:00:00.000Z'),
     hasDelivery: true,
     isViolated: false,
     createdAt: new Date('2026-01-01T00:00:00.000Z'),

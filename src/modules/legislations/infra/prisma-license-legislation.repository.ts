@@ -84,6 +84,43 @@ export class PrismaLicenseLegislationRepository implements LicenseLegislationRep
     }
   }
 
+  async createMany(
+    data: CreateLicenseLegislationData[],
+  ): Promise<LicenseLegislation[]> {
+    const dataByLegislationId = new Map<string, CreateLicenseLegislationData>();
+    for (const item of data) {
+      if (!dataByLegislationId.has(item.legislationId)) {
+        dataByLegislationId.set(item.legislationId, item);
+      }
+    }
+    const uniqueData = [...dataByLegislationId.values()];
+    if (uniqueData.length === 0) return [];
+
+    const licenseId = uniqueData[0].licenseId;
+    await this.prisma.licenseLegislation.createMany({
+      data: uniqueData,
+      skipDuplicates: true,
+    });
+
+    const links = await this.prisma.licenseLegislation.findMany({
+      where: {
+        licenseId,
+        legislationId: {
+          in: uniqueData.map((item) => item.legislationId),
+        },
+      },
+      include: WITH_LEGISLATION,
+    });
+    const linkByLegislationId = new Map(
+      links.map((link) => [link.legislationId, link]),
+    );
+
+    return uniqueData.flatMap((item) => {
+      const link = linkByLegislationId.get(item.legislationId);
+      return link ? [link] : [];
+    });
+  }
+
   async update(
     id: string,
     data: UpdateLicenseLegislationData,

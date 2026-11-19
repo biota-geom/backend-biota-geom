@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { seedAlerts } from './seed-alerts';
+import { calculateLicenseStatus } from '../src/modules/licenses/domain/license-status.calculator';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from '@node-rs/argon2';
 import {
@@ -54,13 +56,6 @@ const SEED_EMAIL_DOMAIN =
  */
 const SEED_DOCUMENT_BASE_URL =
   process.env.SEED_DOCUMENT_BASE_URL ?? 'http://localhost:3000/uploads/seed';
-
-/*
- * Janela (em dias) em que uma licença ainda válida passa a ser "ATTENTION".
- * Deve espelhar a regra do CreateLicenseUseCase, que calcula o status a partir
- * de `expirationDate` — ajuste aqui se o valor de lá for diferente.
- */
-const LICENSE_ATTENTION_WINDOW_DAYS = 90;
 
 const seedUsers = [
   { name: 'Ana Administradora', local: 'admin', isAdmin: true, isActive: true },
@@ -774,18 +769,7 @@ function addDays(base: Date, days: number) {
  * da data de validade.
  */
 function deriveLicenseStatus(expirationDate: Date, now: Date): LicenseStatus {
-  if (expirationDate.getTime() < now.getTime()) {
-    return LicenseStatus.EXPIRED;
-  }
-
-  if (
-    expirationDate.getTime() - now.getTime() <=
-    LICENSE_ATTENTION_WINDOW_DAYS * DAY_IN_MS
-  ) {
-    return LicenseStatus.ATTENTION;
-  }
-
-  return LicenseStatus.REGULAR;
+  return calculateLicenseStatus(expirationDate, now);
 }
 
 function deriveConditionStatus(
@@ -1014,6 +998,7 @@ async function seedCompaniesTable(
 
 async function seedLicensesTable(companies: Map<string, string>) {
   const now = new Date();
+  const licenseIds: string[] = [];
 
   for (const license of seedLicenses) {
     const customerId = companies.get(license.company);
@@ -1060,6 +1045,7 @@ async function seedLicensesTable(companies: Map<string, string>) {
           },
         });
 
+    licenseIds.push(saved.id);
     for (const entry of license.legislations ?? []) {
       const legislation = await prisma.legislation.findUnique({
         where: {
@@ -1136,6 +1122,7 @@ async function seedLicensesTable(companies: Map<string, string>) {
       }
     }
   }
+  await seedAlerts(prisma, licenseIds);
 }
 
 /*

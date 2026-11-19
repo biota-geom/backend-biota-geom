@@ -451,6 +451,44 @@ describe('Licenses (e2e)', () => {
       expect(new Date(listed!.due_date).toISOString()).toBe(listed!.due_date);
     });
 
+    it('lists the delivery status and completion date of a condition', async () => {
+      const created = await postCondition(
+        conditionBody({ name: `Entrega ${uniqueSuffix()}` }),
+      ).expect(201);
+      const createdId = (created.body as { id: string }).id;
+      const completionDate = new Date('2026-03-10T00:00:00.000Z');
+      type ListedCondition = {
+        id: string;
+        condition_status: string;
+        completion_date: string | null;
+      };
+      const listConditions = async () => {
+        const response = await request(app.getHttpServer())
+          .get(`/api/customers/${customerId}/license-conditions`)
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+
+        return (response.body as { data: ListedCondition[] }).data.find(
+          (condition) => condition.id === createdId,
+        );
+      };
+
+      await expect(listConditions()).resolves.toMatchObject({
+        condition_status: 'IN_PROGRESS',
+        completion_date: null,
+      });
+
+      await prisma.licenseCondition.update({
+        where: { id: createdId },
+        data: { conditionStatus: 'FULFILLED', completionDate },
+      });
+
+      await expect(listConditions()).resolves.toMatchObject({
+        condition_status: 'FULFILLED',
+        completion_date: completionDate.toISOString(),
+      });
+    });
+
     it('ignores legacy item and ESG target fields instead of returning 500', async () => {
       const response = await postCondition(
         conditionBody({
@@ -505,6 +543,93 @@ describe('Licenses (e2e)', () => {
         hasDelivery: false,
         isViolated: true,
       });
+    });
+
+    it('stores an optional alert date and rejects one after the due date', async () => {
+      const dueDate = dueDateInDays(60);
+      const alertDate = dueDateInDays(30);
+
+      const created = await postCondition(
+        conditionBody({
+          name: `Alerta ${uniqueSuffix()}`,
+          due_date: dueDate,
+          alert_date: alertDate,
+        }),
+      ).expect(201);
+      expect(created.body).toMatchObject({ alert_date: alertDate });
+
+      const rejected = await postCondition(
+        conditionBody({
+          name: `Alerta inválido ${uniqueSuffix()}`,
+          due_date: dueDate,
+          alert_date: dueDateInDays(61),
+        }),
+      ).expect(400);
+      expect(rejected.body).toMatchObject({
+        message:
+          'A data de alerta não pode ser posterior à data de vencimento.',
+      });
+    });
+
+    it('validates the alert date against the due date when editing', async () => {
+      const created = await postCondition(
+        conditionBody({
+          name: `Alerta edição ${uniqueSuffix()}`,
+          due_date: dueDateInDays(60),
+        }),
+      ).expect(201);
+      const conditionId = (created.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .put(`/api/license-conditions/${conditionId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ alert_date: dueDateInDays(90) })
+        .expect(400);
+
+      const alertDate = dueDateInDays(10);
+      await request(app.getHttpServer())
+        .put(`/api/license-conditions/${conditionId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ alert_date: alertDate })
+        .expect(200);
+      await expect(
+        prisma.licenseCondition.findUniqueOrThrow({
+          where: { id: conditionId },
+        }),
+      ).resolves.toMatchObject({ alertDate: new Date(alertDate) });
+
+      await request(app.getHttpServer())
+        .put(
+          `/api/customers/${customerId}/licenses/${conditionLicenseId}/conditions/${conditionId}`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ due_date: dueDateInDays(5) })
+        .expect(400);
+    });
+
+    it('rejects a batch whose alert date is after the deadline', async () => {
+      const deadline = dueDateInDays(60);
+      const batch = (alertDate: string) =>
+        request(app.getHttpServer())
+          .post(
+            `/api/customers/${customerId}/licenses/${conditionLicenseId}/conditions`,
+          )
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            conditions: [
+              {
+                environmental_descriptor: 'Resíduos sólidos',
+                description: `Lote com alerta ${uniqueSuffix()}`,
+                condition_type: 'INFORMATIVE',
+                deadline,
+                alert_date: alertDate,
+                responsible_name: 'Ana',
+              },
+            ],
+          });
+
+      await batch(dueDateInDays(61)).expect(400);
+      await batch(dueDateInDays(45)).expect(201);
     });
 
     it("does not expose another owner's condition through the public update route", async () => {
@@ -1343,6 +1468,133 @@ describe('Licenses (e2e)', () => {
           where: { id: { in: licenseIds } },
         });
       }
+    });
+  });
+  describe('alert resolution', () => {
+    let licenseId: string;
+    let conditionId: string;
+    let licenseAlertId: string;
+    let conditionAlertId: string;
+    const dueDate = new Date('2026-11-10T00:00:00.000Z');
+
+    async function unreadCount(): Promise<number> {
+      const response = await request(app.getHttpServer())
+        .get('/api/alerts/unread-count')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      return (response.body as { count: number }).count;
+    }
+
+    async function statusOf(id: string) {
+      const alert = await prisma.alert.findUniqueOrThrow({ where: { id } });
+      return alert.status;
+    }
+
+    beforeEach(async () => {
+      const license = await createLicenseRequest({
+        process_number: `LO com alertas-${uniqueSuffix()}`,
+        expiration_date: dueDate.toISOString(),
+      })
+        .attach('document_file', PDF_HEADER, {
+          filename: 'licenca.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+      licenseId = (license.body as { id: string }).id;
+
+      const condition = await prisma.licenseCondition.create({
+        data: {
+          licenseId,
+          name: `Condicionante com alerta ${uniqueSuffix()}`,
+          environmentalDescriptor: 'Recursos Hídricos',
+          responsibleAgency: 'FEPAM',
+          dueDate,
+        },
+      });
+      conditionId = condition.id;
+
+      const [licenseAlert, conditionAlert] = await prisma.$transaction([
+        prisma.alert.create({
+          data: {
+            type: 'LICENSE_EXPIRATION',
+            severity: 'HIGH',
+            dueDate,
+            customerId,
+            licenseId,
+            dedupeKey: `LICENSE_EXPIRATION:${licenseId}:HIGH:2026-11-10`,
+          },
+        }),
+        prisma.alert.create({
+          data: {
+            type: 'CONDITION_DUE',
+            severity: 'HIGH',
+            status: 'READ',
+            dueDate,
+            customerId,
+            licenseId,
+            licenseConditionId: conditionId,
+            dedupeKey: `CONDITION_DUE:${conditionId}:HIGH:2026-11-10`,
+          },
+        }),
+      ]);
+      licenseAlertId = licenseAlert.id;
+      conditionAlertId = conditionAlert.id;
+    });
+
+    it('resolves the condition alert when it is marked as fulfilled', async () => {
+      await prisma.alert.update({
+        where: { id: conditionAlertId },
+        data: { status: 'OPEN' },
+      });
+      const before = await unreadCount();
+
+      await request(app.getHttpServer())
+        .patch(
+          `/api/customers/${customerId}/licenses/${licenseId}/conditions/fulfillment`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ items: [{ condition_id: conditionId, fulfilled: true }] })
+        .expect(204);
+
+      expect(await statusOf(conditionAlertId)).toBe('RESOLVED');
+      expect(await statusOf(licenseAlertId)).toBe('OPEN');
+      expect(await unreadCount()).toBe(before - 1);
+    });
+
+    it('resolves the old condition alert when its due date changes', async () => {
+      await request(app.getHttpServer())
+        .put(
+          `/api/customers/${customerId}/licenses/${licenseId}/conditions/${conditionId}`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ due_date: '2026-12-10T00:00:00.000Z' })
+        .expect(200);
+
+      expect(await statusOf(conditionAlertId)).toBe('RESOLVED');
+      expect(await statusOf(licenseAlertId)).toBe('OPEN');
+    });
+
+    it('resolves the license and condition alerts when the license is renewed', async () => {
+      await request(app.getHttpServer())
+        .post(`/api/licenses/${licenseId}/renew`)
+        .set('Authorization', `Bearer ${token}`)
+        .field('process_number', `LO renovada-${uniqueSuffix()}`)
+        .field('issue_date', '2026-01-10T00:00:00.000Z')
+        .field('expiration_date', '2099-01-10T00:00:00.000Z')
+        .field(
+          'conditions',
+          JSON.stringify([
+            { condition_id: conditionId, fulfilled: false, copy_to_new: false },
+          ]),
+        )
+        .attach('document_file', PDF_HEADER, {
+          filename: 'renovada.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201);
+
+      expect(await statusOf(licenseAlertId)).toBe('RESOLVED');
+      expect(await statusOf(conditionAlertId)).toBe('RESOLVED');
     });
   });
 });

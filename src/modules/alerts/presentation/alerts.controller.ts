@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -27,6 +28,7 @@ import { ListAlertsUseCase } from '../application/list-alerts.use-case';
 import { CountUnreadAlertsUseCase } from '../application/count-unread-alerts.use-case';
 import { SyncAlertsUseCase } from '../application/sync-alerts.use-case';
 import { UpdateAlertStatusUseCase } from '../application/update-alert-status.use-case';
+import { MarkAllAlertsReadUseCase } from '../application/mark-all-alerts-read.use-case';
 import { AlertResponseDto, toAlertResponse } from './dto/alert-response.dto';
 import {
   AlertListResponseDto,
@@ -35,6 +37,7 @@ import {
 import { SyncAlertsResponseDto } from './dto/sync-alerts-response.dto';
 import { ListAlertsQueryDto } from './dto/list-alerts-query.dto';
 import { UpdateAlertStatusDto } from './dto/update-alert-status.dto';
+import { ReadAllAlertsQueryDto } from './dto/read-all-alerts-query.dto';
 import { AlertsExceptionFilter } from './filters/alerts-exception.filter';
 
 @ApiTags('alerts')
@@ -49,6 +52,7 @@ export class AlertsController {
     private readonly countUnread: CountUnreadAlertsUseCase,
     private readonly updateStatus: UpdateAlertStatusUseCase,
     private readonly syncAlerts: SyncAlertsUseCase,
+    private readonly markAllRead: MarkAllAlertsReadUseCase,
   ) {}
 
   @Get()
@@ -60,6 +64,9 @@ export class AlertsController {
   ): Promise<AlertListResponseDto> {
     const result = await this.listAlerts.execute(user.id, {
       status: query.status,
+      customerId: query.customer_id,
+      type: query.type,
+      severity: query.severity,
       page: query.page,
       pageSize: query.page_size,
     });
@@ -70,6 +77,17 @@ export class AlertsController {
       page: result.page,
       page_size: result.pageSize,
     };
+  }
+
+  @Post('read-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ schema: { example: { updated: 3 } } })
+  @ApiBadRequestResponse()
+  markAll(
+    @CurrentUser() user: { id: string },
+    @Query() query: ReadAllAlertsQueryDto,
+  ) {
+    return this.markAllRead.execute(user.id, query.customer_id);
   }
 
   @Get('unread-count')

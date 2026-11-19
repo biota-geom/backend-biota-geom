@@ -217,4 +217,65 @@ describe('LicenseConditionsController', () => {
       }),
     );
   });
+
+  it('forwards the alert date when creating a condition', async () => {
+    const execute = jest.fn().mockResolvedValue([CONDITION]);
+    const controller = buildController({ add: { execute } });
+
+    await controller.addLicenseCondition(
+      'license-1',
+      {
+        name: 'MTR',
+        environmental_descriptor: 'Resíduos sólidos',
+        license_id: 'license-1',
+        responsible_agency: 'FEPAM',
+        due_date: '2027-05-20T00:00:00.000Z',
+        alert_date: '2027-05-01T00:00:00.000Z',
+      },
+      { id: 'owner-1' },
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conditions: [
+          expect.objectContaining({
+            alertDate: new Date('2027-05-01T00:00:00.000Z'),
+          }),
+        ],
+      }),
+    );
+  });
+
+  it.each([
+    ['2027-05-01T00:00:00.000Z', new Date('2027-05-01T00:00:00.000Z')],
+    [null, null],
+  ])(
+    'forwards alert_date %p when updating a condition',
+    async (alertDate, expected) => {
+      const executeForOwner = jest.fn().mockResolvedValue({
+        ...CONDITION,
+        title: 'Condition',
+        responsibleName: null,
+        conditionType: null,
+        periodicity: null,
+        deadline: null,
+        alertDate: expected,
+        completionDate: null,
+        status: ConditionStatus.IN_PROGRESS,
+      });
+      const controller = buildController({ update: { executeForOwner } });
+
+      await controller.updateLicenseCondition(
+        'condition-1',
+        { alert_date: alertDate },
+        { id: 'owner-1' },
+      );
+
+      expect(executeForOwner).toHaveBeenCalledWith(
+        'condition-1',
+        'owner-1',
+        expect.objectContaining({ alertDate: expected }),
+      );
+    },
+  );
 });

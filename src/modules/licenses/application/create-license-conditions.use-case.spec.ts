@@ -1,6 +1,7 @@
 import { ConditionStatus, ConditionType } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { CustomerNotFoundError } from '../../customers/domain/errors/customer-not-found.error';
+import { InvalidConditionAlertDateError } from '../domain/errors/invalid-condition-alert-date.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { LicenseRepository } from '../domain/licenses.repository';
 import { CreateLicenseConditionUseCase } from './create-license-conditions.use-case';
@@ -156,4 +157,38 @@ describe('CreateLicenseConditionUseCase', () => {
       );
     },
   );
+
+  it('persists the optional alert date', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await useCase.execute(
+      buildInput({ alert_date: '2026-12-20T00:00:00.000Z' }),
+    );
+
+    expect(repository.createConditions).toHaveBeenCalledWith([
+      expect.objectContaining({
+        alertDate: new Date('2026-12-20T00:00:00.000Z'),
+      }),
+    ]);
+  });
+
+  it('treats a null alert date as absent', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await useCase.execute(buildInput({ alert_date: null }));
+
+    expect(repository.createConditions).toHaveBeenCalledWith([
+      expect.objectContaining({ alertDate: undefined }),
+    ]);
+  });
+
+  it('rejects an alert date after the deadline before touching the repository', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await expect(
+      useCase.execute(buildInput({ alert_date: '2027-01-02T00:00:00.000Z' })),
+    ).rejects.toThrow(InvalidConditionAlertDateError);
+    expect(repository.findById).not.toHaveBeenCalled();
+    expect(repository.createConditions).not.toHaveBeenCalled();
+  });
 });

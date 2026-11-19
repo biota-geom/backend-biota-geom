@@ -16,14 +16,20 @@ describe('PrismaAlertRepository', () => {
   };
   const scopedWhere = {
     customer: { ownerUserId: 'owner', isDeleted: false },
-    license: { customer: { ownerUserId: 'owner', isDeleted: false } },
+    license: {
+      status: { not: 'ARCHIVED' },
+      customer: { ownerUserId: 'owner', isDeleted: false },
+    },
     dueDate: { not: null },
     OR: [
       { type: 'LICENSE_EXPIRATION', licenseConditionId: null },
       {
         type: 'CONDITION_DUE',
         licenseCondition: {
-          license: { customer: { ownerUserId: 'owner', isDeleted: false } },
+          license: {
+            status: { not: 'ARCHIVED' },
+            customer: { ownerUserId: 'owner', isDeleted: false },
+          },
         },
       },
     ],
@@ -95,6 +101,49 @@ describe('PrismaAlertRepository', () => {
     });
   });
 
+  it('applies optional filters to both the page and total count', async () => {
+    alert.findMany.mockResolvedValue([]);
+    alert.count.mockResolvedValue(2);
+    transaction.mockImplementation((queries: Promise<unknown>[]) =>
+      Promise.all(queries),
+    );
+    await repository.list('owner', {
+      status: ['READ', 'RESOLVED'],
+      customerId: 'company',
+      type: ['CONDITION_DUE'],
+      severity: ['HIGH', 'MEDIUM'],
+      page: 1,
+      pageSize: 10,
+    });
+    const where = {
+      ...scopedWhere,
+      status: { in: ['READ', 'RESOLVED'] },
+      customerId: 'company',
+      type: { in: ['CONDITION_DUE'] },
+      severity: { in: ['HIGH', 'MEDIUM'] },
+    };
+    expect(alert.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(alert.count).toHaveBeenCalledWith({ where });
+  });
+
+  it('marks only visible OPEN alerts as read, optionally for one company', async () => {
+    alert.updateMany.mockResolvedValue({ count: 2 });
+    expect(await repository.markAllRead('owner', 'company')).toBe(2);
+    expect(alert.updateMany).toHaveBeenCalledWith({
+      where: { ...scopedWhere, status: 'OPEN', customerId: 'company' },
+      data: { status: 'READ' },
+    });
+
+    alert.updateMany.mockResolvedValue({ count: 3 });
+    expect(await repository.markAllRead('owner')).toBe(3);
+    expect(alert.updateMany).toHaveBeenLastCalledWith({
+      where: { ...scopedWhere, status: 'OPEN' },
+      data: { status: 'READ' },
+    });
+  });
+
   describe('status updates', () => {
     beforeEach(() => {
       transaction.mockImplementation(
@@ -119,7 +168,7 @@ describe('PrismaAlertRepository', () => {
       ).toMatchObject({ id: 'alert', status: 'READ', condition: null });
       const where = { ...scopedWhere, id: 'alert' };
       expect(transactionAlert.updateMany).toHaveBeenCalledWith({
-        where,
+        where: { ...where, status: 'OPEN' },
         data: { status: 'READ' },
       });
       expect(transactionAlert.findFirst).toHaveBeenCalledWith(
@@ -128,12 +177,29 @@ describe('PrismaAlertRepository', () => {
       expect(alert.updateMany).not.toHaveBeenCalled();
     });
 
-    it('returns null without reading when no visible alert was updated', async () => {
+    it('returns the current resolved alert when a stale request marks it read', async () => {
       transactionAlert.updateMany.mockResolvedValue({ count: 0 });
+      transactionAlert.findFirst.mockResolvedValue({
+        ...row,
+        status: 'RESOLVED',
+      });
+
+      await expect(
+        repository.updateStatus('owner', 'alert', 'READ'),
+      ).resolves.toMatchObject({ status: 'RESOLVED' });
+    });
+
+    it('returns null when no alert is visible to the owner', async () => {
+      transactionAlert.updateMany.mockResolvedValue({ count: 0 });
+      transactionAlert.findFirst.mockResolvedValue(null);
       expect(
         await repository.updateStatus('owner', 'foreign-alert', 'READ'),
       ).toBeNull();
-      expect(transactionAlert.findFirst).not.toHaveBeenCalled();
+      expect(transactionAlert.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ...scopedWhere, id: 'foreign-alert' },
+        }),
+      );
     });
 
     it('returns null if the updated alert is no longer visible', async () => {

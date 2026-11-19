@@ -42,6 +42,24 @@ export class PrismaLegislationRepository implements LegislationRepository {
     });
   }
 
+  async findAllBySearch(search: string): Promise<Legislation[]> {
+    const term = search.trim();
+    const yearNumber = Number(term);
+    const isYear = term !== '' && Number.isInteger(yearNumber);
+
+    return this.prisma.legislation.findMany({
+      where: {
+        OR: [
+          { number: { contains: term, mode: 'insensitive' } },
+          { summary: { contains: term, mode: 'insensitive' } },
+          ...(isYear ? [{ year: { equals: yearNumber } }] : []),
+        ],
+      },
+      orderBy: [{ year: 'desc' }, { number: 'asc' }, { id: 'asc' }],
+      take: 10,
+    });
+  }
+
   async update(id: string, data: CreateLegislationData): Promise<Legislation> {
     return this.prisma.legislation.update({ where: { id }, data });
   }

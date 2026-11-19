@@ -29,6 +29,9 @@ export class LicenseConditionCreatedResponseDto {
   @ApiProperty({ format: 'date-time' })
   due_date!: string;
 
+  @ApiProperty({ format: 'date-time', nullable: true })
+  alert_date!: string | null;
+
   @ApiProperty({ enum: LicenseConditionStatusDto })
   status!: LicenseConditionStatusDto;
 
@@ -55,6 +58,7 @@ export function toLicenseConditionCreatedResponse(
     environmental_descriptor: condition.environmentalDescriptor,
     responsible_agency: condition.responsibleAgency,
     due_date: condition.dueDate.toISOString(),
+    alert_date: condition.alertDate?.toISOString() ?? null,
     status: STATUS_LABELS[condition.status],
     has_delivery: condition.hasDelivery,
     is_violated: condition.isViolated,

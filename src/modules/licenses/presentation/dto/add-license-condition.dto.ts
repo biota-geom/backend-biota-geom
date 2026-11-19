@@ -85,6 +85,16 @@ export class AddLicenseConditionDto {
   due_date!: string;
 
   @ApiPropertyOptional({
+    example: '2027-05-01T00:00:00.000Z',
+    nullable: true,
+    format: 'date-time',
+    description: 'Lembrete opcional; não pode ser posterior ao vencimento.',
+  })
+  @IsOptional()
+  @IsISO8601()
+  alert_date?: string | null;
+
+  @ApiPropertyOptional({
     enum: LicenseConditionStatusDto,
     default: LicenseConditionStatusDto.REGULAR,
   })

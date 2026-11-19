@@ -16,6 +16,11 @@ describe('SyncAlertsCron', () => {
     await expect(cron.run()).resolves.toBeUndefined();
   });
 
+  it('does not throw when the sync rejects with a non-Error value', async () => {
+    execute.mockRejectedValue('db down');
+    await expect(cron.run()).resolves.toBeUndefined();
+  });
+
   it('logs the registration on startup', () => {
     expect(() => cron.onModuleInit()).not.toThrow();
   });

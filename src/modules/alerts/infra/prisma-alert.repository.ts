@@ -93,13 +93,14 @@ export class PrismaAlertRepository implements AlertsRepository {
     status: Exclude<AlertStatus, 'OPEN'>,
   ) {
     return this.prisma.$transaction(async (transaction) => {
+      const where = { ...this.visibleTo(ownerUserId), id };
       const result = await transaction.alert.updateMany({
-        where: { ...this.visibleTo(ownerUserId), id },
+        where: status === 'READ' ? { ...where, status: 'OPEN' } : where,
         data: { status },
       });
-      if (!result.count) return null;
+      if (!result.count && status !== 'READ') return null;
       const row = await transaction.alert.findFirst({
-        where: { ...this.visibleTo(ownerUserId), id },
+        where,
         include: relations,
       });
       return row ? this.toDomain(row) : null;

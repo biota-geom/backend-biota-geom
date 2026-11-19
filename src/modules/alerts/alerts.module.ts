@@ -7,6 +7,7 @@ import { PrismaAlertResolver } from './infra/prisma-alert-resolver';
 import { ListAlertsUseCase } from './application/list-alerts.use-case';
 import { CountUnreadAlertsUseCase } from './application/count-unread-alerts.use-case';
 import { UpdateAlertStatusUseCase } from './application/update-alert-status.use-case';
+import { MarkAllAlertsReadUseCase } from './application/mark-all-alerts-read.use-case';
 import { AlertsController } from './presentation/alerts.controller';
 
 @Module({
@@ -18,6 +19,7 @@ import { AlertsController } from './presentation/alerts.controller';
     ListAlertsUseCase,
     CountUnreadAlertsUseCase,
     UpdateAlertStatusUseCase,
+    MarkAllAlertsReadUseCase,
   ],
   exports: [AlertsRepository, AlertResolver],
 })

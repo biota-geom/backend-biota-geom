@@ -2,7 +2,8 @@ export const ALERT_TYPES = ['LICENSE_EXPIRATION', 'CONDITION_DUE'] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 export const ALERT_STATUSES = ['OPEN', 'READ', 'RESOLVED'] as const;
 export type AlertStatus = (typeof ALERT_STATUSES)[number];
-export type AlertSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+export const ALERT_SEVERITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
+export type AlertSeverity = (typeof ALERT_SEVERITIES)[number];
 
 export interface Alert {
   id: string;
@@ -25,6 +26,9 @@ export interface AlertPage {
 
 export interface ListAlertsQuery {
   status: AlertStatus[];
+  customerId?: string;
+  type?: AlertType[];
+  severity?: AlertSeverity[];
   page: number;
   pageSize: number;
 }

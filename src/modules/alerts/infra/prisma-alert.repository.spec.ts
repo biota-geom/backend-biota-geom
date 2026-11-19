@@ -101,6 +101,49 @@ describe('PrismaAlertRepository', () => {
     });
   });
 
+  it('applies optional filters to both the page and total count', async () => {
+    alert.findMany.mockResolvedValue([]);
+    alert.count.mockResolvedValue(2);
+    transaction.mockImplementation((queries: Promise<unknown>[]) =>
+      Promise.all(queries),
+    );
+    await repository.list('owner', {
+      status: ['READ', 'RESOLVED'],
+      customerId: 'company',
+      type: ['CONDITION_DUE'],
+      severity: ['HIGH', 'MEDIUM'],
+      page: 1,
+      pageSize: 10,
+    });
+    const where = {
+      ...scopedWhere,
+      status: { in: ['READ', 'RESOLVED'] },
+      customerId: 'company',
+      type: { in: ['CONDITION_DUE'] },
+      severity: { in: ['HIGH', 'MEDIUM'] },
+    };
+    expect(alert.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(alert.count).toHaveBeenCalledWith({ where });
+  });
+
+  it('marks only visible OPEN alerts as read, optionally for one company', async () => {
+    alert.updateMany.mockResolvedValue({ count: 2 });
+    expect(await repository.markAllRead('owner', 'company')).toBe(2);
+    expect(alert.updateMany).toHaveBeenCalledWith({
+      where: { ...scopedWhere, status: 'OPEN', customerId: 'company' },
+      data: { status: 'READ' },
+    });
+
+    alert.updateMany.mockResolvedValue({ count: 3 });
+    expect(await repository.markAllRead('owner')).toBe(3);
+    expect(alert.updateMany).toHaveBeenLastCalledWith({
+      where: { ...scopedWhere, status: 'OPEN' },
+      data: { status: 'READ' },
+    });
+  });
+
   describe('status updates', () => {
     beforeEach(() => {
       transaction.mockImplementation(

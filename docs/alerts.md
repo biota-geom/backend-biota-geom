@@ -54,6 +54,20 @@ Swagger is available at `/api/docs`. Run `npm run lint`, `npm run build`, and
 PostgreSQL database, run `npm run test:e2e -- --runInBand alerts.e2e-spec.ts` for
 HTTP contracts, tenant isolation, ordering, deduplication, Swagger and seed behavior.
 
-Automatic generation, email delivery, and resolution triggered by license renewal
-or condition fulfillment belong to subsequent notification tasks. `AlertsModule`
-does not import `LicensesModule`; it exports the repository port for integration.
+## Resolution
+
+`AlertsModule` exports the `AlertResolver` port, which marks `OPEN`/`READ`
+alerts as `RESOLVED` by license or by condition. It accepts the caller's
+transaction, so the resolution commits together with the change:
+
+| Action                                                  | Resolved alerts                                      |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| Mark conditions as fulfilled (fulfillment `PATCH`)      | Those of the conditions marked `fulfilled: true`.    |
+| Edit a condition with `status: FULFILLED` (was not)     | Those of the condition.                              |
+| Edit a condition's `due_date` to a different date       | Those of the condition (the next sync recreates it). |
+| Renew a license (`POST /api/licenses/:licenseId/renew`) | Those of the previous license and of its conditions. |
+
+Deleting a license or a condition needs nothing: `onDelete: Cascade` removes
+its alerts. Automatic generation and email delivery belong to subsequent
+notification tasks. `AlertsModule` does not import `LicensesModule`; the
+licenses and customers modules import `AlertsModule` instead.

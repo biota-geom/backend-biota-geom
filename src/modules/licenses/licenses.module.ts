@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { FileStorageModule } from '../../common/storage/file-storage.module';
+import { AlertsModule } from '../alerts/alerts.module';
 import { AuthModule } from '../auth/auth.module';
 import { CustomerModule } from '../customers/customers.module';
 import { IssuingAgenciesModule } from '../issuing-agencies/issuing-agencies.module';
@@ -37,6 +38,7 @@ import { LicenseExtractionController } from './presentation/license-extraction.c
 import { SaveConditionsFulfillmentUseCase } from './application/save-conditions-fulfillment.use-case';
 @Module({
   imports: [
+    AlertsModule,
     AuthModule,
     forwardRef(() => CustomerModule),
     IssuingAgenciesModule,

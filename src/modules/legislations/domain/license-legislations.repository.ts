@@ -30,6 +30,9 @@ export abstract class LicenseLegislationRepository {
   abstract create(
     data: CreateLicenseLegislationData,
   ): Promise<LicenseLegislation>;
+  abstract createMany(
+    data: CreateLicenseLegislationData[],
+  ): Promise<LicenseLegislation[]>;
   /** Throws LegislationAlreadyLinkedError when relinking to an act the license already links. */
   abstract update(
     id: string,

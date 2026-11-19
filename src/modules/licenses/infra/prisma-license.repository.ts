@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConditionStatus, LicenseStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AlertResolver } from '../../alerts/domain/alert-resolver';
 import { CreateLicenseData } from '../domain/create-license.data';
 import { License } from '../domain/license.entity';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -39,9 +40,30 @@ function toDomainCondition(
   } as LicenseCondition;
 }
 
+/*
+ * A condition alert is tied to the due date in its dedupe key and only makes
+ * sense while the condition is pending: once fulfilled or rescheduled, the
+ * pending alerts are resolved (the next sync recreates them for the new date).
+ */
+function isConditionAlertObsolete(
+  current: { dueDate: Date; conditionStatus: ConditionStatus },
+  changes: { dueDate?: Date; status?: ConditionStatus },
+): boolean {
+  const rescheduled =
+    changes.dueDate !== undefined &&
+    changes.dueDate.getTime() !== current.dueDate.getTime();
+  const fulfilled =
+    changes.status === ConditionStatus.FULFILLED &&
+    current.conditionStatus !== ConditionStatus.FULFILLED;
+  return rescheduled || fulfilled;
+}
+
 @Injectable()
 export class PrismaLicenseRepository implements LicenseRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly alertResolver: AlertResolver<Prisma.TransactionClient>,
+  ) {}
 
   async create(data: CreateLicenseData): Promise<License> {
     return this.prisma.license.create({
@@ -119,6 +141,12 @@ export class PrismaLicenseRepository implements LicenseRepository {
           where: { id: data.previousLicenseId },
           data: { status: LicenseStatus.ARCHIVED },
         });
+
+        // The renewed license supersedes every pending alert of the old one.
+        await this.alertResolver.resolveForLicense(
+          data.previousLicenseId,
+          transaction,
+        );
 
         await this.applyConditionsFulfillment(
           transaction,
@@ -273,6 +301,13 @@ export class PrismaLicenseRepository implements LicenseRepository {
           },
         });
 
+        if (isConditionAlertObsolete(condition, { ...fields, status })) {
+          await this.alertResolver.resolveForConditions(
+            [condition.id],
+            transaction,
+          );
+        }
+
         return toDomainCondition(updated);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -328,6 +363,13 @@ export class PrismaLicenseRepository implements LicenseRepository {
               : {}),
           },
         });
+
+        if (isConditionAlertObsolete(condition, { ...fields, status })) {
+          await this.alertResolver.resolveForConditions(
+            [condition.id],
+            transaction,
+          );
+        }
 
         return toDomainCondition(updated);
       },
@@ -397,9 +439,19 @@ export class PrismaLicenseRepository implements LicenseRepository {
   async saveConditionsFulfillment(
     data: SaveConditionsFulfillmentData,
   ): Promise<void> {
-    await this.prisma.$transaction((transaction) =>
-      this.applyConditionsFulfillment(transaction, data.licenseId, data.items),
-    );
+    await this.prisma.$transaction(async (transaction) => {
+      await this.applyConditionsFulfillment(
+        transaction,
+        data.licenseId,
+        data.items,
+      );
+      await this.alertResolver.resolveForConditions(
+        data.items
+          .filter((item) => item.fulfilled)
+          .map((item) => item.conditionId),
+        transaction,
+      );
+    });
   }
 
   /*

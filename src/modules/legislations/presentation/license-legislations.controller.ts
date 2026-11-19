@@ -29,8 +29,9 @@ import { CurrentUser } from '../../auth/presentation/decorators/current-user.dec
 import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { LicensesExceptionFilter } from '../../licenses/presentation/filters/licenses-exception.filter';
 import { invalidCustomerIdException } from '../../licenses/presentation/licenses.controller';
-import { AddLicenseLegislationUseCase } from '../application/add-license-legislation.use-case';
+import { AddLicenseLegislationsUseCase } from '../application/add-license-legislations.use-case';
 import { ListLicenseLegislationsUseCase } from '../application/list-license-legislations.use-case';
+import { CreateLicenseLegislationsDto } from './dto/create-license-legislations.dto';
 import { RemoveLicenseLegislationUseCase } from '../application/remove-license-legislation.use-case';
 import { UpdateLicenseLegislationUseCase } from '../application/update-license-legislation.use-case';
 import { AddLicenseLegislationDto } from './dto/add-license-legislation.dto';
@@ -42,6 +43,7 @@ import {
 import { ListLicenseLegislationsQueryDto } from './dto/list-license-legislations-query.dto';
 import { UpdateLicenseLegislationDto } from './dto/update-license-legislation.dto';
 import { LegislationsExceptionFilter } from './filters/legislations-exception.filter';
+import { AddLicenseLegislationUseCase } from '../application/add-license-legislation.use-case';
 
 const uuidPipe = new ParseUUIDPipe({
   exceptionFactory: invalidCustomerIdException,
@@ -58,6 +60,7 @@ export class LicenseLegislationsController {
   constructor(
     private readonly listLicenseLegislationsUseCase: ListLicenseLegislationsUseCase,
     private readonly addLicenseLegislationUseCase: AddLicenseLegislationUseCase,
+    private readonly addLicenseLegislationsUseCase: AddLicenseLegislationsUseCase,
     private readonly updateLicenseLegislationUseCase: UpdateLicenseLegislationUseCase,
     private readonly removeLicenseLegislationUseCase: RemoveLicenseLegislationUseCase,
   ) {}
@@ -77,6 +80,35 @@ export class LicenseLegislationsController {
       licenseId,
       user.id,
       { impact: query.impact },
+    );
+
+    return links.map(toLicenseLegislationResponse);
+  }
+
+  @Post('batch')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiParam({ name: 'licenseId', format: 'uuid' })
+  @ApiOperation({
+    summary:
+      'Adiciona várias legislações ao radar da licença. Legislações já vinculadas são ignoradas (idempotente) e devolvem o vínculo existente.',
+  })
+  @ApiCreatedResponse({ type: LicenseLegislationResponseDto, isArray: true })
+  @ApiBadRequestResponse({
+    description: 'Invalid body or legislation reference.',
+  })
+  @ApiNotFoundResponse({
+    description: 'License or catalog legislation not found.',
+  })
+  async addLicenseLegislations(
+    @Param('licenseId', uuidPipe) licenseId: string,
+    @CurrentUser() user: { id: string },
+    @Body() body: CreateLicenseLegislationsDto,
+  ): Promise<LicenseLegislationResponseDto[]> {
+    const links = await this.addLicenseLegislationsUseCase.execute(
+      licenseId,
+      user.id,
+      body.toDomain(),
     );
 
     return links.map(toLicenseLegislationResponse);

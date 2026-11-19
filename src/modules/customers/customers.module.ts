@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+import { AlertsModule } from '../alerts/alerts.module';
 import { AuthModule } from '../auth/auth.module';
 import { EsgIndicatorsModule } from '../esg-indicators/esg-indicators.module';
 import { LicensesModule } from '../licenses/licenses.module';
@@ -26,6 +27,7 @@ import { ListCustomerDashboardLicensesUseCase } from './application/list-custome
 
 @Module({
   imports: [
+    AlertsModule,
     AuthModule,
     SectorsModule,
     forwardRef(() => LicensesModule),

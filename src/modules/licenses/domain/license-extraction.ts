@@ -1,4 +1,10 @@
-import { ConditionPeriodicity, ConditionType } from '@prisma/client';
+import {
+  ConditionPeriodicity,
+  ConditionType,
+  LegislationImpact,
+  LegislationType,
+  LicenseLegislationSource,
+} from '@prisma/client';
 
 /*
  * What an AI reading of a license PDF can suggest. Every field is nullable on
@@ -32,9 +38,30 @@ export interface SuggestedCondition {
   dueDate: string | null;
 }
 
+/*
+ * A legislation the license cites, shaped like one item of the radar's batch
+ * route (POST /licenses/:licenseId/legislations/batch) so the client can send
+ * it as is. The source is always SCAN; the impact is only a suggestion the
+ * operator reviews. An act that cannot be identified with certainty (type,
+ * number, year and issuing body) is never suggested.
+ */
+export interface SuggestedLegislation {
+  legislation: {
+    type: LegislationType;
+    number: string;
+    year: number;
+    issuingBody: string;
+    summary: string | null;
+  };
+  citedExcerpt: string | null;
+  source: typeof LicenseLegislationSource.SCAN;
+  impact: LegislationImpact | null;
+}
+
 export interface LicenseExtraction {
   extractedData: ExtractedLicenseData;
   suggestedConditions: SuggestedCondition[];
+  suggestedLegislations: SuggestedLegislation[];
 }
 
 /*

@@ -65,6 +65,7 @@ describe('parseLicenseExtraction', () => {
           dueDate: '2025-07-10',
         },
       ],
+      suggestedLegislations: [],
     });
   });
 
@@ -95,6 +96,7 @@ describe('parseLicenseExtraction', () => {
         expirationDate: null,
       },
       suggestedConditions: [],
+      suggestedLegislations: [],
     });
   });
 
@@ -295,5 +297,153 @@ describe('parseLicenseExtraction', () => {
     expect(() => parseLicenseExtraction(text)).toThrow(
       UnreadableLicenseDocumentError,
     );
+  });
+
+  describe('legislations', () => {
+    function legislation(extra: Record<string, unknown> = {}) {
+      return {
+        type: 'LEI',
+        number: '12.305',
+        year: 2010,
+        issuing_body: 'Governo Federal',
+        summary: 'Institui a Política Nacional de Resíduos Sólidos.',
+        cited_excerpt: '…conforme a Lei nº 12.305/2010…',
+        impact: 'HIGH',
+        ...extra,
+      };
+    }
+
+    function parseLegislations(legislations: unknown[]) {
+      return parseLicenseExtraction(
+        answer({
+          extracted_data: EXTRACTED_DATA,
+          sections: [],
+          legislations,
+        }),
+      ).suggestedLegislations;
+    }
+
+    it('maps a cited act onto the radar batch item shape, as a SCAN entry', () => {
+      expect(parseLegislations([legislation()])).toEqual([
+        {
+          legislation: {
+            type: 'LEI',
+            number: '12.305',
+            year: 2010,
+            issuingBody: 'Governo Federal',
+            summary: 'Institui a Política Nacional de Resíduos Sólidos.',
+          },
+          citedExcerpt: '…conforme a Lei nº 12.305/2010…',
+          source: 'SCAN',
+          impact: 'HIGH',
+        },
+      ]);
+    });
+
+    it('returns no legislations when the answer has none or omits the field', () => {
+      expect(parseLegislations([])).toEqual([]);
+      expect(
+        parseLicenseExtraction(
+          answer({ extracted_data: EXTRACTED_DATA, sections: [] }),
+        ).suggestedLegislations,
+      ).toEqual([]);
+    });
+
+    it.each([
+      ['an unknown type', { type: 'ALVARA' }],
+      ['no number', { number: '  ' }],
+      ['no number field', { number: undefined }],
+      ['a non-integer year', { year: 2010.5 }],
+      ['a year outside four digits', { year: 99 }],
+      ['a year as text', { year: '2010' }],
+      ['no issuing body', { issuing_body: '' }],
+      [
+        'an issuing body over 150 characters',
+        { issuing_body: 'x'.repeat(151) },
+      ],
+      ['a number over 50 characters', { number: '1'.repeat(51) }],
+    ])('drops an act with %s instead of guessing it', (_name, extra) => {
+      expect(parseLegislations([legislation(extra)])).toEqual([]);
+    });
+
+    it('keeps the valid acts when one of them is malformed', () => {
+      const result = parseLegislations([
+        legislation({ number: '' }),
+        'not an object',
+        null,
+        legislation({ number: '237', year: 1997, type: 'RESOLUCAO' }),
+      ]);
+
+      expect(result.map(({ legislation: act }) => act.number)).toEqual(['237']);
+    });
+
+    it('reports a missing summary, excerpt or impact as null', () => {
+      const [suggestion] = parseLegislations([
+        legislation({ summary: '', cited_excerpt: null, impact: null }),
+      ]);
+
+      expect(suggestion.legislation.summary).toBeNull();
+      expect(suggestion.citedExcerpt).toBeNull();
+      expect(suggestion.impact).toBeNull();
+    });
+
+    it('falls back to a null impact when the model sends an invalid one', () => {
+      const [suggestion] = parseLegislations([
+        legislation({ impact: 'CRITICAL' }),
+      ]);
+
+      expect(suggestion.impact).toBeNull();
+    });
+
+    it.each([
+      ['nº 12.305', '12.305'],
+      ['Nº 12.305', '12.305'],
+      ['n.º 237', '237'],
+      ['n° 237', '237'],
+      ['  12.305  ', '12.305'],
+    ])('strips the "nº" marker from the number %p', (printed, expected) => {
+      const [suggestion] = parseLegislations([
+        legislation({ number: printed }),
+      ]);
+
+      expect(suggestion.legislation.number).toBe(expected);
+    });
+
+    it('collapses whitespace and truncates the texts to the radar limits', () => {
+      const [suggestion] = parseLegislations([
+        legislation({
+          summary: 'Institui   a\nPNRS.',
+          cited_excerpt: 'x'.repeat(5000),
+        }),
+      ]);
+
+      expect(suggestion.legislation.summary).toBe('Institui a PNRS.');
+      expect(suggestion.citedExcerpt).toHaveLength(4095);
+    });
+
+    it('lists an act once, keeping its first mention', () => {
+      const result = parseLegislations([
+        legislation({ cited_excerpt: 'primeira citação', impact: 'HIGH' }),
+        legislation({
+          number: ' 12.305',
+          issuing_body: 'governo federal',
+          cited_excerpt: 'segunda citação',
+          impact: 'LOW',
+        }),
+        legislation({ year: 2011 }),
+      ]);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].citedExcerpt).toBe('primeira citação');
+      expect(result[0].impact).toBe('HIGH');
+    });
+
+    it('caps the list at the 50 acts the batch route accepts', () => {
+      const many = Array.from({ length: 60 }, (_, index) =>
+        legislation({ number: String(index + 1) }),
+      );
+
+      expect(parseLegislations(many)).toHaveLength(50);
+    });
   });
 });

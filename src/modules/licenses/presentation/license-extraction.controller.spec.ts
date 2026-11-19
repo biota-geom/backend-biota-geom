@@ -50,6 +50,20 @@ describe('LicenseExtractionController', () => {
           issueDate: '2020-01-10',
           expirationDate: '2025-01-10',
         },
+        suggestedLegislations: [
+          {
+            legislation: {
+              type: 'LEI',
+              number: '12.305',
+              year: 2010,
+              issuingBody: 'Governo Federal',
+              summary: 'Institui a PNRS.',
+            },
+            citedExcerpt: '…conforme a Lei nº 12.305/2010…',
+            source: 'SCAN',
+            impact: 'HIGH',
+          },
+        ],
         suggestedConditions: [
           {
             environmentalDescriptor: 'Resíduos Sólidos',
@@ -80,6 +94,20 @@ describe('LicenseExtractionController', () => {
             condition_type: 'PERIODIC',
             periodicity: 'SEMIANNUAL',
             due_date: '2025-07-10',
+          },
+        ],
+        suggested_legislations: [
+          {
+            legislation: {
+              type: 'LEI',
+              number: '12.305',
+              year: 2010,
+              issuing_body: 'Governo Federal',
+              summary: 'Institui a PNRS.',
+            },
+            cited_excerpt: '…conforme a Lei nº 12.305/2010…',
+            source: 'SCAN',
+            impact: 'HIGH',
           },
         ],
       },

@@ -37,9 +37,11 @@ export class ExtractLicenseDataUseCase {
 function isEmpty({
   extractedData,
   suggestedConditions,
+  suggestedLegislations,
 }: LicenseExtraction): boolean {
   return (
     suggestedConditions.length === 0 &&
+    suggestedLegislations.length === 0 &&
     Object.values(extractedData).every((value) => value === null)
   );
 }

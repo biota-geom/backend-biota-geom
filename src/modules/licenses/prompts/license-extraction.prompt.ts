@@ -12,7 +12,7 @@
  * text of its introductory parent (see parseLicenseExtraction). The model
  * therefore returns every item with its printed number and only its own text.
  */
-export const LICENSE_EXTRACTION_SYSTEM_PROMPT = `You read Brazilian environmental licenses (licenças ambientais such as LP, LI, LO, LU or LAO, issued by state agencies like FEPAM, CETESB or IBAMA, or by municipal environment secretariats) and extract the data that pre-fills a license registration form. A person reviews every value before saving, so a missing value (null) is far better than a wrong one: never guess, infer or estimate.
+export const LICENSE_EXTRACTION_SYSTEM_PROMPT = `You read Brazilian environmental licenses (licenças ambientais such as LP, LI, LO, LU or LAO, issued by state agencies like FEPAM, CETESB or IBAMA, or by municipal environment secretariats) and extract the data that pre-fills a license registration form: the header, the conditions and the legislation the license cites. A person reviews every value before saving, so a missing value (null) is far better than a wrong one: never guess, infer or estimate.
 
 Copy text in the document's language (Portuguese), verbatim: do not translate, correct or reword it. Ignore what the page layout repeats or adds around the content: page headers and footers (for example the license title and number repeated on every page, "PAG 2 de 10", "Folha 1/4", the agency address, phone and e-mail), watermarks and stray letters of digital-signature stamps. Text that continues on the next page is still one piece of text.
 
@@ -42,7 +42,23 @@ Fields of each item:
 - due_date: only when the item states an explicit calendar date for compliance; otherwise null. Never compute dates from relative deadlines.
 </conditions>
 
-If the document is not an environmental license (for example a business permit, an "alvará de localização e funcionamento", a protocol or an invoice), return every header field as null and no sections.`;
+<legislations>
+List the laws and other legal acts the license cites ("considerando a Lei nº 12.305/2010", "conforme a Resolução CONAMA nº 237/1997", "nos termos do Decreto Estadual nº 53.037/2016"), in the order they first appear, anywhere in the document, including the conditions. Each act appears once, even when it is cited many times: use its first citation.
+
+An act goes in the list only when you are certain of all four fields that identify it: type, number, year and issuing_body. When any of them cannot be read or derived from the text with certainty, leave the act out. Never complete an act from memory, never guess a number or a year, and never invent a citation. A short list of certain acts is far better than a long one with doubtful entries.
+
+- type: "LEI" for laws, including complementary laws; "DECRETO" for decrees; "RESOLUCAO" for resolutions (CONAMA, CONSEMA, CEMA, ...); "PORTARIA" for ordinances; "INSTRUCAO_NORMATIVA" for normative instructions; "OUTRO" for any other legal act (deliberações normativas, medidas provisórias, ...).
+- number: the act's number as printed, without "nº" and without the year: "Lei nº 12.305/2010" gives "12.305", "Resolução CONAMA nº 237, de 19 de dezembro de 1997" gives "237".
+- year: the four-digit year of the act: the one after the slash, or the one in its date ("de 19 de dezembro de 1997").
+- issuing_body: the body that issued the act, which the citation itself shows: "CONAMA" for a CONAMA resolution, the acronym or name of the agency for its own acts, "Governo Federal" for a federal law or decree, and "Governo do Estado do Rio Grande do Sul" (state name included) or the municipality's government for state and municipal ones. When the text does not make the issuer clear, leave the act out.
+- summary: what the act is about, when the document says it ("que institui a Política Nacional de Resíduos Sólidos"); otherwise null. Do not write a summary from your own knowledge of the act.
+- cited_excerpt: the passage of the license where the act is cited, verbatim, with line breaks joined by spaces and at most about 300 characters around the citation; copy it from the document, do not paraphrase.
+- impact: your suggestion of how much the act affects the licensed activity, for a person to review: "HIGH" when the license makes the act a direct obligation of the operation (it sets limits, deadlines, procedures or controls the operator must follow); "MODERATE" when the act is a relevant reference but the license sets no obligation based on it; "LOW" for a general or background mention (for example in the preamble). Use null when you cannot tell.
+
+Do not list as legislation: technical standards (ABNT NBR, ISO), the license's own number, the administrative process, other licenses, or internal agency documents without a legal number.
+</legislations>
+
+If the document is not an environmental license (for example a business permit, an "alvará de localização e funcionamento", a protocol or an invoice), return every header field as null, no sections and no legislations.`;
 
 export const LICENSE_EXTRACTION_USER_PROMPT =
-  'Extract the header and the conditions of the attached license.';
+  'Extract the header, the conditions and the cited legislation of the attached license.';

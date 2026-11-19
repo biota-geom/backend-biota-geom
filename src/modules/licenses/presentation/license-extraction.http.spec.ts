@@ -36,6 +36,7 @@ const EXTRACTION: LicenseExtraction = {
     expirationDate: '2030-01-10',
   },
   suggestedConditions: [],
+  suggestedLegislations: [],
 };
 
 class HeaderAuthGuard implements CanActivate {

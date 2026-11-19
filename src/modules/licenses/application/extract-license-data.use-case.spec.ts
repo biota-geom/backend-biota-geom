@@ -24,6 +24,7 @@ describe('ExtractLicenseDataUseCase', () => {
     const extraction: LicenseExtraction = {
       extractedData: { ...EMPTY_DATA, type: 'LO', issuingAgency: 'FEPAM' },
       suggestedConditions: [],
+      suggestedLegislations: [],
     };
     const { useCase, extract } = build(extraction);
 
@@ -34,6 +35,7 @@ describe('ExtractLicenseDataUseCase', () => {
   it('accepts a document with conditions only', async () => {
     const extraction: LicenseExtraction = {
       extractedData: EMPTY_DATA,
+      suggestedLegislations: [],
       suggestedConditions: [
         {
           environmentalDescriptor: null,
@@ -53,6 +55,7 @@ describe('ExtractLicenseDataUseCase', () => {
     const { useCase, extract } = build({
       extractedData: EMPTY_DATA,
       suggestedConditions: [],
+      suggestedLegislations: [],
     });
 
     await expect(
@@ -61,10 +64,35 @@ describe('ExtractLicenseDataUseCase', () => {
     expect(extract).not.toHaveBeenCalled();
   });
 
+  it('accepts a document whose only finding is a cited legislation', async () => {
+    const extraction = {
+      extractedData: EMPTY_DATA,
+      suggestedConditions: [],
+      suggestedLegislations: [
+        {
+          legislation: {
+            type: 'LEI' as const,
+            number: '12.305',
+            year: 2010,
+            issuingBody: 'Governo Federal',
+            summary: null,
+          },
+          citedExcerpt: null,
+          source: 'SCAN' as const,
+          impact: null,
+        },
+      ],
+    };
+    const { useCase } = build(extraction);
+
+    await expect(useCase.execute(PDF)).resolves.toEqual(extraction);
+  });
+
   it('rejects a document from which nothing could be identified', async () => {
     const { useCase } = build({
       extractedData: EMPTY_DATA,
       suggestedConditions: [],
+      suggestedLegislations: [],
     });
 
     await expect(useCase.execute(PDF)).rejects.toThrow(

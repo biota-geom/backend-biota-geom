@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ConditionPeriodicity, ConditionType } from '@prisma/client';
+import {
+  ConditionPeriodicity,
+  ConditionType,
+  LegislationImpact,
+  LegislationType,
+  LicenseLegislationSource,
+} from '@prisma/client';
 import { LICENSES_MESSAGES } from '../messages/licenses.messages.pt-br';
 import {
   ExtractionFailureReason,
@@ -8,6 +14,7 @@ import {
 import {
   LicenseExtraction,
   SuggestedCondition,
+  SuggestedLegislation,
 } from '../../domain/license-extraction';
 
 export class ExtractedLicenseDataDto {
@@ -69,12 +76,69 @@ export class SuggestedConditionDto {
   due_date!: string | null;
 }
 
+export class SuggestedLegislationActDto {
+  @ApiProperty({ enum: LegislationType, example: LegislationType.LEI })
+  type!: LegislationType;
+
+  @ApiProperty({ example: '12.305' })
+  number!: string;
+
+  @ApiProperty({ example: 2010 })
+  year!: number;
+
+  @ApiProperty({ example: 'Governo Federal' })
+  issuing_body!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'Institui a Política Nacional de Resíduos Sólidos.',
+  })
+  summary!: string | null;
+}
+
+/*
+ * Same shape as one item of POST /licenses/:licenseId/legislations/batch, so
+ * the client sends the entries the operator kept without remapping fields.
+ */
+export class SuggestedLegislationDto {
+  @ApiProperty({ type: SuggestedLegislationActDto })
+  legislation!: SuggestedLegislationActDto;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '…conforme a Lei nº 12.305/2010…',
+  })
+  cited_excerpt!: string | null;
+
+  @ApiProperty({
+    enum: LicenseLegislationSource,
+    example: LicenseLegislationSource.SCAN,
+  })
+  source!: LicenseLegislationSource;
+
+  @ApiProperty({
+    enum: LegislationImpact,
+    nullable: true,
+    description: 'Sugestão da IA, para o operador revisar.',
+  })
+  impact!: LegislationImpact | null;
+}
+
 export class LicenseExtractionResponseDto {
   @ApiProperty({ type: ExtractedLicenseDataDto })
   extracted_data!: ExtractedLicenseDataDto;
 
   @ApiProperty({ type: [SuggestedConditionDto] })
   suggested_conditions!: SuggestedConditionDto[];
+
+  @ApiProperty({
+    type: [SuggestedLegislationDto],
+    description:
+      'Legislações citadas no documento. Nada é salvo: o operador escolhe quais vincular.',
+  })
+  suggested_legislations!: SuggestedLegislationDto[];
 }
 
 function toSuggestedConditionDto(
@@ -86,6 +150,25 @@ function toSuggestedConditionDto(
     condition_type: condition.conditionType,
     periodicity: condition.periodicity,
     due_date: condition.dueDate,
+  };
+}
+
+function toSuggestedLegislationDto(
+  suggestion: SuggestedLegislation,
+): SuggestedLegislationDto {
+  const { legislation } = suggestion;
+
+  return {
+    legislation: {
+      type: legislation.type,
+      number: legislation.number,
+      year: legislation.year,
+      issuing_body: legislation.issuingBody,
+      summary: legislation.summary,
+    },
+    cited_excerpt: suggestion.citedExcerpt,
+    source: suggestion.source,
+    impact: suggestion.impact,
   };
 }
 
@@ -104,6 +187,9 @@ export function toLicenseExtractionResponse(
     },
     suggested_conditions: extraction.suggestedConditions.map(
       toSuggestedConditionDto,
+    ),
+    suggested_legislations: extraction.suggestedLegislations.map(
+      toSuggestedLegislationDto,
     ),
   };
 }

@@ -19,6 +19,7 @@ function buildCondition(
     environmentalDescriptor: 'Emissions',
     responsibleAgency: null,
     dueDate,
+    alertDate: null,
     status: LicenseConditionStatus.REGULAR,
     conditionStatus: ConditionStatus.FULFILLED,
     completionDate: new Date('2026-02-10T00:00:00.000Z'),

@@ -39,6 +39,7 @@ function buildCondition(
     environmentalDescriptor: 'Emissões',
     responsibleAgency: 'FEPAM',
     dueDate: new Date('2026-02-15T00:00:00.000Z'),
+    alertDate: null,
     status: LicenseConditionStatus.REGULAR,
     conditionStatus: ConditionStatus.FULFILLED,
     completionDate: new Date('2026-02-10T00:00:00.000Z'),

@@ -11,6 +11,7 @@ import { Response } from 'express';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
 import { DuplicateRenewalConditionError } from '../../domain/errors/duplicate-renewal-condition.error';
+import { InvalidConditionAlertDateError } from '../../domain/errors/invalid-condition-alert-date.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { ConditionNestingNotAllowedError } from '../../domain/errors/condition-nesting-not-allowed.error';
 import { InvalidConditionParentError } from '../../domain/errors/invalid-condition-parent.error';
@@ -32,6 +33,7 @@ type LicensesDomainError =
   | LicenseConditionNotFoundError
   | LicenseConditionLicenseMismatchError
   | InvalidConditionDueDateError
+  | InvalidConditionAlertDateError
   | InvalidConditionParentError
   | ConditionNestingNotAllowedError
   | InvalidRenewalConditionHierarchyError
@@ -47,6 +49,7 @@ type LicensesDomainError =
   LicenseConditionNotFoundError,
   LicenseConditionLicenseMismatchError,
   InvalidConditionDueDateError,
+  InvalidConditionAlertDateError,
   InvalidConditionParentError,
   ConditionNestingNotAllowedError,
   RenewalConditionsOutdatedError,
@@ -97,6 +100,12 @@ export class LicensesExceptionFilter implements ExceptionFilter {
     if (error instanceof InvalidConditionDueDateError) {
       return new BadRequestException(
         LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
+      );
+    }
+
+    if (error instanceof InvalidConditionAlertDateError) {
+      return new BadRequestException(
+        LICENSES_MESSAGES.CONDITION_ALERT_DATE_AFTER_DUE_DATE,
       );
     }
 

@@ -2,6 +2,7 @@ import { LicenseConditionStatus, LicenseStatus } from '@prisma/client';
 import { CustomerRepository } from '../../customers/domain/customers.repository';
 import { InvalidConditionDueDateError } from '../domain/errors/invalid-condition-due-date.error';
 import { LicenseConditionLicenseMismatchError } from '../domain/errors/license-condition-license-mismatch.error';
+import { InvalidConditionAlertDateError } from '../domain/errors/invalid-condition-alert-date.error';
 import { LicenseNotFoundError } from '../domain/errors/license-not-found.error';
 import { LicenseConditionRepository } from '../domain/license-conditions.repository';
 import { LicenseRepository } from '../domain/licenses.repository';
@@ -129,6 +130,35 @@ describe('AddLicenseConditionsUseCase', () => {
         status: LicenseConditionStatus.ATTENTION,
       }),
     ]);
+  });
+
+  it('persists an alert date on or before the due date', async () => {
+    const { useCase, licenseConditionRepository } = buildUseCase();
+    const withAlert = input();
+    Object.assign(withAlert.conditions[0], {
+      alertDate: new Date('2027-05-20T00:00:00.000Z'),
+    });
+
+    await useCase.execute(withAlert);
+
+    expect(licenseConditionRepository.addMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        alertDate: new Date('2027-05-20T00:00:00.000Z'),
+      }),
+    ]);
+  });
+
+  it('rejects an alert date after the due date', async () => {
+    const { useCase, licenseConditionRepository } = buildUseCase();
+    const invalid = input();
+    Object.assign(invalid.conditions[0], {
+      alertDate: new Date('2027-05-21T00:00:00.000Z'),
+    });
+
+    await expect(useCase.execute(invalid)).rejects.toThrow(
+      InvalidConditionAlertDateError,
+    );
+    expect(licenseConditionRepository.addMany).not.toHaveBeenCalled();
   });
 
   it('preserves a parent condition id when adding conditions', async () => {

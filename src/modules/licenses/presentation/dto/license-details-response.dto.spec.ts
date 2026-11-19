@@ -188,6 +188,23 @@ describe('license details response mappers', () => {
     ).toEqual(expect.objectContaining({ is_violated: true }));
   });
 
+  it('returns the alert date so the edit modal keeps it', () => {
+    const withAlert = {
+      ...condition('condition-1', 'Resíduos', '2026-01-01T00:00:00.000Z'),
+      alertDate: new Date('2026-12-20T00:00:00.000Z'),
+    };
+
+    expect(toLicenseConditionDetailsResponse(withAlert, '1.1')).toEqual(
+      expect.objectContaining({ alert_date: '2026-12-20T00:00:00.000Z' }),
+    );
+    expect(
+      toLicenseConditionDetailsResponse(
+        condition('condition-2', 'Resíduos', '2026-01-01T00:00:00.000Z'),
+        '1.2',
+      ),
+    ).toEqual(expect.objectContaining({ alert_date: null }));
+  });
+
   it('converts accepted condition-status labels without violation coupling', () => {
     expect(toConditionStatus('Atendida')).toBe(ConditionStatus.FULFILLED);
     expect(toConditionStatus('Em atendimento')).toBe(

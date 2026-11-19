@@ -545,6 +545,93 @@ describe('Licenses (e2e)', () => {
       });
     });
 
+    it('stores an optional alert date and rejects one after the due date', async () => {
+      const dueDate = dueDateInDays(60);
+      const alertDate = dueDateInDays(30);
+
+      const created = await postCondition(
+        conditionBody({
+          name: `Alerta ${uniqueSuffix()}`,
+          due_date: dueDate,
+          alert_date: alertDate,
+        }),
+      ).expect(201);
+      expect(created.body).toMatchObject({ alert_date: alertDate });
+
+      const rejected = await postCondition(
+        conditionBody({
+          name: `Alerta inválido ${uniqueSuffix()}`,
+          due_date: dueDate,
+          alert_date: dueDateInDays(61),
+        }),
+      ).expect(400);
+      expect(rejected.body).toMatchObject({
+        message:
+          'A data de alerta não pode ser posterior à data de vencimento.',
+      });
+    });
+
+    it('validates the alert date against the due date when editing', async () => {
+      const created = await postCondition(
+        conditionBody({
+          name: `Alerta edição ${uniqueSuffix()}`,
+          due_date: dueDateInDays(60),
+        }),
+      ).expect(201);
+      const conditionId = (created.body as { id: string }).id;
+
+      await request(app.getHttpServer())
+        .put(`/api/license-conditions/${conditionId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ alert_date: dueDateInDays(90) })
+        .expect(400);
+
+      const alertDate = dueDateInDays(10);
+      await request(app.getHttpServer())
+        .put(`/api/license-conditions/${conditionId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ alert_date: alertDate })
+        .expect(200);
+      await expect(
+        prisma.licenseCondition.findUniqueOrThrow({
+          where: { id: conditionId },
+        }),
+      ).resolves.toMatchObject({ alertDate: new Date(alertDate) });
+
+      await request(app.getHttpServer())
+        .put(
+          `/api/customers/${customerId}/licenses/${conditionLicenseId}/conditions/${conditionId}`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ due_date: dueDateInDays(5) })
+        .expect(400);
+    });
+
+    it('rejects a batch whose alert date is after the deadline', async () => {
+      const deadline = dueDateInDays(60);
+      const batch = (alertDate: string) =>
+        request(app.getHttpServer())
+          .post(
+            `/api/customers/${customerId}/licenses/${conditionLicenseId}/conditions`,
+          )
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            conditions: [
+              {
+                environmental_descriptor: 'Resíduos sólidos',
+                description: `Lote com alerta ${uniqueSuffix()}`,
+                condition_type: 'INFORMATIVE',
+                deadline,
+                alert_date: alertDate,
+                responsible_name: 'Ana',
+              },
+            ],
+          });
+
+      await batch(dueDateInDays(61)).expect(400);
+      await batch(dueDateInDays(45)).expect(201);
+    });
+
     it("does not expose another owner's condition through the public update route", async () => {
       const created = await postCondition(
         conditionBody({ name: `Isolamento ${uniqueSuffix()}` }),

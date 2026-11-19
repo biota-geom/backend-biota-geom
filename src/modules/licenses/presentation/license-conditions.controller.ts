@@ -51,6 +51,7 @@ import { UpdateLicenseConditionDto } from './dto/update-license-condition.dto';
 import {
   LicenseConditionDetailsResponseDto,
   toLicenseConditionDetailsResponse,
+  toNullableIsoDate,
 } from './dto/license-details-response.dto';
 
 const uuidPipe = new ParseUUIDPipe({
@@ -148,6 +149,7 @@ export class LicenseConditionsController {
           environmentalDescriptor: dto.environmental_descriptor,
           responsibleAgency: dto.responsible_agency,
           dueDate: new Date(dto.due_date),
+          alertDate: toNullableIsoDate(dto.alert_date) ?? undefined,
           status: toLicenseConditionStatus(dto.status),
           hasDelivery: dto.has_delivery,
           description: dto.description || undefined,
@@ -182,6 +184,7 @@ export class LicenseConditionsController {
         responsibleAgency: dto.responsible_agency,
         dueDate:
           dto.due_date === undefined ? undefined : new Date(dto.due_date),
+        alertDate: toNullableIsoDate(dto.alert_date),
         hasDelivery: dto.has_delivery,
         isViolated: dto.is_violated,
       },

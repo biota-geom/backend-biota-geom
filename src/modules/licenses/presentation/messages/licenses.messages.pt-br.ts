@@ -24,6 +24,8 @@ export const LICENSES_MESSAGES = {
     'A data de vencimento deve ser uma data futura.',
   CONDITION_DUE_DATE_REQUIRED:
     'A data de vencimento é obrigatória para registar a condicionante.',
+  CONDITION_ALERT_DATE_AFTER_DUE_DATE:
+    'A data de alerta não pode ser posterior à data de vencimento.',
   CONDITION_PARENT_INVALID:
     'A condicionante superior deve pertencer à mesma licença e ao mesmo descritor ambiental.',
   CONDITION_NESTING_NOT_ALLOWED: 'Um subitem não pode ter outros subitens.',

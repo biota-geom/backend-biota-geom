@@ -1,6 +1,7 @@
 import { ArgumentsHost, HttpStatus } from '@nestjs/common';
 import { AUTH_MESSAGES } from '../../../auth/presentation/messages/auth.messages.pt-br';
 import { CustomerNotFoundError } from '../../../customers/domain/errors/customer-not-found.error';
+import { InvalidConditionAlertDateError } from '../../domain/errors/invalid-condition-alert-date.error';
 import { InvalidConditionDueDateError } from '../../domain/errors/invalid-condition-due-date.error';
 import { InvalidLicenseDateRangeError } from '../../domain/errors/invalid-license-date-range.error';
 import { LicenseConditionLicenseMismatchError } from '../../domain/errors/license-condition-license-mismatch.error';
@@ -85,6 +86,19 @@ describe('LicensesExceptionFilter', () => {
     expect(json).toHaveBeenCalledWith({
       statusCode: 400,
       message: LICENSES_MESSAGES.CONDITION_DUE_DATE_REQUIRED,
+      error: 'Bad Request',
+    });
+  });
+
+  it('maps an alert date after the due date to 400', () => {
+    const { host, status, json } = buildHost();
+
+    filter.catch(new InvalidConditionAlertDateError(), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(json).toHaveBeenCalledWith({
+      statusCode: 400,
+      message: LICENSES_MESSAGES.CONDITION_ALERT_DATE_AFTER_DUE_DATE,
       error: 'Bad Request',
     });
   });

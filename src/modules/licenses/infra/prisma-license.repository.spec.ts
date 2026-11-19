@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateLicenseData } from '../domain/create-license.data';
+import { InvalidConditionAlertDateError } from '../domain/errors/invalid-condition-alert-date.error';
 import { LicenseConditionNotFoundError } from '../domain/errors/license-condition-not-found.error';
 import { RenewalConditionsOutdatedError } from '../domain/errors/renewal-conditions-outdated.error';
 import { PrismaLicenseRepository } from './prisma-license.repository';
@@ -1017,6 +1018,89 @@ describe('PrismaLicenseRepository', () => {
       repository.updateConditionForOwner('condition-1', 'owner-1', {}),
     ).rejects.toThrow(LicenseConditionNotFoundError);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  describe('alert date validation on update', () => {
+    const stored = {
+      id: 'condition-1',
+      licenseId: 'license-1',
+      environmentalDescriptor: 'Resíduos sólidos',
+      dueDate: new Date('2027-01-10T00:00:00.000Z'),
+      alertDate: new Date('2027-01-01T00:00:00.000Z'),
+    };
+
+    function buildRepository() {
+      const update = jest.fn().mockResolvedValue(stored);
+      const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+        callback({
+          licenseCondition: {
+            findFirst: jest.fn().mockResolvedValue(stored),
+            update,
+          },
+        }),
+      );
+      const repository = new PrismaLicenseRepository(
+        { $transaction: transaction } as unknown as PrismaService,
+        alertResolver,
+      );
+      return { repository, update };
+    }
+
+    it('rejects an alert date after the stored due date', async () => {
+      const { repository, update } = buildRepository();
+
+      await expect(
+        repository.updateConditionForOwner('condition-1', 'owner-1', {
+          alertDate: new Date('2027-01-11T00:00:00.000Z'),
+        }),
+      ).rejects.toThrow(InvalidConditionAlertDateError);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it.each(['dueDate', 'deadline'] as const)(
+      'rejects %s moved before the stored alert date',
+      async (field) => {
+        const { repository, update } = buildRepository();
+
+        await expect(
+          repository.updateCondition({
+            id: 'condition-1',
+            licenseId: 'license-1',
+            customerId: 'customer-1',
+            data: { [field]: new Date('2026-12-31T00:00:00.000Z') },
+          }),
+        ).rejects.toThrow(InvalidConditionAlertDateError);
+        expect(update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('accepts moving both dates together and clearing the alert date', async () => {
+      const { repository, update } = buildRepository();
+
+      await repository.updateConditionForOwner('condition-1', 'owner-1', {
+        dueDate: new Date('2026-12-31T00:00:00.000Z'),
+        alertDate: new Date('2026-12-20T00:00:00.000Z'),
+      });
+      await repository.updateCondition({
+        id: 'condition-1',
+        licenseId: 'license-1',
+        customerId: 'customer-1',
+        data: {
+          dueDate: new Date('2026-12-31T00:00:00.000Z'),
+          alertDate: null,
+        },
+      });
+
+      expect(update).toHaveBeenCalledTimes(2);
+      expect(update).toHaveBeenLastCalledWith({
+        where: { id: 'condition-1' },
+        data: {
+          dueDate: new Date('2026-12-31T00:00:00.000Z'),
+          deadline: new Date('2026-12-31T00:00:00.000Z'),
+          alertDate: null,
+        },
+      });
+    });
   });
 
   it('deletes an owned condition inside a transaction', async () => {

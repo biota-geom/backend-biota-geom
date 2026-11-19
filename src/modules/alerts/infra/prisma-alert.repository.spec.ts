@@ -168,7 +168,7 @@ describe('PrismaAlertRepository', () => {
       ).toMatchObject({ id: 'alert', status: 'READ', condition: null });
       const where = { ...scopedWhere, id: 'alert' };
       expect(transactionAlert.updateMany).toHaveBeenCalledWith({
-        where,
+        where: { ...where, status: 'OPEN' },
         data: { status: 'READ' },
       });
       expect(transactionAlert.findFirst).toHaveBeenCalledWith(
@@ -177,12 +177,29 @@ describe('PrismaAlertRepository', () => {
       expect(alert.updateMany).not.toHaveBeenCalled();
     });
 
-    it('returns null without reading when no visible alert was updated', async () => {
+    it('returns the current resolved alert when a stale request marks it read', async () => {
       transactionAlert.updateMany.mockResolvedValue({ count: 0 });
+      transactionAlert.findFirst.mockResolvedValue({
+        ...row,
+        status: 'RESOLVED',
+      });
+
+      await expect(
+        repository.updateStatus('owner', 'alert', 'READ'),
+      ).resolves.toMatchObject({ status: 'RESOLVED' });
+    });
+
+    it('returns null when no alert is visible to the owner', async () => {
+      transactionAlert.updateMany.mockResolvedValue({ count: 0 });
+      transactionAlert.findFirst.mockResolvedValue(null);
       expect(
         await repository.updateStatus('owner', 'foreign-alert', 'READ'),
       ).toBeNull();
-      expect(transactionAlert.findFirst).not.toHaveBeenCalled();
+      expect(transactionAlert.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { ...scopedWhere, id: 'foreign-alert' },
+        }),
+      );
     });
 
     it('returns null if the updated alert is no longer visible', async () => {

@@ -26,6 +26,7 @@ import { JwtAuthGuard } from '../../auth/presentation/guards/jwt-auth.guard';
 import { AUTH_MESSAGES } from '../../auth/presentation/messages/auth.messages.pt-br';
 import { ListAlertsUseCase } from '../application/list-alerts.use-case';
 import { CountUnreadAlertsUseCase } from '../application/count-unread-alerts.use-case';
+import { SyncAlertsUseCase } from '../application/sync-alerts.use-case';
 import { UpdateAlertStatusUseCase } from '../application/update-alert-status.use-case';
 import { MarkAllAlertsReadUseCase } from '../application/mark-all-alerts-read.use-case';
 import { AlertResponseDto, toAlertResponse } from './dto/alert-response.dto';
@@ -33,6 +34,7 @@ import {
   AlertListResponseDto,
   UnreadAlertCountResponseDto,
 } from './dto/alert-list-response.dto';
+import { SyncAlertsResponseDto } from './dto/sync-alerts-response.dto';
 import { ListAlertsQueryDto } from './dto/list-alerts-query.dto';
 import { UpdateAlertStatusDto } from './dto/update-alert-status.dto';
 import { ReadAllAlertsQueryDto } from './dto/read-all-alerts-query.dto';
@@ -49,6 +51,7 @@ export class AlertsController {
     private readonly listAlerts: ListAlertsUseCase,
     private readonly countUnread: CountUnreadAlertsUseCase,
     private readonly updateStatus: UpdateAlertStatusUseCase,
+    private readonly syncAlerts: SyncAlertsUseCase,
     private readonly markAllRead: MarkAllAlertsReadUseCase,
   ) {}
 
@@ -91,6 +94,13 @@ export class AlertsController {
   @ApiOkResponse({ type: UnreadAlertCountResponseDto })
   unreadCount(@CurrentUser() user: { id: string }) {
     return this.countUnread.execute(user.id);
+  }
+
+  @Post('sync')
+  @HttpCode(200)
+  @ApiOkResponse({ type: SyncAlertsResponseDto })
+  sync(@CurrentUser() user: { id: string }): Promise<SyncAlertsResponseDto> {
+    return this.syncAlerts.execute({ ownerUserId: user.id });
   }
 
   @Patch(':id')

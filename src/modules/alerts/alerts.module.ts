@@ -7,6 +7,14 @@ import { PrismaAlertResolver } from './infra/prisma-alert-resolver';
 import { ListAlertsUseCase } from './application/list-alerts.use-case';
 import { CountUnreadAlertsUseCase } from './application/count-unread-alerts.use-case';
 import { UpdateAlertStatusUseCase } from './application/update-alert-status.use-case';
+import { AlertSyncRepository } from './domain/alert-sync.repository';
+import { LicenseExpirationSource } from './domain/license-expiration-source';
+import { ALERT_GENERATORS } from './domain/alert-generator';
+import { PrismaAlertSyncRepository } from './infra/prisma-alert-sync.repository';
+import { PrismaLicenseExpirationSource } from './infra/prisma-license-expiration.source';
+import { SyncAlertsCron } from './infra/sync-alerts.cron';
+import { LicenseExpirationAlertGenerator } from './application/license-expiration-alert.generator';
+import { SyncAlertsUseCase } from './application/sync-alerts.use-case';
 import { MarkAllAlertsReadUseCase } from './application/mark-all-alerts-read.use-case';
 import { AlertsController } from './presentation/alerts.controller';
 
@@ -19,6 +27,20 @@ import { AlertsController } from './presentation/alerts.controller';
     ListAlertsUseCase,
     CountUnreadAlertsUseCase,
     UpdateAlertStatusUseCase,
+    { provide: AlertSyncRepository, useClass: PrismaAlertSyncRepository },
+    {
+      provide: LicenseExpirationSource,
+      useClass: PrismaLicenseExpirationSource,
+    },
+    LicenseExpirationAlertGenerator,
+    // Add new generators (e.g. conditions) to this list.
+    {
+      provide: ALERT_GENERATORS,
+      useFactory: (licenses: LicenseExpirationAlertGenerator) => [licenses],
+      inject: [LicenseExpirationAlertGenerator],
+    },
+    SyncAlertsUseCase,
+    SyncAlertsCron,
     MarkAllAlertsReadUseCase,
   ],
   exports: [AlertsRepository, AlertResolver],

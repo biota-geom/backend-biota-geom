@@ -1,5 +1,13 @@
 import 'dotenv/config';
 import { seedAlerts } from './seed-alerts';
+import {
+  seedCompanyEsgSeries,
+  seedEsgIndicatorRecordsTable,
+  seedEsgMetrics,
+  seedEsgMetricsTable,
+  seedGriStandards,
+  seedGriStandardsTable,
+} from './seed-esg';
 import { calculateLicenseStatus } from '../src/modules/licenses/domain/license-status.calculator';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from '@node-rs/argon2';
@@ -9,7 +17,6 @@ import {
   ConditionStatus,
   ConditionType,
   DocumentType,
-  EsgPillar,
   LegislationImpact,
   LegislationType,
   LicenseLegislationSource,
@@ -36,11 +43,15 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 /*
- * Senha única para todas as contas de seed. O hash é gerado com o mesmo
- * Argon2id usado pelo Argon2PasswordHasher em runtime — um hash literal de
- * exemplo não passa no `verify` do login, então as contas ficariam inúteis.
+ * Senha padrão para criação das contas de seed (sobrescrevível via env
+ * `SEED_PASSWORD`). O hash é gerado com o mesmo Argon2id usado em runtime.
+ * Em produção, reexecuções não sobrescrevem o hash de usuários existentes,
+ * salvo se `SEED_RESET_PASSWORDS=true` for definido explicitamente.
  */
-const SEED_PASSWORD = 'Senha@1234';
+const SEED_PASSWORD = process.env.SEED_PASSWORD ?? 'Senha@1234';
+const SHOULD_UPDATE_PASSWORD_ON_RESEED =
+  process.env.NODE_ENV !== 'production' ||
+  process.env.SEED_RESET_PASSWORDS === 'true';
 
 /*
  * O domínio precisa bater com AUTH_ALLOWED_EMAIL_DOMAIN, senão as contas do
@@ -91,81 +102,6 @@ const seedSectors = [
   },
 ];
 
-const seedEsgMetrics = [
-  { name: 'Consumo de Água', unit: 'm³', pillar: EsgPillar.AMBIENTAL },
-  {
-    name: 'Emissão de CO2 Equivalente',
-    unit: 'ton',
-    pillar: EsgPillar.AMBIENTAL,
-  },
-  {
-    name: 'Resíduos Sólidos Gerados',
-    unit: 'ton',
-    pillar: EsgPillar.AMBIENTAL,
-  },
-  { name: 'Consumo de Energia', unit: 'kWh', pillar: EsgPillar.AMBIENTAL },
-  {
-    name: 'Horas de Treinamento em Segurança',
-    unit: 'horas',
-    pillar: EsgPillar.SOCIAL,
-  },
-  { name: 'Número de Funcionários', unit: 'pessoas', pillar: EsgPillar.SOCIAL },
-  {
-    name: 'Não Conformidades Ambientais',
-    unit: 'ocorrências',
-    pillar: EsgPillar.GOVERNANCA,
-  },
-];
-
-/*
- * Catálogo GRI. `metric` é a métrica global de `seedEsgMetrics` que passa a
- * apontar para o padrão (esg_metric.gri_standard_id).
- */
-const seedGriStandards = [
-  {
-    code: 'GRI 303-5',
-    name: 'Consumo de água',
-    pillar: EsgPillar.AMBIENTAL,
-    metric: 'Consumo de Água',
-  },
-  {
-    code: 'GRI 305-1',
-    name: 'Emissões diretas (Escopo 1) de gases de efeito estufa',
-    pillar: EsgPillar.AMBIENTAL,
-    metric: 'Emissão de CO2 Equivalente',
-  },
-  {
-    code: 'GRI 306-3',
-    name: 'Resíduos gerados',
-    pillar: EsgPillar.AMBIENTAL,
-    metric: 'Resíduos Sólidos Gerados',
-  },
-  {
-    code: 'GRI 302-1',
-    name: 'Consumo de energia dentro da organização',
-    pillar: EsgPillar.AMBIENTAL,
-    metric: 'Consumo de Energia',
-  },
-  {
-    code: 'GRI 403-5',
-    name: 'Capacitação de trabalhadores em saúde e segurança do trabalho',
-    pillar: EsgPillar.SOCIAL,
-    metric: 'Horas de Treinamento em Segurança',
-  },
-  {
-    code: 'GRI 2-7',
-    name: 'Empregados',
-    pillar: EsgPillar.SOCIAL,
-    metric: 'Número de Funcionários',
-  },
-  {
-    code: 'GRI 2-27',
-    name: 'Conformidade com leis e regulamentos',
-    pillar: EsgPillar.GOVERNANCA,
-    metric: 'Não Conformidades Ambientais',
-  },
-];
-
 const seedLegislations = [
   {
     type: LegislationType.LEI,
@@ -204,6 +140,30 @@ const seedLegislations = [
     issuingBody: 'Governo Federal',
     summary: 'Dispõe sobre a Política Nacional do Meio Ambiente.',
   },
+  {
+    type: LegislationType.RESOLUCAO,
+    number: '430',
+    year: 2011,
+    issuingBody: 'CONAMA',
+    summary:
+      'Dispõe sobre as condições e padrões de lançamento de efluentes em corpos de água receptores.',
+  },
+  {
+    type: LegislationType.RESOLUCAO,
+    number: '357',
+    year: 2005,
+    issuingBody: 'CONAMA',
+    summary:
+      'Dispõe sobre a classificação dos corpos de água e diretrizes ambientais para o seu enquadramento.',
+  },
+  {
+    type: LegislationType.LEI,
+    number: '12.651',
+    year: 2012,
+    issuingBody: 'Governo Federal',
+    summary:
+      'Dispõe sobre a proteção da vegetação nativa (Código Florestal Brasileiro).',
+  },
 ];
 
 /*
@@ -228,7 +188,6 @@ const seedCompanies = [
     email: 'contato@mineracaoop.com.br',
     ownerName: 'Roberto Andrade',
     ownerPhone: '+55 31 99988-7766',
-    metrics: ['Consumo de Água', 'Resíduos Sólidos Gerados'],
     address: {
       street: 'Rodovia dos Minérios',
       number: 'KM 12',
@@ -246,7 +205,6 @@ const seedCompanies = [
     email: 'ambiental@carajasmin.com.br',
     ownerName: 'Fernanda Lopes',
     ownerPhone: '+55 94 99877-6655',
-    metrics: ['Consumo de Água', 'Emissão de CO2 Equivalente'],
     address: {
       street: 'Avenida dos Carajás',
       number: '2100',
@@ -264,7 +222,6 @@ const seedCompanies = [
     email: 'contato@ecoverde.com.br',
     ownerName: 'Mariana Souza',
     ownerPhone: '+55 51 99988-7766',
-    metrics: ['Consumo de Água', 'Número de Funcionários'],
     address: {
       street: 'Avenida das Palmeiras',
       number: '1000',
@@ -282,7 +239,6 @@ const seedCompanies = [
     email: 'santaclara@agro.com.br',
     ownerName: 'Paulo Menezes',
     ownerPhone: '+55 66 99766-5544',
-    metrics: ['Consumo de Água'],
     address: {
       street: 'Rodovia BR-163',
       number: 'KM 740',
@@ -300,11 +256,6 @@ const seedCompanies = [
     email: 'contato@metalaco.com.br',
     ownerName: 'Carlos Aço',
     ownerPhone: '+55 31 97766-5544',
-    metrics: [
-      'Emissão de CO2 Equivalente',
-      'Consumo de Energia',
-      'Horas de Treinamento em Segurança',
-    ],
     address: {
       street: 'Avenida Siderúrgica',
       number: '450',
@@ -322,7 +273,6 @@ const seedCompanies = [
     email: 'meioambiente@usinavr.com.br',
     ownerName: 'Helena Martins',
     ownerPhone: '+55 24 99655-4433',
-    metrics: ['Emissão de CO2 Equivalente'],
     address: {
       street: 'Rua da Fundição',
       number: '88',
@@ -340,7 +290,6 @@ const seedCompanies = [
     email: 'contato@solbrilho.com.br',
     ownerName: 'Mariana Luz',
     ownerPhone: '+55 11 98877-6655',
-    metrics: ['Consumo de Energia', 'Número de Funcionários'],
     address: {
       street: 'Rua do Sol',
       number: '450',
@@ -358,7 +307,6 @@ const seedCompanies = [
     email: 'operacao@serradovento.com.br',
     ownerName: 'Ricardo Nunes',
     ownerPhone: '+55 84 99544-3322',
-    metrics: ['Consumo de Energia'],
     address: {
       street: 'Estrada da Serra',
       number: 's/n',
@@ -376,7 +324,6 @@ const seedCompanies = [
     email: 'eta@valeazul.com.br',
     ownerName: 'Beatriz Ramos',
     ownerPhone: '+55 62 99433-2211',
-    metrics: ['Consumo de Água', 'Não Conformidades Ambientais'],
     address: {
       street: 'Avenida das Águas',
       number: '75',
@@ -394,7 +341,6 @@ const seedCompanies = [
     email: 'ambiental@celuloseriobranco.com.br',
     ownerName: 'Tiago Ferraz',
     ownerPhone: '+55 27 99322-1100',
-    metrics: ['Consumo de Água', 'Resíduos Sólidos Gerados'],
     address: {
       street: 'Rodovia do Eucalipto',
       number: 'KM 30',
@@ -418,7 +364,6 @@ const seedCompanies = [
     email: 'arquivo@desativada.com.br',
     ownerName: 'Registro Arquivado',
     ownerPhone: '+55 00 00000-0000',
-    metrics: [],
     address: {
       street: 'Rua Desativada',
       number: '0',
@@ -478,13 +423,18 @@ interface SeedLicenseLegislation {
 }
 
 /*
- * Cobertura pensada para a listagem/filtros de licenças:
- * - os três tipos (LP, LI, LO) e os três status;
- * - órgãos emissores diferentes;
- * - licenças sem condicionantes, com condicionantes em andamento, vencidas
- *   e cumpridas, informativas e periódicas em todas as periodicidades.
+ * Cobertura pensada para a listagem/filtros de licenças e barra de conformidade:
+ * - regra de conformidade: condicionantes com vencimento > 30 dias (REGULAR)
+ *   sobre o total ativo; 8..30 dias = ATTENTION; <= 7 dias = RISK.
+ * - janela de atenção de licenças: 0..30 dias até o vencimento.
+ * - distribuição de conformidade entre as empresas:
+ *   admin: 100% (EcoVerde), 88% (Celulose Rio Branco), 83% (Carajás),
+ *          67% (Ouro Preto), 50% (MetalAço), 25% (Fazenda Santa Clara),
+ *          0% (Volta Redonda).
+ *   carlos.analista: 100% (Serra do Vento), 80% (SolBrilho), 33% (Vale Azul).
  */
 const seedLicenses: SeedLicense[] = [
+  // --- Unidade Industrial Ouro Preto (3 licenças · 4/6 = 67%) ---
   {
     company: 'Unidade Industrial Ouro Preto',
     type: 'LO',
@@ -533,8 +483,8 @@ const seedLicenses: SeedLicense[] = [
         environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.QUARTERLY,
-        dueInDays: 30,
-        alertInDays: 15,
+        dueInDays: 75, // REGULAR
+        alertInDays: 45,
       },
       {
         title: 'Destinação de resíduos sólidos',
@@ -544,8 +494,8 @@ const seedLicenses: SeedLicense[] = [
         environmentalDescriptor: 'Resíduos Sólidos Gerados',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.SEMIANNUAL,
-        dueInDays: -10, // OVERDUE
-        alertInDays: -25,
+        dueInDays: 20, // ATTENTION
+        alertInDays: 5,
       },
       {
         title: 'Apresentação do Plano de Controle Ambiental',
@@ -554,8 +504,19 @@ const seedLicenses: SeedLicense[] = [
         responsibleName: 'Roberto Andrade',
         environmentalDescriptor: 'Consumo de Água',
         conditionType: ConditionType.INFORMATIVE,
-        deadlineInDays: -60,
-        completedInDays: -75, // FULFILLED
+        deadlineInDays: 120, // REGULAR
+        completedInDays: -15, // FULFILLED
+      },
+      {
+        title: 'Controle de emissões particuladas',
+        description:
+          'Apresentar relatório semestral de monitoramento de material particulado nas vias internas de acesso.',
+        responsibleName: 'Roberto Andrade',
+        environmentalDescriptor: 'Emissão de CO2 Equivalente',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 180, // REGULAR
+        alertInDays: 150,
       },
     ],
   },
@@ -566,15 +527,49 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '02001.004512/2019-31',
     issuedInDays: -1500,
     expiresInDays: -200, // EXPIRED
-    conditions: [],
+    conditions: [
+      {
+        title: 'Regularização de drenagem pluvial da expansão',
+        description:
+          'Protocolar relatório fotográfico e as-built do sistema de drenagem pluvial da área de expansão.',
+        responsibleName: 'Roberto Andrade',
+        environmentalDescriptor: 'Taxa de Reúso de Água',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: -10, // RISK / OVERDUE
+        alertInDays: -25,
+      },
+    ],
   },
+  {
+    company: 'Unidade Industrial Ouro Preto',
+    type: 'LP',
+    agency: 'FEAM',
+    processNumber: '2024.02.10.001.0002890',
+    issuedInDays: -240,
+    expiresInDays: 320, // REGULAR
+    conditions: [
+      {
+        title: 'Estudo hidrogeológico complementar',
+        description:
+          'Entregar campanha anual de monitoramento piezométrico para a fase prévia do novo pátio.',
+        responsibleName: 'Roberto Andrade',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 95, // REGULAR
+        alertInDays: 65,
+      },
+    ],
+  },
+
+  // --- Complexo Minerário Carajás (3 licenças · 5/6 = 83%) ---
   {
     company: 'Complexo Minerário Carajás',
     type: 'LO',
     agency: 'IBAMA',
     processNumber: '02001.009876/2021-17',
     issuedInDays: -700,
-    expiresInDays: 45, // ATTENTION
+    expiresInDays: 22, // ATTENTION
     legislations: [
       {
         type: LegislationType.RESOLUCAO,
@@ -584,6 +579,16 @@ const seedLicenses: SeedLicense[] = [
         source: LicenseLegislationSource.SCAN,
         citedExcerpt: '…conforme a Resolução CONAMA nº 237/1997…',
         impact: LegislationImpact.LOW,
+      },
+      {
+        type: LegislationType.LEI,
+        number: '12.651',
+        year: 2012,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.MODERATE,
+        technicalAnalysis:
+          'Exige manutenção integral da reserva legal e das áreas de preservação permanente no entorno da mina.',
       },
     ],
     conditions: [
@@ -595,20 +600,96 @@ const seedLicenses: SeedLicense[] = [
         environmentalDescriptor: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.ANNUAL,
-        dueInDays: 40,
-        alertInDays: 10,
+        dueInDays: 60, // REGULAR
+        alertInDays: 30,
       },
       {
         title: 'Programa de educação ambiental',
         description:
           'Implementar o programa de educação ambiental junto às comunidades do entorno.',
         responsibleName: 'Fernanda Lopes',
-        environmentalDescriptor: 'Consumo de Água',
+        environmentalDescriptor: 'Horas de Treinamento em Segurança',
         conditionType: ConditionType.INFORMATIVE,
-        deadlineInDays: 90,
+        deadlineInDays: 130, // REGULAR
+      },
+      {
+        title: 'Monitoramento geotécnico de pilhas',
+        description:
+          'Enviar relatório trimestral de estabilidade e instrumentação das pilhas de estéril.',
+        responsibleName: 'Fernanda Lopes',
+        environmentalDescriptor: 'Auditorias Ambientais Realizadas',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 18, // ATTENTION
+        alertInDays: 5,
       },
     ],
   },
+  {
+    company: 'Complexo Minerário Carajás',
+    type: 'LI',
+    agency: 'IBAMA',
+    processNumber: '02001.011204/2023-88',
+    issuedInDays: -420,
+    expiresInDays: 520, // REGULAR
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '357',
+        year: 2005,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…os corpos hídricos receptores deverão atender à Resolução CONAMA nº 357/2005…',
+        impact: LegislationImpact.MODERATE,
+      },
+    ],
+    conditions: [
+      {
+        title: 'Resgate e afugentamento de fauna',
+        description:
+          'Apresentar relatório semestral das campanhas de monitoramento e resgate de fauna na área de implantação.',
+        responsibleName: 'Fernanda Lopes',
+        environmentalDescriptor: 'Auditorias Ambientais Realizadas',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 90, // REGULAR
+        alertInDays: 60,
+      },
+      {
+        title: 'Controle de sedimentos em bacias de contenção',
+        description:
+          'Protocolar análise trimestral de turbidez e sólidos suspensos nas bacias de contenção.',
+        responsibleName: 'Fernanda Lopes',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 150, // REGULAR
+        alertInDays: 120,
+      },
+    ],
+  },
+  {
+    company: 'Complexo Minerário Carajás',
+    type: 'LP',
+    agency: 'IBAMA',
+    processNumber: '02001.008321/2024-12',
+    issuedInDays: -180,
+    expiresInDays: 640, // REGULAR
+    conditions: [
+      {
+        title: 'Plano básico ambiental do novo ramal',
+        description:
+          'Submeter versão consolidada do PBA contemplando medidas mitigadoras para a fase de instalação.',
+        responsibleName: 'Fernanda Lopes',
+        environmentalDescriptor: 'Taxa de Reciclagem de Resíduos',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 110, // REGULAR
+      },
+    ],
+  },
+
+  // --- EcoVerde Agroindústria S.A. (3 licenças · 5/5 = 100%) ---
   {
     company: 'EcoVerde Agroindústria S.A.',
     type: 'LO',
@@ -632,6 +713,17 @@ const seedLicenses: SeedLicense[] = [
         issuingBody: 'Governo Federal',
         source: LicenseLegislationSource.SCAN,
         citedExcerpt: '…Lei nº 6.938/1981, que institui a PNMA…',
+        read: true,
+      },
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '430',
+        year: 2011,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…lançamento de efluentes tratados conforme limites da Resolução CONAMA nº 430/2011…',
+        impact: LegislationImpact.HIGH,
       },
     ],
     conditions: [
@@ -640,11 +732,65 @@ const seedLicenses: SeedLicense[] = [
         description:
           'Enviar mensalmente o relatório de automonitoramento dos efluentes tratados, com os parâmetros da licença.',
         responsibleName: 'Mariana Souza',
-        environmentalDescriptor: 'Consumo de Água',
+        environmentalDescriptor: 'Efluentes Tratados',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.MONTHLY,
-        dueInDays: 12,
-        alertInDays: 5,
+        dueInDays: 55, // REGULAR
+        alertInDays: 25,
+      },
+      {
+        title: 'Controle de consumo hídrico industrial',
+        description:
+          'Consolidar relatório trimestral de medição de vazão e metas de redução de consumo de água.',
+        responsibleName: 'Mariana Souza',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 90, // REGULAR
+        alertInDays: 60,
+        completedInDays: -15, // FULFILLED
+      },
+      {
+        title: 'Gestão de resíduos orgânicos e compostagem',
+        description:
+          'Apresentar semestralmente o balanço de massa dos resíduos orgânicos enviados à compostagem.',
+        responsibleName: 'Mariana Souza',
+        environmentalDescriptor:
+          'Fornecedores Avaliados em Critérios Ambientais',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 140, // REGULAR
+        alertInDays: 110,
+      },
+      {
+        title: 'Relatório anual de recuperação de APP',
+        description:
+          'Comprovar a evolução do plantio de espécies nativas nas áreas de preservação permanente.',
+        responsibleName: 'Mariana Souza',
+        environmentalDescriptor: 'Participação de Energia Renovável',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 200, // REGULAR
+        alertInDays: 170,
+      },
+    ],
+  },
+  {
+    company: 'EcoVerde Agroindústria S.A.',
+    type: 'LI',
+    agency: 'FEPAM',
+    processNumber: '000456-05.67/24.1',
+    issuedInDays: -210,
+    expiresInDays: 420, // REGULAR
+    conditions: [
+      {
+        title: 'Instalação de biodigestor e controle de odores',
+        description:
+          'Apresentar laudo de comissionamento do novo biodigestor com verificação de eficiência.',
+        responsibleName: 'Mariana Souza',
+        environmentalDescriptor: 'Participação de Energia Renovável',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 120, // REGULAR
       },
     ],
   },
@@ -657,13 +803,112 @@ const seedLicenses: SeedLicense[] = [
     expiresInDays: -30, // EXPIRED
     conditions: [],
   },
+
+  // --- Fazenda Santa Clara - Unidade Sorriso (2 licenças · 1/4 = 25%) ---
+  {
+    company: 'Fazenda Santa Clara - Unidade Sorriso',
+    type: 'LO',
+    agency: 'IBAMA',
+    processNumber: '02001.003344/2020-19',
+    issuedInDays: -1350,
+    expiresInDays: -95, // EXPIRED
+    legislations: [
+      {
+        type: LegislationType.LEI,
+        number: '12.651',
+        year: 2012,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.HIGH,
+        technicalAnalysis:
+          'Necessária atualização do CAR e comprovação da recomposição de faixa marginal.',
+      },
+    ],
+    conditions: [
+      {
+        title: 'Outorga de captação para irrigação',
+        description:
+          'Manter registro atualizado dos volumes captados nos pivôs centrais durante a safra.',
+        responsibleName: 'Paulo Menezes',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 80, // REGULAR
+        alertInDays: 50,
+      },
+      {
+        title: 'Devolução de embalagens de defensivos agrícolas',
+        description:
+          'Apresentar comprovantes de devolução das embalagens vazias em central credenciada.',
+        responsibleName: 'Paulo Menezes',
+        environmentalDescriptor: 'Não Conformidades Ambientais',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: -18, // RISK / OVERDUE
+        alertInDays: -33,
+      },
+    ],
+  },
+  {
+    company: 'Fazenda Santa Clara - Unidade Sorriso',
+    type: 'LP',
+    agency: 'IBAMA',
+    processNumber: '02001.002211/2022-05',
+    issuedInDays: -840,
+    expiresInDays: 16, // ATTENTION
+    conditions: [
+      {
+        title: 'Monitoramento de qualidade do solo',
+        description:
+          'Protocolar laudo laboratorial de monitoramento de nutrientes e resíduos no solo agrícola.',
+        responsibleName: 'Paulo Menezes',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 22, // ATTENTION
+        alertInDays: 7,
+      },
+      {
+        title: 'Regularização de silo de armazenagem',
+        description:
+          'Enviar plano de controle de emissão de poeiras nos silos de grãos.',
+        responsibleName: 'Paulo Menezes',
+        environmentalDescriptor: 'Consumo de Energia',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: -6, // RISK / OVERDUE
+        alertInDays: -20,
+      },
+    ],
+  },
+
+  // --- MetalAço Brasil Ltda (3 licenças · 3/6 = 50%) ---
   {
     company: 'MetalAço Brasil Ltda',
     type: 'LO',
     agency: 'FEAM',
     processNumber: '2022.03.01.002.0004567',
     issuedInDays: -1000,
-    expiresInDays: 60, // ATTENTION
+    expiresInDays: 19, // ATTENTION
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '491',
+        year: 2018,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…os padrões de qualidade do ar obedecem à Resolução CONAMA nº 491/2018…',
+        impact: LegislationImpact.HIGH,
+      },
+      {
+        type: LegislationType.LEI,
+        number: '12.305',
+        year: 2010,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.MODERATE,
+      },
+    ],
     conditions: [
       {
         title: 'Monitoramento de emissões de chaminé',
@@ -673,7 +918,7 @@ const seedLicenses: SeedLicense[] = [
         environmentalDescriptor: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.SEMIANNUAL,
-        dueInDays: 25,
+        dueInDays: 24, // ATTENTION
         alertInDays: 10,
       },
       {
@@ -684,11 +929,75 @@ const seedLicenses: SeedLicense[] = [
         environmentalDescriptor: 'Emissão de CO2 Equivalente',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.QUARTERLY,
-        dueInDays: -5, // OVERDUE
+        dueInDays: -5, // RISK / OVERDUE
         alertInDays: -20,
+      },
+      {
+        title: 'Gerenciamento de escória siderúrgica',
+        description:
+          'Apresentar relatório semestral de reaproveitamento e destinação da escória de aciaria.',
+        responsibleName: 'Carlos Aço',
+        environmentalDescriptor: 'Não Conformidades Ambientais',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 85, // REGULAR
+        alertInDays: 55,
       },
     ],
   },
+  {
+    company: 'MetalAço Brasil Ltda',
+    type: 'LI',
+    agency: 'FEAM',
+    processNumber: '2023.09.01.004.0008910',
+    issuedInDays: -510,
+    expiresInDays: 310, // REGULAR
+    conditions: [
+      {
+        title: 'Controle de ruído na ampliação da laminação',
+        description:
+          'Apresentar laudo acústico trimestral nos limites da propriedade conforme NBR 10151.',
+        responsibleName: 'Carlos Aço',
+        environmentalDescriptor: 'Consumo de Energia',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 105, // REGULAR
+        alertInDays: 75,
+      },
+      {
+        title: 'Inspeção de filtros de manga',
+        description:
+          'Protocolar relatório de manutenção preventiva e eficiência dos filtros de manga do alto-forno.',
+        responsibleName: 'Carlos Aço',
+        environmentalDescriptor: 'Emissões Indiretas de GEE (Escopo 2)',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.MONTHLY,
+        dueInDays: 4, // RISK (imminent)
+        alertInDays: -2,
+      },
+    ],
+  },
+  {
+    company: 'MetalAço Brasil Ltda',
+    type: 'LP',
+    agency: 'IBAMA',
+    processNumber: '02001.006120/2023-50',
+    issuedInDays: -340,
+    expiresInDays: 480, // REGULAR
+    conditions: [
+      {
+        title: 'Plano de eficiência energética da nova linha',
+        description:
+          'Entregar estudo de redução de consumo específico de energia elétrica antes da emissão da LI.',
+        responsibleName: 'Carlos Aço',
+        environmentalDescriptor: 'Consumo de Energia',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 160, // REGULAR
+      },
+    ],
+  },
+
+  // --- Usina Siderúrgica Volta Redonda (2 licenças · 0/3 = 0%) ---
   {
     company: 'Usina Siderúrgica Volta Redonda',
     type: 'LO',
@@ -696,8 +1005,65 @@ const seedLicenses: SeedLicense[] = [
     processNumber: 'E-07/002.1234/2016',
     issuedInDays: -2000,
     expiresInDays: -120, // EXPIRED
-    conditions: [],
+    legislations: [
+      {
+        type: LegislationType.LEI,
+        number: '9.605',
+        year: 1998,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.HIGH,
+        technicalAnalysis:
+          'Operação com licença vencida e condicionantes em atraso eleva risco de autuação imediata.',
+      },
+    ],
+    conditions: [
+      {
+        title: 'Plano de remediação de solo contaminado',
+        description:
+          'Protocolar relatório semestral de monitoramento de águas subterrâneas na área de passivo.',
+        responsibleName: 'Helena Martins',
+        environmentalDescriptor: 'Não Conformidades Ambientais',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: -25, // RISK / OVERDUE
+        alertInDays: -40,
+      },
+      {
+        title: 'Inventário de emissões atmosféricas da fundição',
+        description:
+          'Enviar medições isocinéticas das chaminés principais referentes ao último ciclo.',
+        responsibleName: 'Helena Martins',
+        environmentalDescriptor: 'Emissão de CO2 Equivalente',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: -8, // RISK / OVERDUE
+        alertInDays: -23,
+      },
+    ],
   },
+  {
+    company: 'Usina Siderúrgica Volta Redonda',
+    type: 'LI',
+    agency: 'INEA',
+    processNumber: 'E-07/005.6789/2021',
+    issuedInDays: -1080,
+    expiresInDays: 12, // ATTENTION
+    conditions: [
+      {
+        title: 'Adequação da central de resíduos classe I',
+        description:
+          'Comprovar impermeabilização e contenção secundária do depósito de resíduos perigosos.',
+        responsibleName: 'Helena Martins',
+        environmentalDescriptor: 'Resíduos Sólidos Gerados',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 15, // ATTENTION
+        alertInDays: 3,
+      },
+    ],
+  },
+
+  // --- Celulose Rio Branco (3 licenças · 7/8 = 88%) ---
   {
     company: 'Celulose Rio Branco',
     type: 'LO',
@@ -705,8 +1071,142 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '02001.005555/2022-08',
     issuedInDays: -800,
     expiresInDays: 1000, // REGULAR
-    conditions: [],
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '430',
+        year: 2011,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…os efluentes líquidos da fábrica de celulose devem atender à Resolução CONAMA nº 430/2011…',
+        impact: LegislationImpact.HIGH,
+        read: true,
+      },
+      {
+        type: LegislationType.LEI,
+        number: '12.305',
+        year: 2010,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…plano de gerenciamento de resíduos industriais nos termos da Lei nº 12.305/2010…',
+        impact: LegislationImpact.MODERATE,
+      },
+    ],
+    conditions: [
+      {
+        title: 'Monitoramento de efluentes da planta de branqueamento',
+        description:
+          'Enviar relatório trimestral de parâmetros físico-químicos e ecotoxicidade do efluente tratado.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 70, // REGULAR
+        alertInDays: 40,
+      },
+      {
+        title: 'Relatório de reaproveitamento de lodo fibroso',
+        description:
+          'Comprovar destinação de lodo fibroso para compostagem e geração de biomassa.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor: 'Taxa de Reciclagem de Resíduos',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 115, // REGULAR
+        alertInDays: 85,
+      },
+      {
+        title: 'Auditoria de manejo florestal sustentável',
+        description:
+          'Protocolar resumo executivo da auditoria anual de conservação de corredores ecológicos.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor:
+          'Fornecedores Avaliados em Critérios Ambientais',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 190, // REGULAR
+        alertInDays: 160,
+      },
+      {
+        title: 'Monitoramento de emissões odoríferas (TRS)',
+        description:
+          'Apresentar relatório mensal de compostos reduzidos de enxofre da caldeira de recuperação.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor: 'Resíduos Sólidos Gerados',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.MONTHLY,
+        dueInDays: 21, // ATTENTION
+        alertInDays: 7,
+      },
+    ],
   },
+  {
+    company: 'Celulose Rio Branco',
+    type: 'LI',
+    agency: 'IBAMA',
+    processNumber: '02001.006612/2023-71',
+    issuedInDays: -480,
+    expiresInDays: 610, // REGULAR
+    conditions: [
+      {
+        title: 'Controle de erosão nos talhões em implantação',
+        description:
+          'Apresentar relatório semestral de conservação de estradas florestais e controle de assoreamento.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 85, // REGULAR
+        alertInDays: 55,
+      },
+      {
+        title: 'Gerenciamento de resíduos da obra civil',
+        description:
+          'Enviar planilhas de controle e MTRs dos resíduos da ampliação do pátio de madeira.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor: 'Resíduos Sólidos Gerados',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 135, // REGULAR
+        alertInDays: 105,
+      },
+      {
+        title: 'Programa de comunicação social com comunidades vizinhas',
+        description:
+          'Registrar atas de reuniões e ações de diálogo com lideranças locais do entorno.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor: 'Número de Funcionários',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 210, // REGULAR
+        alertInDays: 180,
+      },
+    ],
+  },
+  {
+    company: 'Celulose Rio Branco',
+    type: 'LP',
+    agency: 'IBAMA',
+    processNumber: '02001.007890/2024-22',
+    issuedInDays: -150,
+    expiresInDays: 820, // REGULAR
+    conditions: [
+      {
+        title: 'Levantamento florístico da área de expansão',
+        description:
+          'Entregar inventário florestal detalhado e proposta de compensação ambiental.',
+        responsibleName: 'Tiago Ferraz',
+        environmentalDescriptor:
+          'Fornecedores Avaliados em Critérios Ambientais',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 100, // REGULAR
+      },
+    ],
+  },
+
+  // --- SolBrilho Energia Limpa (3 licenças · 4/5 = 80%) ---
   {
     company: 'SolBrilho Energia Limpa',
     type: 'LI',
@@ -714,8 +1214,107 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '55/00123/22',
     issuedInDays: -300,
     expiresInDays: 500, // REGULAR
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '237',
+        year: 1997,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…licença de instalação emitida nos termos da Resolução CONAMA nº 237/1997…',
+        impact: LegislationImpact.LOW,
+        read: true,
+      },
+      {
+        type: LegislationType.LEI,
+        number: '12.305',
+        year: 2010,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.MODERATE,
+        technicalAnalysis:
+          'Prevê logística reversa para módulos fotovoltaicos e inversores ao fim da vida útil.',
+      },
+    ],
+    conditions: [
+      {
+        title: 'Plano de logística reversa de módulos fotovoltaicos',
+        description:
+          'Manter atualizado o contrato de destinação e reciclagem de painéis avariados durante a montagem.',
+        responsibleName: 'Mariana Luz',
+        environmentalDescriptor:
+          'Fornecedores Avaliados em Critérios Ambientais',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 65, // REGULAR
+        alertInDays: 35,
+      },
+      {
+        title: 'Controle de supressão e drenagem do terreno solar',
+        description:
+          'Apresentar relatório semestral de estabilidade do solo sob os trackers fotovoltaicos.',
+        responsibleName: 'Mariana Luz',
+        environmentalDescriptor: 'Participação de Energia Renovável',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 125, // REGULAR
+        alertInDays: 95,
+      },
+      {
+        title: 'Capacitação ambiental das equipes de campo',
+        description:
+          'Protocolar lista de presença dos treinamentos de boas práticas ambientais em canteiro.',
+        responsibleName: 'Mariana Luz',
+        environmentalDescriptor: 'Número de Funcionários',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 195, // REGULAR
+      },
+    ],
+  },
+  {
+    company: 'SolBrilho Energia Limpa',
+    type: 'LO',
+    agency: 'CETESB',
+    processNumber: '55/00489/24',
+    issuedInDays: -140,
+    expiresInDays: 780, // REGULAR
+    conditions: [
+      {
+        title: 'Relatório de geração limpa e emissões evitadas',
+        description:
+          'Submeter balanço anual de energia limpa gerada e emissões de Escopo 2 evitadas.',
+        responsibleName: 'Mariana Luz',
+        environmentalDescriptor: 'Emissões Indiretas de GEE (Escopo 2)',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 110, // REGULAR
+        alertInDays: 80,
+      },
+      {
+        title: 'Inspeção de contenção de óleo dos transformadores',
+        description:
+          'Apresentar laudo semestral de estanqueidade das bacias de contenção da subestação.',
+        responsibleName: 'Mariana Luz',
+        environmentalDescriptor: 'Consumo de Energia',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 19, // ATTENTION
+        alertInDays: 5,
+      },
+    ],
+  },
+  {
+    company: 'SolBrilho Energia Limpa',
+    type: 'LP',
+    agency: 'CETESB',
+    processNumber: '55/00710/24',
+    issuedInDays: -90,
+    expiresInDays: 900, // REGULAR
     conditions: [],
   },
+
+  // --- Parque Eólico Serra do Vento (2 licenças · 3/3 = 100%) ---
   {
     company: 'Parque Eólico Serra do Vento',
     type: 'LP',
@@ -723,8 +1322,65 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '02001.001111/2024-44',
     issuedInDays: -200,
     expiresInDays: 900, // REGULAR
-    conditions: [],
+    legislations: [
+      {
+        type: LegislationType.LEI,
+        number: '6.938',
+        year: 1981,
+        issuingBody: 'Governo Federal',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt: '…licenciamento ambiental conforme a Lei nº 6.938/1981…',
+        impact: LegislationImpact.LOW,
+        read: true,
+      },
+    ],
+    conditions: [
+      {
+        title: 'Monitoramento de avifauna e quirópteros',
+        description:
+          'Enviar campanha semestral de monitoramento de rotas migratórias na área dos aerogeradores.',
+        responsibleName: 'Ricardo Nunes',
+        environmentalDescriptor: 'Auditorias Ambientais Realizadas',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: 95, // REGULAR
+        alertInDays: 65,
+      },
+      {
+        title: 'Estudo de ruído e sombreamento das torres',
+        description:
+          'Protocolar relatório anual de medição acústica nas residências do entorno do parque.',
+        responsibleName: 'Ricardo Nunes',
+        environmentalDescriptor: 'Participação de Energia Renovável',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 170, // REGULAR
+        alertInDays: 140,
+      },
+    ],
   },
+  {
+    company: 'Parque Eólico Serra do Vento',
+    type: 'LO',
+    agency: 'IBAMA',
+    processNumber: '02001.002945/2023-10',
+    issuedInDays: -450,
+    expiresInDays: 450, // REGULAR
+    conditions: [
+      {
+        title: 'Recuperação de acessos e áreas degradadas',
+        description:
+          'Comprovar conclusão da revegetação das áreas de apoio utilizadas na montagem das turbinas.',
+        responsibleName: 'Ricardo Nunes',
+        environmentalDescriptor: 'Consumo de Energia',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: 130, // REGULAR
+        completedInDays: -10, // FULFILLED
+      },
+    ],
+  },
+
+  // --- Estação de Tratamento Vale Azul (3 licenças · 2/6 = 33%) ---
   {
     company: 'Estação de Tratamento Vale Azul',
     type: 'LO',
@@ -732,17 +1388,39 @@ const seedLicenses: SeedLicense[] = [
     processNumber: '02001.007777/2020-62',
     issuedInDays: -1100,
     expiresInDays: 20, // ATTENTION
+    legislations: [
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '430',
+        year: 2011,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.SCAN,
+        citedExcerpt:
+          '…os parâmetros de DBO e DQO devem cumprir a Resolução CONAMA nº 430/2011…',
+        impact: LegislationImpact.HIGH,
+      },
+      {
+        type: LegislationType.RESOLUCAO,
+        number: '357',
+        year: 2005,
+        issuingBody: 'CONAMA',
+        source: LicenseLegislationSource.MANUAL,
+        impact: LegislationImpact.MODERATE,
+        technicalAnalysis:
+          'Enquadramento Classe 2 do corpo receptor exige acompanhamento rigoroso de coliformes e oxigênio dissolvido.',
+      },
+    ],
     conditions: [
       {
         title: 'Monitoramento do efluente tratado',
         description:
           'Enviar mensalmente os resultados de DBO, DQO e sólidos suspensos do efluente lançado no corpo receptor.',
         responsibleName: 'Beatriz Ramos',
-        environmentalDescriptor: 'Consumo de Água',
+        environmentalDescriptor: 'Efluentes Tratados',
         conditionType: ConditionType.PERIODIC,
         periodicity: ConditionPeriodicity.MONTHLY,
-        dueInDays: 7,
-        alertInDays: 2,
+        dueInDays: 5, // RISK
+        alertInDays: 1,
       },
       {
         title: 'Relatório de não conformidades',
@@ -751,8 +1429,71 @@ const seedLicenses: SeedLicense[] = [
         responsibleName: 'Beatriz Ramos',
         environmentalDescriptor: 'Não Conformidades Ambientais',
         conditionType: ConditionType.INFORMATIVE,
-        deadlineInDays: -20,
-        completedInDays: -30, // FULFILLED
+        deadlineInDays: 75, // REGULAR
+        completedInDays: -10, // FULFILLED
+      },
+      {
+        title: 'Análise de lodo de estação de tratamento',
+        description:
+          'Apresentar laudo trimestral de caracterização do lodo desidratado antes do envio ao aterro.',
+        responsibleName: 'Beatriz Ramos',
+        environmentalDescriptor: 'Taxa de Reúso de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.QUARTERLY,
+        dueInDays: 17, // ATTENTION
+        alertInDays: 4,
+      },
+    ],
+  },
+  {
+    company: 'Estação de Tratamento Vale Azul',
+    type: 'LI',
+    agency: 'IBAMA',
+    processNumber: '02001.008432/2021-40',
+    issuedInDays: -950,
+    expiresInDays: -45, // EXPIRED
+    conditions: [
+      {
+        title: 'Plano de contingência para extravasamento',
+        description:
+          'Manter atualizado o plano de ação emergencial das estações elevatórias de esgoto.',
+        responsibleName: 'Beatriz Ramos',
+        environmentalDescriptor: 'Auditorias Ambientais Realizadas',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.ANNUAL,
+        dueInDays: 110, // REGULAR
+        alertInDays: 80,
+      },
+      {
+        title: 'Calibração de medidores de vazão da elevatória',
+        description:
+          'Protocolar certificados de calibração semestral dos medidores de entrada e saída.',
+        responsibleName: 'Beatriz Ramos',
+        environmentalDescriptor: 'Consumo de Água',
+        conditionType: ConditionType.PERIODIC,
+        periodicity: ConditionPeriodicity.SEMIANNUAL,
+        dueInDays: -12, // RISK / OVERDUE
+        alertInDays: -27,
+      },
+    ],
+  },
+  {
+    company: 'Estação de Tratamento Vale Azul',
+    type: 'LP',
+    agency: 'IBAMA',
+    processNumber: '02001.009102/2023-18',
+    issuedInDays: -260,
+    expiresInDays: 540, // REGULAR
+    conditions: [
+      {
+        title: 'Estudo de autodepuração do corpo receptor',
+        description:
+          'Entregar modelagem de dispersão e capacidade de suporte do córrego receptor para ampliação da ETE.',
+        responsibleName: 'Beatriz Ramos',
+        environmentalDescriptor: 'Efluentes Tratados',
+        conditionType: ConditionType.INFORMATIVE,
+        deadlineInDays: -4, // RISK / OVERDUE
+        alertInDays: -18,
       },
     ],
   },
@@ -803,9 +1544,11 @@ async function seedUsersTable() {
 
     const created = await prisma.user.upsert({
       where: { email },
-      // Reaplica o hash para que um banco semeado por uma versão antiga (que
-      // gravava hash literal) volte a ter contas com senha utilizável.
-      update: { passwordHash, isAdmin: user.isAdmin, isActive: user.isActive },
+      update: {
+        ...(SHOULD_UPDATE_PASSWORD_ON_RESEED ? { passwordHash } : {}),
+        isAdmin: user.isAdmin,
+        isActive: user.isActive,
+      },
       create: {
         name: user.name,
         email,
@@ -854,49 +1597,6 @@ async function seedIssuingAgenciesTable() {
   return agencies;
 }
 
-async function seedEsgMetricsTable() {
-  const metrics = new Map<string, string>();
-
-  for (const metric of seedEsgMetrics) {
-    const existing = await prisma.esgMetric.findFirst({
-      where: { customerId: null, name: metric.name },
-    });
-
-    const created =
-      existing ??
-      (await prisma.esgMetric.create({
-        data: { ...metric, customerId: null },
-      }));
-
-    metrics.set(created.name, created.id);
-  }
-
-  return metrics;
-}
-
-async function seedGriStandardsTable(metrics: Map<string, string>) {
-  for (const { metric, ...standard } of seedGriStandards) {
-    const metricId = metrics.get(metric);
-
-    if (!metricId) {
-      throw new Error(
-        `Padrão "${standard.code}" referencia a métrica "${metric}", que não está em seedEsgMetrics.`,
-      );
-    }
-
-    const created = await prisma.griStandard.upsert({
-      where: { code: standard.code },
-      update: { name: standard.name, pillar: standard.pillar },
-      create: standard,
-    });
-
-    await prisma.esgMetric.update({
-      where: { id: metricId },
-      data: { griStandardId: created.id },
-    });
-  }
-}
-
 async function seedLegislationsTable() {
   for (const legislation of seedLegislations) {
     const { type, number, year, issuingBody } = legislation;
@@ -916,7 +1616,7 @@ async function seedCompaniesTable(
   sectors: Map<string, string>,
   metrics: Map<string, string>,
 ) {
-  // nome da empresa -> id, para vincular as licenças.
+  // nome da empresa -> id, para vincular licenças e indicadores ESG.
   const companies = new Map<string, string>();
 
   for (const company of seedCompanies) {
@@ -945,52 +1645,59 @@ async function seedCompaniesTable(
       where: { ownerUserId_document: { ownerUserId, document } },
     });
 
+    let customerId: string;
+
     if (existing) {
-      companies.set(company.name, existing.id);
-      continue;
+      customerId = existing.id;
+    } else {
+      const address = await prisma.customerAddress.create({
+        data: {
+          ...company.address,
+          // O enum só admite BILLING/SHIPPING; o "tipo de unidade" do domínio
+          // (matriz, filial, planta) ainda não tem campo no schema.
+          type: AddressType.BILLING,
+          countryCode: 'BR',
+        },
+      });
+
+      const created = await prisma.customer.create({
+        data: {
+          ownerUserId,
+          name: company.name,
+          document,
+          documentType: DocumentType.CNPJ,
+          email: company.email,
+          ownerName: company.ownerName,
+          ownerEmail: company.email,
+          ownerPhone: company.ownerPhone,
+          isActive: company.isActive,
+          isDeleted: company.isDeleted ?? false,
+          sectorId: sectors.get(company.sector),
+          addressId: address.id,
+        },
+      });
+
+      customerId = created.id;
     }
 
-    const address = await prisma.customerAddress.create({
-      data: {
-        ...company.address,
-        // O enum só admite BILLING/SHIPPING; o "tipo de unidade" do domínio
-        // (matriz, filial, planta) ainda não tem campo no schema.
-        type: AddressType.BILLING,
-        countryCode: 'BR',
-      },
-    });
+    companies.set(company.name, customerId);
 
-    const created = await prisma.customer.create({
-      data: {
-        ownerUserId,
-        name: company.name,
-        document,
-        documentType: DocumentType.CNPJ,
-        email: company.email,
-        ownerName: company.ownerName,
-        ownerEmail: company.email,
-        ownerPhone: company.ownerPhone,
-        isActive: company.isActive,
-        isDeleted: company.isDeleted ?? false,
-        sectorId: sectors.get(company.sector),
-        addressId: address.id,
-      },
-    });
-
-    companies.set(company.name, created.id);
-
-    // Vincula os indicadores ESG monitorados (join customer_esg_metrics), para
-    // que GET /customers/:id/esg-metrics devolva dados já no primeiro boot.
-    const links = company.metrics
-      .map((name: string) => metrics.get(name))
+    // Vincula os indicadores ESG monitorados (join customer_esg_metrics) de
+    // forma idempotente mesmo quando a empresa já existia no banco.
+    const metricNames = (seedCompanyEsgSeries[company.name] ?? []).map(
+      (entry) => entry.metric,
+    );
+    const links = metricNames
+      .map((name) => metrics.get(name))
       .filter((id): id is string => Boolean(id))
-      .map((esgMetricId) => ({ customerId: created.id, esgMetricId }));
+      .map((esgMetricId) => ({ customerId, esgMetricId }));
 
     if (links.length > 0) {
-      await prisma.customerEsgMetric.createMany({ data: links });
+      await prisma.customerEsgMetric.createMany({
+        data: links,
+        skipDuplicates: true,
+      });
     }
-
-    companies.set(created.name, created.id);
   }
 
   return companies;
@@ -1169,20 +1876,30 @@ async function main() {
 
   const users = await seedUsersTable();
   const sectors = await seedSectorsTable();
-  const metrics = await seedEsgMetricsTable();
-  await seedGriStandardsTable(metrics);
+  const metrics = await seedEsgMetricsTable(prisma);
+  await seedGriStandardsTable(prisma, metrics);
   await seedLegislationsTable();
   await seedIssuingAgenciesTable();
   const companies = await seedCompaniesTable(users, sectors, metrics);
+  const esgRecords = await seedEsgIndicatorRecordsTable(
+    prisma,
+    companies,
+    metrics,
+  );
   await seedLicensesTable(companies);
 
   const visible = seedCompanies.filter((company) => !company.isDeleted);
   const companiesByOwner = await countCompaniesByOwner(users);
   const licenses = await countLicensesByStatus();
 
+  const passwordNote =
+    process.env.NODE_ENV === 'production' || process.env.SEED_PASSWORD
+      ? 'senha definida via SEED_PASSWORD'
+      : `senha padrão na criação: ${SEED_PASSWORD}`;
+
   console.log('Seed completo executado com sucesso!');
   console.log('');
-  console.log(`Usuários (senha para todos: ${SEED_PASSWORD}):`);
+  console.log(`Usuários (${passwordNote}):`);
   for (const user of seedUsers) {
     const flags = [
       user.isAdmin ? 'admin' : null,
@@ -1217,7 +1934,7 @@ async function main() {
     `Licenças: ${licenses.regular + licenses.attention + licenses.expired} (${licenses.regular} regulares, ${licenses.attention} em atenção, ${licenses.expired} vencidas) · Condicionantes: ${licenses.conditions}`,
   );
   console.log(
-    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Órgãos emissores: ${seedIssuingAgencies.length}`,
+    `Segmentos: ${seedSectors.length} · Métricas ESG globais: ${seedEsgMetrics.length} · Registros mensais ESG: ${esgRecords} · Órgãos emissores: ${seedIssuingAgencies.length}`,
   );
   console.log(
     `Padrões GRI: ${seedGriStandards.length} · Legislações: ${seedLegislations.length} · Vínculos no radar: ${seedLicenses.reduce((total, license) => total + (license.legislations?.length ?? 0), 0)}`,

@@ -17,14 +17,17 @@ const PDF_SIGNATURE = Buffer.from('%PDF-');
 export class ExtractLicenseDataUseCase {
   constructor(private readonly extractor: LicenseDocumentExtractor) {}
 
-  async execute(document: Buffer): Promise<LicenseExtraction> {
+  async execute(
+    document: Buffer,
+    fileName?: string,
+  ): Promise<LicenseExtraction> {
     // The multipart Content-Type is client-controlled; check the actual bytes
     // before paying for a model call on something that is not a PDF.
     if (!document.subarray(0, PDF_SIGNATURE.length).equals(PDF_SIGNATURE)) {
       throw new UnreadableLicenseDocumentError('missing PDF signature');
     }
 
-    const extraction = await this.extractor.extract(document);
+    const extraction = await this.extractor.extract(document, fileName);
 
     if (isEmpty(extraction)) {
       throw new UnreadableLicenseDocumentError('no license data identified');

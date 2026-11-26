@@ -14,6 +14,11 @@ import {
 } from '../../prompts/license-extraction.prompt';
 import { BedrockConfigService } from './bedrock-config.service';
 import {
+  createDemoLicenseExtraction,
+  DEMO_LICENSE_EXTRACTION_DELAY_MS,
+  isDemoLicenseFile,
+} from './demo-license-extraction.fixture';
+import {
   LICENSE_EXTRACTION_OUTPUT_SCHEMA,
   parseLicenseExtraction,
 } from './license-extraction.schema';
@@ -41,7 +46,18 @@ export class BedrockLicenseDocumentExtractor implements LicenseDocumentExtractor
 
   constructor(private readonly config: BedrockConfigService) {}
 
-  async extract(document: Buffer): Promise<LicenseExtraction> {
+  async extract(
+    document: Buffer,
+    fileName?: string,
+  ): Promise<LicenseExtraction> {
+    if (isDemoLicenseFile(fileName)) {
+      this.logger.log(
+        `Serving demo extraction after ${DEMO_LICENSE_EXTRACTION_DELAY_MS}ms`,
+      );
+      await wait(DEMO_LICENSE_EXTRACTION_DELAY_MS);
+      return createDemoLicenseExtraction();
+    }
+
     const message = await this.read(document);
 
     if (message.stop_reason === 'refusal') {
@@ -177,4 +193,8 @@ export class BedrockLicenseDocumentExtractor implements LicenseDocumentExtractor
     this.logger.error(`Unexpected Bedrock failure (${name})`);
     return new LicenseExtractionUnavailableError(name);
   }
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -22,16 +22,27 @@ export class StartLicenseExtractionUseCase {
     private readonly jobs: ExtractionJobStore,
   ) {}
 
-  async execute(document: Buffer, userId: string): Promise<string> {
+  async execute(
+    document: Buffer,
+    userId: string,
+    fileName?: string,
+  ): Promise<string> {
     const jobId = await this.jobs.create(userId);
-    void this.run(jobId, document);
+    void this.run(jobId, document, fileName);
 
     return jobId;
   }
 
-  private async run(jobId: string, document: Buffer): Promise<void> {
+  private async run(
+    jobId: string,
+    document: Buffer,
+    fileName?: string,
+  ): Promise<void> {
     try {
-      const extraction = await this.extractLicenseData.execute(document);
+      const extraction = await this.extractLicenseData.execute(
+        document,
+        fileName,
+      );
       await this.jobs.save(jobId, { status: 'DONE', extraction });
     } catch (error) {
       const reason = toFailureReason(error);

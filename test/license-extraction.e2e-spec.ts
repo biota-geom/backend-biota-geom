@@ -80,7 +80,7 @@ describe('License extraction (e2e)', () => {
   let app: NestExpressApplication;
   let prisma: PrismaService;
   let token: string;
-  const extract = jest.fn<Promise<LicenseExtraction>, [Buffer]>();
+  const extract = jest.fn<Promise<LicenseExtraction>, [Buffer, string?]>();
 
   function postExtract() {
     return request(app.getHttpServer())
@@ -245,7 +245,7 @@ describe('License extraction (e2e)', () => {
       },
     });
 
-    expect(extract).toHaveBeenCalledWith(PDF);
+    expect(extract).toHaveBeenCalledWith(PDF, 'licenca.pdf');
     // The PDF only lives in memory: no DB rows, no storage upload (local or
     // S3), no file written.
     await expect(countRecords()).resolves.toEqual(before);

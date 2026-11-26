@@ -28,8 +28,8 @@ describe('ExtractLicenseDataUseCase', () => {
     };
     const { useCase, extract } = build(extraction);
 
-    await expect(useCase.execute(PDF)).resolves.toBe(extraction);
-    expect(extract).toHaveBeenCalledWith(PDF);
+    await expect(useCase.execute(PDF, 'license.pdf')).resolves.toBe(extraction);
+    expect(extract).toHaveBeenCalledWith(PDF, 'license.pdf');
   });
 
   it('accepts a document with conditions only', async () => {

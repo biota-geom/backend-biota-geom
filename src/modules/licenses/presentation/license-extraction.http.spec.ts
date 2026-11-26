@@ -55,7 +55,7 @@ class HeaderAuthGuard implements CanActivate {
 
 describe('License extraction routes (HTTP, no database)', () => {
   let app: INestApplication<Server>;
-  const extract = jest.fn<Promise<LicenseExtraction>, [Buffer]>();
+  const extract = jest.fn<Promise<LicenseExtraction>, [Buffer, string?]>();
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({

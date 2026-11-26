@@ -6,6 +6,10 @@ import { UnreadableLicenseDocumentError } from '../../domain/errors/unreadable-l
 import { LICENSE_EXTRACTION_SYSTEM_PROMPT } from '../../prompts/license-extraction.prompt';
 import { BedrockConfigService } from './bedrock-config.service';
 import { BedrockLicenseDocumentExtractor } from './bedrock-license-document-extractor';
+import {
+  DEMO_LICENSE_EXTRACTION_DELAY_MS,
+  DEMO_LICENSE_FILE_NAME,
+} from './demo-license-extraction.fixture';
 import { LICENSE_EXTRACTION_OUTPUT_SCHEMA } from './license-extraction.schema';
 
 // The client is replaced by a fake whose messages.stream() is driven by each
@@ -290,5 +294,48 @@ describe('BedrockLicenseDocumentExtractor', () => {
     await expect(build().extract(PDF)).rejects.toThrow(
       UnreadableLicenseDocumentError,
     );
+  });
+
+  it('serves the hardcoded demo extraction after 20 seconds without calling Bedrock when the file name matches exactly', async () => {
+    jest.useFakeTimers();
+
+    try {
+      const promise = build().extract(PDF, DEMO_LICENSE_FILE_NAME);
+      let resolved = false;
+      void promise.then(() => {
+        resolved = true;
+      });
+
+      await jest.advanceTimersByTimeAsync(DEMO_LICENSE_EXTRACTION_DELAY_MS - 1);
+      expect(resolved).toBe(false);
+
+      await jest.advanceTimersByTimeAsync(1);
+      const result = await promise;
+
+      expect(stream).not.toHaveBeenCalled();
+      expect(result.extractedData).toEqual({
+        type: 'LU',
+        processNumber: 'LU Nº 00865 / 2022',
+        issuingAgency: 'FEPAM',
+        issueDate: '2022-04-28',
+        expirationDate: '2027-04-29',
+      });
+      expect(result.suggestedConditions).toHaveLength(44);
+      expect(result.suggestedLegislations).toHaveLength(11);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('calls Bedrock normally when the file name does not match the demo file exactly', async () => {
+    answers(message(MODEL_ANSWER));
+
+    const result = await build().extract(
+      PDF,
+      'Exemplo Licença Ambiental de Transporte.pdf',
+    );
+
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(result.extractedData.type).toBe('LO');
   });
 });

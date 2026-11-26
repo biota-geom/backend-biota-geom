@@ -22,10 +22,12 @@ describe('LicenseExtractionController', () => {
     const { controller, start } = build();
     const buffer = Buffer.from('%PDF-1.7');
 
-    await expect(controller.extract({ buffer }, USER)).resolves.toEqual({
+    await expect(
+      controller.extract({ buffer, originalname: 'license.pdf' }, USER),
+    ).resolves.toEqual({
       job_id: 'job-1',
     });
-    expect(start).toHaveBeenCalledWith(buffer, USER.id);
+    expect(start).toHaveBeenCalledWith(buffer, USER.id, 'license.pdf');
   });
 
   it('answers a pending job without result or error', async () => {

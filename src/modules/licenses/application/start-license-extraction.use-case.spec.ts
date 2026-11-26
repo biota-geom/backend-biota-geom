@@ -42,9 +42,11 @@ describe('StartLicenseExtractionUseCase', () => {
     const extraction = jest.fn().mockReturnValue(new Promise(() => undefined));
     const { useCase, create } = build(extraction);
 
-    await expect(useCase.execute(PDF, 'user-1')).resolves.toBe('job-1');
+    await expect(useCase.execute(PDF, 'user-1', 'license.pdf')).resolves.toBe(
+      'job-1',
+    );
     expect(create).toHaveBeenCalledWith('user-1');
-    expect(extraction).toHaveBeenCalledWith(PDF);
+    expect(extraction).toHaveBeenCalledWith(PDF, 'license.pdf');
     expect(save).not.toHaveBeenCalled();
   });
 

@@ -46,6 +46,7 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 interface UploadedDocument {
   buffer: Buffer;
+  originalname?: string;
 }
 
 @ApiTags('licenses')
@@ -98,6 +99,7 @@ export class LicenseExtractionController {
     const jobId = await this.startLicenseExtractionUseCase.execute(
       file.buffer,
       user.id,
+      file.originalname,
     );
 
     return { job_id: jobId };

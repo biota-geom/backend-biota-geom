@@ -69,5 +69,8 @@ export interface LicenseExtraction {
  * persist anything — extraction only ever produces suggestions.
  */
 export abstract class LicenseDocumentExtractor {
-  abstract extract(document: Buffer): Promise<LicenseExtraction>;
+  abstract extract(
+    document: Buffer,
+    fileName?: string,
+  ): Promise<LicenseExtraction>;
 }

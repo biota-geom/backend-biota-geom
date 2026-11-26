@@ -43,6 +43,31 @@ describe('demo-license-extraction.fixture', () => {
     expect(first.suggestedConditions).toHaveLength(44);
     expect(first.suggestedLegislations).toHaveLength(11);
 
+    const periodic = first.suggestedConditions.filter(
+      (condition) => condition.conditionType === 'PERIODIC',
+    );
+    const informative = first.suggestedConditions.filter(
+      (condition) => condition.conditionType === 'INFORMATIVE',
+    );
+    expect(periodic).toHaveLength(8);
+    expect(informative).toHaveLength(36);
+    expect(new Set(periodic.map((condition) => condition.periodicity))).toEqual(
+      new Set(['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL']),
+    );
+    expect(
+      periodic.some(
+        (condition) =>
+          condition.description.includes('ART') &&
+          condition.dueDate === '2027-04-29',
+      ),
+    ).toBe(true);
+    expect(
+      informative.every(
+        (condition) =>
+          condition.periodicity === null && condition.dueDate === null,
+      ),
+    ).toBe(true);
+
     first.extractedData.type = 'MUTATED';
     first.suggestedConditions.pop();
 

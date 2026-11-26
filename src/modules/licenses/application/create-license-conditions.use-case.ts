@@ -32,10 +32,12 @@ export class CreateLicenseConditionUseCase {
   ): Promise<CreateLicenseConditionsResponseDto> {
     // Rejects the whole batch before any lookup: one bad row saves nothing.
     input.data.conditions.forEach((condition) => {
-      assertAlertDateNotAfterDueDate(
-        toOptionalDate(condition.alert_date),
-        new Date(condition.deadline),
-      );
+      if (condition.deadline != null) {
+        assertAlertDateNotAfterDueDate(
+          toOptionalDate(condition.alert_date),
+          new Date(condition.deadline),
+        );
+      }
     });
 
     const customer = await this.customerRepository.findOne(
@@ -56,7 +58,18 @@ export class CreateLicenseConditionUseCase {
     // The repository appends them in this order, the form order.
     const conditionsData: ConditionData[] = input.data.conditions.map(
       (condition) => {
-        const deadline = new Date(condition.deadline);
+        const conditionType = condition.condition_type as ConditionType;
+        const isInformative = conditionType === ConditionType.INFORMATIVE;
+        const deadline =
+          condition.deadline != null ? new Date(condition.deadline) : null;
+        // Informative or non-delivery conditions may omit a deadline; dueDate
+        // still anchors to the license expiration so compliance rules stay valid.
+        const dueDate = deadline ?? license.expirationDate ?? new Date();
+        const alertDate = toOptionalDate(condition.alert_date);
+
+        if (deadline === null) {
+          assertAlertDateNotAfterDueDate(alertDate, dueDate);
+        }
 
         return {
           licenseId: input.licenseId,
@@ -65,15 +78,16 @@ export class CreateLicenseConditionUseCase {
           name: condition.title ?? condition.description.slice(0, 160),
           description: condition.description,
           responsibleName: condition.responsible_name,
-          conditionType: condition.condition_type as ConditionType,
+          conditionType,
           periodicity:
-            (condition.periodicity as ConditionPeriodicity | undefined) ?? null,
+            (condition.periodicity as
+              ConditionPeriodicity | null | undefined) ?? null,
           deadline,
           // due_date is the date the risk/compliance rules read (US17/US21).
-          dueDate: deadline,
-          alertDate: toOptionalDate(condition.alert_date),
+          dueDate,
+          alertDate,
           conditionStatus: ConditionStatus.IN_PROGRESS,
-          hasDelivery: condition.has_delivery ?? true,
+          hasDelivery: condition.has_delivery ?? !isInformative,
         };
       },
     );

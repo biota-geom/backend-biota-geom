@@ -15,9 +15,11 @@ function buildUseCase(overrides?: {
     ...overrides?.customerRepository,
   };
   const repository: Partial<LicenseRepository> = {
-    findById: jest
-      .fn()
-      .mockResolvedValue({ id: 'license-1', customerId: 'customer-1' }),
+    findById: jest.fn().mockResolvedValue({
+      id: 'license-1',
+      customerId: 'customer-1',
+      expirationDate: new Date('2027-04-29T00:00:00.000Z'),
+    }),
     createConditions: jest.fn().mockResolvedValue({ count: 1 }),
     ...overrides?.repository,
   };
@@ -77,9 +79,57 @@ describe('CreateLicenseConditionUseCase', () => {
         deadline,
         dueDate: deadline,
         conditionStatus: ConditionStatus.IN_PROGRESS,
-        hasDelivery: true,
+        hasDelivery: false,
       },
     ]);
+  });
+
+  it('allows an informative condition without deadline or delivery, anchoring dueDate to license expiration', async () => {
+    const { useCase, repository } = buildUseCase();
+    const input = buildInput({ deadline: null });
+
+    await useCase.execute(input);
+
+    expect(repository.createConditions).toHaveBeenCalledWith([
+      expect.objectContaining({
+        conditionType: ConditionType.INFORMATIVE,
+        deadline: null,
+        dueDate: new Date('2027-04-29T00:00:00.000Z'),
+        hasDelivery: false,
+      }),
+    ]);
+  });
+
+  it('defaults hasDelivery to true for periodic conditions', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await useCase.execute(
+      buildInput({
+        condition_type: ConditionType.PERIODIC,
+        periodicity: 'ANNUAL',
+      }),
+    );
+
+    expect(repository.createConditions).toHaveBeenCalledWith([
+      expect.objectContaining({
+        conditionType: ConditionType.PERIODIC,
+        hasDelivery: true,
+      }),
+    ]);
+  });
+
+  it('rejects an alert date after the license expiration when an informative condition has no deadline', async () => {
+    const { useCase, repository } = buildUseCase();
+
+    await expect(
+      useCase.execute(
+        buildInput({
+          deadline: null,
+          alert_date: '2027-05-01T00:00:00.000Z',
+        }),
+      ),
+    ).rejects.toThrow(InvalidConditionAlertDateError);
+    expect(repository.createConditions).not.toHaveBeenCalled();
   });
 
   it('hands the conditions to the repository in payload order', async () => {

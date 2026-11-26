@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   Allow,
   ArrayMinSize,
@@ -11,8 +11,13 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
+
+function emptyStringToNull({ value }: { value: unknown }): unknown {
+  return value === '' ? null : value;
+}
 
 export class ConditionDto {
   @ApiPropertyOptional({ format: 'uuid', nullable: true })
@@ -48,14 +53,28 @@ export class ConditionDto {
   @IsIn(['PERIODIC', 'INFORMATIVE'])
   condition_type: string;
 
+  @Transform(emptyStringToNull)
   @IsOptional()
   @IsString()
   @IsIn(['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL'])
-  periodicity?: string;
+  periodicity?: string | null;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'date-time',
+    description:
+      'Obrigatório para condicionantes periódicas com entrega; opcional para condicionantes informativas ou sem entrega.',
+  })
+  @Transform(emptyStringToNull)
+  @ValidateIf(
+    (dto: ConditionDto) =>
+      (dto.condition_type !== 'INFORMATIVE' && dto.has_delivery !== false) ||
+      (dto.deadline !== undefined && dto.deadline !== null),
+  )
   @IsDateString()
-  deadline: string;
+  deadline?: string | null;
 
+  @Transform(emptyStringToNull)
   @IsOptional()
   @IsDateString()
   alert_date?: string | null;

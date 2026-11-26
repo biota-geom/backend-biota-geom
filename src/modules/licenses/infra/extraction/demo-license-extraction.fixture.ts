@@ -1,4 +1,5 @@
 import {
+  ConditionPeriodicity,
   ConditionType,
   LegislationImpact,
   LegislationType,
@@ -56,8 +57,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Empreendimento',
       description:
         'os veículos deverão portar, quando aplicável, CIPP - Certificado de Inspeção para o Transporte de Produtos Perigosos e CIV - Certificado de Inspeção Veicular, expedido pelo INMETRO ou entidade por ele credenciada;',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.ANNUAL,
       dueDate: null,
     },
     {
@@ -80,9 +81,9 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Empreendimento',
       description:
         'a Anotação de Responsabilidade Técnica - ART com data de vencimento anterior a 29/04/2027, deverá ser renovada e a nova ART informada à FEPAM (via Internet), antes do vencimento da anterior, sob pena de revogação da presente licença;',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
-      dueDate: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.ANNUAL,
+      dueDate: '2027-04-29',
     },
     {
       environmentalDescriptor: 'Empreendimento',
@@ -128,8 +129,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Empreendimento',
       description:
         'o(s) empreendedor(es) deste empreendimento deverá(ão) manter o Certificado de Regularidade do Cadastro Técnico Federal - CTF/APP válido(s) (www.ibama.gov.br) e, caso haja inclusão de novo(s) empreendedor(es), este(s) deverá (ão), no prazo de até 60 (sessenta) dias, apresentar o(s) Certificado(s) de Regularidade do CTF/APP válido(s), com correlação na(s) Ficha(s) Técnica(s) de Enquadramento: Categoria 18, Código 18 - 74, Transporte de cargas perigosas - Lei nº 12.305/2010',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.QUARTERLY,
       dueDate: null,
     },
     {
@@ -152,8 +153,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Resíduos Perigosos',
       description:
         'o transporte dos Resíduos deverá ser acompanhado do Manifesto de Transporte de Resíduos - MTR, emitido pelo gerador do resíduo, conforme o Art. 12 do Decreto Estadual nº 38.356 de 01/04/1998 e Portaria FEPAM n.º 087/2018, D.O.E. de 30/10/2018, e suas alterações. O MTR deverá conter o n° ONU correspondente;',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.MONTHLY,
       dueDate: null,
     },
     {
@@ -207,8 +208,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Resíduos Perigosos',
       description:
         'No caso de transporte de resíduos de serviços de saúde: realizar a higienização e desinfecção periódica dos veículos em local destinado para tal fim e com licença ambiental vigente.',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.MONTHLY,
       dueDate: null,
     },
     {
@@ -279,8 +280,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Resíduos Perigosos',
       description:
         'o transporte dos Resíduos deverá ser acompanhado do Manifesto de Transporte de Resíduos - MTR, emitido pelo gerador do resíduo, conforme o Art. 12 do Decreto Estadual nº 38.356 de 01/04/1998 e Portaria FEPAM n.º 087/2018, e suas alterações. O MTR deverá conter o n° ONU correspondente;',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.MONTHLY,
       dueDate: null,
     },
     {
@@ -334,8 +335,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Resíduos Perigosos',
       description:
         'No caso de transporte de resíduos de serviços de saúde: realizar a higienização e desinfecção periódica dos veículos em local destinado para tal fim e com licença ambiental vigente.',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.MONTHLY,
       dueDate: null,
     },
     {
@@ -350,8 +351,8 @@ const DEMO_LICENSE_EXTRACTION: LicenseExtraction = {
       environmentalDescriptor: 'Riscos Ambientais e Plano de Emergência',
       description:
         'a empresa deverá possuir protocolo de atendimento a emergência e manter treinamento de pessoal para o atendimento',
-      conditionType: ConditionType.INFORMATIVE,
-      periodicity: null,
+      conditionType: ConditionType.PERIODIC,
+      periodicity: ConditionPeriodicity.SEMIANNUAL,
       dueDate: null,
     },
     {

@@ -61,12 +61,67 @@ describe('CreateLicenseConditionsDto', () => {
     ).toHaveLength(0);
   });
 
-  it('accepts an informative condition without periodicity', () => {
+  it('accepts an informative condition without periodicity, deadline or delivery', () => {
     const informative: Record<string, unknown> = {
       ...validCondition,
       condition_type: 'INFORMATIVE',
     };
     delete informative.periodicity;
+    delete informative.deadline;
+    delete informative.has_delivery;
     expect(validate(informative)).toHaveLength(0);
+  });
+
+  it('accepts null or empty deadline and periodicity on an informative condition', () => {
+    expect(
+      validate({
+        ...validCondition,
+        condition_type: 'INFORMATIVE',
+        periodicity: '',
+        deadline: '',
+        alert_date: '',
+        has_delivery: false,
+      }),
+    ).toHaveLength(0);
+    expect(
+      validate({
+        ...validCondition,
+        condition_type: 'INFORMATIVE',
+        periodicity: null,
+        deadline: null,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it('rejects a malformed deadline even on an informative condition', () => {
+    expect(
+      validate({
+        ...validCondition,
+        condition_type: 'INFORMATIVE',
+        deadline: 'not-a-date',
+      }),
+    ).not.toHaveLength(0);
+  });
+
+  it('requires a valid deadline for periodic conditions with delivery', () => {
+    const periodicWithoutDeadline: Record<string, unknown> = {
+      ...validCondition,
+      condition_type: 'PERIODIC',
+    };
+    delete periodicWithoutDeadline.deadline;
+    expect(validate(periodicWithoutDeadline)).not.toHaveLength(0);
+    expect(
+      validate({ ...validCondition, condition_type: 'PERIODIC', deadline: '' }),
+    ).not.toHaveLength(0);
+  });
+
+  it('allows omitting deadline when has_delivery is false', () => {
+    const withoutDelivery: Record<string, unknown> = {
+      ...validCondition,
+      condition_type: 'PERIODIC',
+      has_delivery: false,
+    };
+    delete withoutDelivery.deadline;
+    expect(validate(withoutDelivery)).toHaveLength(0);
   });
 });
